@@ -1,0 +1,68 @@
+{
+  "name": "@jinshuju/mcp",
+  "version": "0.1.0",
+  "description": "MCP server for the Jinshuju (金数据) Open API v1, generated from openapi.yaml",
+  "homepage": "https://github.com/jinshuju/mcp#readme",
+  "bugs": {
+    "url": "https://github.com/jinshuju/mcp/issues"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jinshuju/mcp.git"
+  },
+  "bin": {
+    "jinshuju-mcp": "dist/stdio.js"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.js",
+    "!dist/**/*.test.d.ts",
+    "!dist/**/*.map"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./app": "./dist/app.js"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
+    "generate": "tsx scripts/generate.ts",
+    "spec:update": "node scripts/fetch-spec.mjs && npm run generate",
+    "build": "npm run clean && tsc -p tsconfig.json && chmod +x dist/stdio.js",
+    "prepare": "npm run build",
+    "test": "npm run build && node --test dist/*.test.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "oxlint",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "check": "npm run typecheck && npm run lint && npm run fmt:check",
+    "start": "node dist/node.js",
+    "dev": "tsx src/node.ts",
+    "worker:dev": "wrangler dev",
+    "worker:deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.4",
+    "@modelcontextprotocol/server": "^2.3.1",
+    "hono": "^4.13.13"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.3.1",
+    "@types/node": "^22.10.0",
+    "oxfmt": "^0.72.0",
+    "oxlint": "^1.87.0",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.149.0",
+    "yaml": "^2.9.1"
+  },
+  "engines": {
+    "node": ">=20.10"
+  }
+}
