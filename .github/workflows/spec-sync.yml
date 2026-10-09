@@ -1,0 +1,46 @@
+name: Sync openapi.yaml
+
+# 每天拉一次线上 openapi.yaml；有变化就重新生成工具并开一个 PR。
+# 这就是「通过 openapi.yaml 自动更新 jinshuju/mcp」：人只需要 review PR 里工具的 diff。
+on:
+  schedule:
+    - cron: '17 1 * * *' # 每天 09:17 北京时间
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run spec:update
+      - name: Summarize tool changes
+        id: summary
+        run: |
+          {
+            echo 'body<<EOF'
+            echo '线上 openapi.yaml 有更新，已重新生成工具。'
+            echo
+            echo '```'
+            git diff --stat -- spec src/generated | tail -20
+            echo '```'
+            echo
+            echo '工具数：' "$(node -e "console.log(require('./src/generated/meta.json').toolCount)")"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/sync-openapi
+          commit-message: 'feat: sync tools with openapi.yaml'
+          title: 'feat: sync tools with openapi.yaml'
+          body: ${{ steps.summary.outputs.body }}
+          labels: openapi-sync
+          delete-branch: true

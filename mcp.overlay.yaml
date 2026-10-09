@@ -1,0 +1,187 @@
+# MCP 视图覆盖（overlay）
+#
+# openapi.yaml 是唯一事实来源，这里只描述「怎么把它投影成 MCP 工具」。
+# 工具集与 https://open.jinshuju.net/mcp 文档中的 60 个工具一一对应（名字相同），不多暴露。
+# 修改本文件后运行 `npm run generate`，产物在 src/generated/，必须一并提交。
+
+# ---- 1. 一一对应的工具：operationId -> 工具名。不在这里的操作不生成工具。 ----
+include:
+  # 表单
+  listForms: list_forms
+  getForm: get_form
+  createForm: create_form
+  updateForm: edit_form
+  copyForm: copy_form
+  moveFormToFolder: move_form
+  listFormCooperators: list_form_cooperators
+  listFieldRules: get_field_rules
+  checkFormFieldData: check_field_data
+  previewFormFieldTypeChange: preview_field_type_change
+  updateFormTheme: edit_theme
+  # 数据
+  listEntries: list_entries
+  getEntry: get_entry
+  createEntry: create_entry
+  updateEntry: update_entry
+  deleteEntry: delete_entry
+  createEntriesBatch: create_entries
+  patchEntriesBatch: patch_entries
+  aggregateEntries: aggregate_entries
+  summarizeEntries: get_form_data_summary
+  searchEntriesAcrossForms: search_entries_in_forms
+  getEntryStats: list_form_entry_stats
+  listMyFilledForms: list_my_submitted_forms
+  listMySubmittedEntries: list_my_submitted_entries
+  searchMySubmittedEntries: search_my_submitted_entries
+  createEntryImport: import_entries_from_file
+  # 评论
+  listEntryComments: list_entry_comments
+  createEntryComment: create_entry_comment
+  updateEntryComment: update_entry_comment
+  deleteEntryComment: delete_entry_comment
+  # 视图
+  listFormViews: list_form_views
+  getFormView: get_form_view
+  createFormView: create_form_view
+  updateFormView: edit_form_view
+  deleteFormView: delete_form_view
+  listFormViewEntries: list_form_view_entries
+  # 表格
+  listTables: list_tables
+  getTable: get_table
+  createTable: create_table
+  updateTable: edit_table
+  moveTableToFolder: move_table
+  # 对外查询 / 文件夹 / 账户
+  listOpensearchQueries: list_opensearch_queries
+  getOpensearchQuery: get_opensearch_query
+  createOpensearchQuery: create_opensearch_query
+  updateOpensearchQuery: edit_opensearch_query
+  listOpensearchQuerySuggestions: get_opensearch_field_suggestions
+  listFolders: list_folders
+  createFolder: create_folder
+  getCurrentUser: get_current_user
+  getBillingAccount: get_current_billing_account
+  listBillingAccountUsers: list_account_users
+  # 上传。预签名上传（prepare_*_upload）不在 openapi 里；这里提供直接上传（base64 进 MCP），名字随接口。
+  uploadEntryAttachment: upload_entry_attachment
+  uploadFormImage: upload_form_image
+  uploadImportFile: upload_import_file
+
+# ---- 2. 投影：一个工具 = 某个操作请求体里的一个子键，子键的属性提升到顶层 ----
+projections:
+  edit_field_rules:
+    operationId: updateForm
+    bodyKey: field_rules
+    title: 编辑字段规则
+    description: >-
+      增量编辑表单的字段显示规则（逻辑跳转）：add 追加、update / remove 按 get_field_rules 返回的 0 起 index 定位，
+      其它规则不受影响。等价于 edit_form 只传 field_rules。
+
+# ---- 3. 组合工具：一次调用发两个请求（考试 / 测评表单的建与改、多表单计数） ----
+composites:
+  create_exam_form:
+    kind: scene_form_create
+    scene: exam
+    settingOperation: updateExamSetting
+    settingKey: exam_setting
+    title: 创建考试表单
+    description: >-
+      创建在线考试表单（scene=exam，自动判分）。题目必须用考试题型（SingleSelect / MultiSelect / TrueOrFalse /
+      DropDownSelect / FillInBlank / ShortAnswer / FillInNumber），每题带 answers（正确答案与分值）。
+      先建表单，再用 exam_setting 更新考试设置；设置被拒绝时表单已创建，结果里会说明。
+  edit_exam_form:
+    kind: scene_form_update
+    scene: exam
+    settingOperation: updateExamSetting
+    settingKey: exam_setting
+    title: 编辑考试表单
+    description: >-
+      编辑考试场景表单：名称 / 描述 / 题目增删改 / 通用设置，以及 exam_setting 考试设置。
+      先更新考试设置（非考试表单会被拒绝，此时不改动其它内容），再更新表单本身。
+  create_evaluation_form:
+    kind: scene_form_create
+    scene: evaluation
+    settingOperation: updateEvaluationSetting
+    settingKey: evaluation_setting
+    title: 创建测评表单
+    description: >-
+      创建测评表单（scene=evaluation）。计分测评用 SingleSelect / MultiSelect / DropDownSelect / Rating / Nps 并带分值；
+      反馈问卷用普通字段。先建表单，再用 evaluation_setting 更新测评设置。
+  edit_evaluation_form:
+    kind: scene_form_update
+    scene: evaluation
+    settingOperation: updateEvaluationSetting
+    settingKey: evaluation_setting
+    title: 编辑测评表单
+    description: >-
+      编辑测评场景表单：名称 / 描述 / 题目增删改 / 通用设置，以及 evaluation_setting 测评设置。先更新测评设置，再更新表单本身。
+  count_entries:
+    kind: count_entries
+    title: 统计数据条数
+    description: >-
+      按条件统计数据条数，不返回数据本身。form_token 传单个 token 统计一个表单（支持 keyword / filters）；
+      传最多 10 个 token 的数组则一次统计多个表单并给出合计（此时 filters 只能用 created_at / updated_at / creator_id，不支持 keyword）。
+
+# ---- 4. 生成规则 ----
+
+# 体积大、按 type 分支的 schema 不内联进工具的 inputSchema / outputSchema，
+# 改为一句指针说明 + `get_schema` 工具 / `jinshuju://schemas/{name}` 资源按需读取。
+pointerSchemas:
+  - FieldInput
+  - FieldUpdateInput
+  - FieldDefinition
+  - FormSettingWriteInput
+  - FormSettingInput
+  - FormSetting
+  - ThemeInput
+  - FormTheme
+  - EvaluationSettingInput
+  - EvaluationSetting
+  - FormViewInput
+  - FormView
+  - OpensearchQueryInput
+  - OpensearchQuery
+  - GoodsItemInput
+  - EntryData
+  - TradeMerchant
+  - BillingAccount
+
+# 只用于服务端校验的组合约束（if/then），对模型没有信息量，从工具入参里去掉；服务端照样校验。
+omitSchemas:
+  - FormCreateConstraints
+
+# 内联在入参里的「按 type 分支」联合（每个分支都有 title）达到这个分支数就折叠：
+# 只留公共属性，把分支名写进描述，细节用 get_schema 查。表格列定义（11 种）就是靠它从 12k 字符降到几百。
+collapseVariantsMinBranches: 3
+
+# outputSchema 只在压缩后不超过这个字符数时随 tools/list 下发（太大的改为描述里一句「返回：XXX」）。
+outputSchemaMaxChars: 700
+
+# 请求体怎么进工具入参：缺省 flatten（请求体的属性提升到顶层）；
+# 这里列出的操作改为嵌在一个键下（数据本身、以及整个请求体就是一个大 schema 指针的那些）。
+bodyParam:
+  createEntry: entry
+  updateEntry: entry
+  updateFormTheme: theme
+  createFormView: view
+  updateFormView: view
+  createOpensearchQuery: query
+  updateOpensearchQuery: query
+
+# ---- 5. 按操作覆盖：descriptionAppend（追加说明）、annotations（覆盖推断）、outputSchema（true / false 强制） ----
+tools:
+  listForms:
+    descriptionAppend: 通常是会话的第一步：先拿到表单 token，再调用 get_form / list_entries。
+  getForm:
+    descriptionAppend: 返回的 fields 里每个字段的 api_code 是读写数据时的键。
+  createForm:
+    descriptionAppend: >-
+      fields 每项的结构按 type 分支，先用 get_schema("FieldInput") 看类型列表，再用 get_schema("<Type>Input")
+      （如 "TextFieldInput"）看该类型接受的属性；不要自己猜字段属性。考试 / 测评表单请用 create_exam_form / create_evaluation_form。
+  updateForm:
+    descriptionAppend: 删除字段 / 选项前先用 check_field_data 确认是否已有数据，删除不可逆。只改字段规则时用 edit_field_rules。
+  updateEntry:
+    descriptionAppend: 只更新传入的键（PATCH）；整体覆盖的 PUT 不提供。
+  deleteEntry:
+    annotations: { destructiveHint: true }

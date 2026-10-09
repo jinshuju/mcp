@@ -1,0 +1,6105 @@
+[
+ {
+  "operationId": "listForms",
+  "summary": "获取表单列表",
+  "description": "获取表单列表\n返回当前身份可见的表单（`kind=form`，不含表格与快速支付）。个人令牌返回该用户创建及被共享的表单；企业令牌返回企业下全部表单。\n默认按 id 倒序（即创建时间倒序），`next` 是下一页第一条的 id；传 `sort` 时按指定字段排序，`next` 变为 `row:<偏移量>`。\n每页默认 50 条，可用 `limit` 调整（最大 1000）。\n- 每行带 `entries_count`（数据量）与 `last_entry_created_at`（最近一次收到数据的时间），可配合 `filters` / `sort` 使用。\n- `include_transactions=true` 时，已绑定收款账户的表单附带 `transactions` 收款统计。\n返回结构见 schema「FormListResponse」（get_schema 可查看）。\n通常是会话的第一步：先拿到表单 token，再调用 get_form / list_entries。",
+  "tag": "Forms",
+  "method": "get",
+  "path": "/forms",
+  "params": [
+   {
+    "name": "q",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "sort",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "include_transactions",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "q",
+   "filters",
+   "sort",
+   "next",
+   "skip",
+   "limit",
+   "include_transactions"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "FormListResponse",
+  "name": "list_forms",
+  "title": "获取表单列表",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "q": {
+     "type": "string",
+     "description": "按名称模糊匹配（不区分大小写，同时匹配对外名称与站内名称）。可传多个值（`q[]=A&q[]=B`），匹配名称包含其中任一的表单。等价于 `filters=[{\"field\":\"form_name\",\"operator\":\"like\",\"value\":...}]`。"
+    },
+    "filters": {
+     "type": "string",
+     "description": "筛选条件，JSON 数组，多个条件为「且」关系。可筛选字段与操作符：\n| field | 类型 | 操作符 |\n|---|---|---|\n| `form_name` | 文本 | `eq` `ne` `any_in` `none_in` `like` `not_like` |\n| `created_at` | 时间 | `eq` `ne` `gte` `gt` `lte` `lt` `within_last` |\n| `last_entry_created_at` | 时间 | 同上（从未收到数据的表单没有该值） |\n| `entries_count` | 整数 | `eq` `ne` `gte` `gt` `lte` `lt` |\n\n`within_last` 的值形如 `{\"unit\":\"day\",\"n\":30}`（unit 可为 minute / day / week / month），表示从现在起往前的窗口。\n示例：`[{\"field\":\"last_entry_created_at\",\"operator\":\"within_last\",\"value\":{\"unit\":\"day\",\"n\":7}}]`\n"
+    },
+    "sort": {
+     "type": "string",
+     "description": "排序规则，JSON 数组，每项 `{\"field\": \"<字段>\", \"order\": \"asc\"|\"desc\"}`（order 缺省 asc），按顺序生效。\n可排序字段：`created_at`、`last_entry_created_at`、`entries_count`；其他字段、非法 order 或无法解析的 JSON 返回 400。\n传 `sort` 后 `next` 变为 `row:<偏移量>` 形式的游标，只能用于同样 `sort` 的请求；值相同的行在翻页间可能出现顺序变化。\n"
+    },
+    "next": {
+     "type": "string",
+     "description": "上一页响应中的 `next`，原样回传以取下一页。不能与 `skip` 同时传。"
+    },
+    "skip": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 10000,
+     "description": "起始行偏移（0 起，最大 10000），用于并行切片读取；返回的 `next` 仍可继续翻页。不能与 `next` 同时传。"
+    },
+    "limit": {
+     "type": "integer",
+     "default": 50,
+     "description": "每页条数，缺省 50，最大 1000（超过按 1000 处理）。传 0 时只返回 `total`，`data` 为空。"
+    },
+    "include_transactions": {
+     "type": "boolean",
+     "default": false,
+     "description": "为 `true` 时，已绑定收款账户（商户号 / 微信支付 / 支付宝）的表单附带 `transactions` 收款统计；未绑定的表单没有该键。缺省不附带。"
+    }
+   },
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "getForm",
+  "summary": "获取表单结构",
+  "description": "获取表单结构\n返回表单名称、对外填写地址（`url`）、描述、字段定义与设置。`fields` 中每个元素是 `{ \"<api_code>\": {...} }` 的单键对象，按字段顺序排列。\n以下内容在对应参数为 `true` 时附带：\n- `include_analytics`：每个可分析字段的定义中附带 `analytics`；\n- `include_theme`：附带 `theme`（表单主题）；\n- `include_field_rules`：附带 `field_rules`（字段显示规则）；\n- `include_extended_attributes`：附带 `extended_attributes`（数据来源链接）；\n- `include_transactions`：表单绑定了收款账户时附带 `transactions`（收款统计）。\n返回结构见 schema「FormDetail」（get_schema 可查看）。\n返回的 fields 里每个字段的 api_code 是读写数据时的键。",
+  "tag": "Forms",
+  "method": "get",
+  "path": "/forms/{form_token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "include_analytics",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "include_theme",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "include_field_rules",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "include_extended_attributes",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "include_transactions",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "include_analytics",
+   "include_theme",
+   "include_field_rules",
+   "include_extended_attributes",
+   "include_transactions"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "FormDetail",
+  "name": "get_form",
+  "title": "获取表单结构",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "include_analytics": {
+     "type": "boolean",
+     "default": false,
+     "description": "是否在每个可分析字段上附带 `analytics`（可用的聚合函数、能否分组、数据概况形态），缺省为 false。"
+    },
+    "include_theme": {
+     "type": "boolean",
+     "default": false,
+     "description": "为 `true` 时附带 `theme`（表单主题）。"
+    },
+    "include_field_rules": {
+     "type": "boolean",
+     "default": false,
+     "description": "为 `true` 时附带 `field_rules`（字段显示规则，同 `GET /forms/{form_token}/field_rules` 的 `data`）。"
+    },
+    "include_extended_attributes": {
+     "type": "boolean",
+     "default": false,
+     "description": "为 `true` 时附带 `extended_attributes`（数据来源链接，同 `GET /forms/{form_token}/extended_attributes` 的 `data`）。"
+    },
+    "include_transactions": {
+     "type": "boolean",
+     "default": false,
+     "description": "为 `true` 时，已绑定收款账户（商户号 / 微信支付 / 支付宝）的表单附带 `transactions` 收款统计；未绑定的表单没有该键。缺省不附带。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "createForm",
+  "summary": "创建表单",
+  "description": "创建表单\n用字段定义列表创建一个表单，返回完整的表单结构。`name` 与 `fields` 必填。\n- `scene` 决定表单场景；考试 / 测评题型（如 `SingleSelect`、`FillInBlank`）只能在支持的场景下使用。\n- `layout=card`（分页式）不支持 PageBreak、Matrix*、TableField、GoodsField、ESignatureField、FormAssociation、MultipleBlanksField 及各类 Widget 字段。\n- `folder_token` 指定的文件夹必须可管理且 kind 为 form，否则分别返回 404 / 400。\n- `setting` 只接受白名单内的键（见 `FormSettingWriteInput`），`setting.notification_rules` 会整体替换由 API 创建的通知规则。\n- 返回的表单结构带 `url`（对外填写地址）。\n返回结构见 schema「Form」（get_schema 可查看）。\nfields 每项的结构按 type 分支，先用 get_schema(\"FieldInput\") 看类型列表，再用 get_schema(\"<Type>Input\") （如 \"TextFieldInput\"）看该类型接受的属性；不要自己猜字段属性。考试 / 测评表单请用 create_exam_form / create_evaluation_form。",
+  "tag": "Forms",
+  "method": "post",
+  "path": "/forms",
+  "params": [],
+  "paramNames": [],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "Form",
+  "name": "create_form",
+  "title": "创建表单",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "表单名称"
+    },
+    "description": {
+     "type": "string",
+     "description": "表单描述"
+    },
+    "fields": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "object",
+      "description": "结构见 schema「FieldInput」：调用 get_schema 工具（name=\"FieldInput\"）或读取资源 jinshuju://schemas/FieldInput。"
+     }
+    },
+    "setting": {
+     "type": "object",
+     "description": "结构见 schema「FormSettingWriteInput」：调用 get_schema 工具（name=\"FormSettingWriteInput\"）或读取资源 jinshuju://schemas/FormSettingWriteInput。"
+    },
+    "folder_token": {
+     "type": "string",
+     "description": "放入的文件夹 token（或 id），必须可管理且 kind 为 form"
+    },
+    "scene": {
+     "type": "string",
+     "enum": [
+      "form",
+      "survey",
+      "registry",
+      "vote",
+      "exam",
+      "reservation",
+      "customer_acquisition",
+      "evaluation",
+      "online_payment",
+      "quickpay"
+     ],
+     "description": "表单场景，缺省为普通表单"
+    },
+    "layout": {
+     "type": "string",
+     "enum": [
+      "classic",
+      "card"
+     ],
+     "description": "布局，仅 survey / form / exam / evaluation 场景有效；card 为分页式"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "name",
+    "fields"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "updateForm",
+  "summary": "编辑表单",
+  "description": "编辑表单\n增量编辑表单，也接受 `PUT`。请求体至少包含 `name` / `description` / `fields` / `setting` / `field_rules` 之一，否则返回 400。\n- `fields` 按 `add` / `remove` / `update` / `update_choices` 四类操作增量修改，未提及的字段、选项与 api_code 全部保留；\n  `update[].type` 可原地切换字段类型，会清空数据的切换必须带 `confirm_data_loss: true`。\n- `field_rules` 以 `GET /forms/{form_token}/field_rules` 返回的 `index` 定位规则做 `add` / `remove` / `update`。\n- `setting` 与创建时相同，只接受白名单内的键。\n返回更新后的完整表单结构。\n返回结构见 schema「Form」（get_schema 可查看）。\n删除字段 / 选项前先用 check_field_data 确认是否已有数据，删除不可逆。只改字段规则时用 edit_field_rules。",
+  "tag": "Forms",
+  "method": "patch",
+  "path": "/forms/{form_token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "Form",
+  "name": "edit_form",
+  "title": "编辑表单",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "name": {
+     "type": "string"
+    },
+    "description": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "setting": {
+     "type": "object",
+     "description": "结构见 schema「FormSettingWriteInput」：调用 get_schema 工具（name=\"FormSettingWriteInput\"）或读取资源 jinshuju://schemas/FormSettingWriteInput。"
+    },
+    "fields": {
+     "type": "object",
+     "description": "字段增量操作，至少一个子键非空才生效",
+     "properties": {
+      "add": {
+       "type": "array",
+       "description": "新增字段；可带 `position`（0 起）指定插入位置，缺省追加到末尾",
+       "items": {
+        "type": "object",
+        "description": "结构见 schema「FieldInput」：调用 get_schema 工具（name=\"FieldInput\"）或读取资源 jinshuju://schemas/FieldInput。"
+       }
+      },
+      "remove": {
+       "type": "array",
+       "description": "要删除的字段 api_code；不存在时返回 400",
+       "items": {
+        "type": "string"
+       }
+      },
+      "update": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "description": "结构见 schema「FieldUpdateInput」：调用 get_schema 工具（name=\"FieldUpdateInput\"）或读取资源 jinshuju://schemas/FieldUpdateInput。"
+       }
+      },
+      "update_choices": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "required": [
+         "field_api_code"
+        ],
+        "description": "对某个选项类字段（或矩阵 / 表格中的选项列）的选项做增量修改；字段不存在或不支持选项时返回 400",
+        "properties": {
+         "field_api_code": {
+          "type": "string"
+         },
+         "add": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "title": "ChoiceInput",
+           "additionalProperties": false,
+           "description": "选项；value 与 name 等价，任填其一",
+           "anyOf": [
+            {
+             "required": [
+              "value"
+             ]
+            },
+            {
+             "required": [
+              "name"
+             ]
+            }
+           ],
+           "properties": {
+            "value": {
+             "type": "string",
+             "description": "选项显示值"
+            },
+            "name": {
+             "type": "string",
+             "description": "与 value 等价"
+            },
+            "api_code": {
+             "type": "string",
+             "description": "指定选项 api_code；缺省由服务端生成，编辑时用于保留身份"
+            },
+            "quota": {
+             "type": "integer",
+             "minimum": 1,
+             "description": "名额上限；不限名额时省略"
+            },
+            "operand_value": {
+             "type": "number",
+             "description": "选项赋值"
+            },
+            "selected": {
+             "type": "boolean",
+             "description": "默认选中"
+            }
+           }
+          }
+         },
+         "remove": {
+          "type": "array",
+          "description": "要删除的选项 api_code（或显示值），也可写成 `{\"api_code\": \"...\"}`",
+          "items": {
+           "oneOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "object",
+             "properties": {
+              "api_code": {
+               "type": "string"
+              }
+             }
+            }
+           ]
+          }
+         },
+         "update": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "api_code"
+           ],
+           "properties": {
+            "api_code": {
+             "type": "string"
+            },
+            "value": {
+             "type": "string",
+             "description": "新显示值"
+            },
+            "operand_value": {
+             "type": "number"
+            },
+            "selected": {
+             "type": "boolean"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      }
+     },
+     "additionalProperties": false
+    },
+    "field_rules": {
+     "type": "object",
+     "description": "字段规则增量操作，`remove` / `update` 以 `GET /forms/{form_token}/field_rules` 返回的 0 起 `index` 定位；同一 index 不能同时删除和更新",
+     "properties": {
+      "add": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "仅 update 操作使用：要修改的规则下标（0 起）"
+         },
+         "targets": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          },
+          "description": "受影响字段的 api_code；`targets_display_mode=abort` 时可省略"
+         },
+         "targets_display_mode": {
+          "type": "string",
+          "description": "`show` / `hide` / `abort`，默认 show"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "条件之间的关系，默认 or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "触发字段 api_code"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "比较符，缺省取该字段支持的第一个；不支持时返回 400 并列出可用比较符"
+            },
+            "value": {
+             "description": "比较值"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      },
+      "remove": {
+       "type": "array",
+       "items": {
+        "type": "integer"
+       }
+      },
+      "update": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "仅 update 操作使用：要修改的规则下标（0 起）"
+         },
+         "targets": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          },
+          "description": "受影响字段的 api_code；`targets_display_mode=abort` 时可省略"
+         },
+         "targets_display_mode": {
+          "type": "string",
+          "description": "`show` / `hide` / `abort`，默认 show"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "条件之间的关系，默认 or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "触发字段 api_code"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "比较符，缺省取该字段支持的第一个；不支持时返回 400 并列出可用比较符"
+            },
+            "value": {
+             "description": "比较值"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      }
+     },
+     "additionalProperties": false
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "copyForm",
+  "summary": "复制表单",
+  "description": "复制表单\n复制表单并返回新表单（与 GET /forms/{form_token} 相同结构）。新表单的创建者为当前调用用户（账户级令牌为账户所有者）。\n\n- 源表单允许公开复制（can_duplicated_in_public）时，不要求调用者对源表单有访问权限；否则无权限返回 404。\n- 源表单被冻结、或源表单创建者账号被禁用时返回 403，响应体为 `{ \"errors\": ..., \"status_code\": \"form_forbidden\" }`（与通用错误结构不同）。\n- `folder_token` 接受文件夹 token 或 id；文件夹不存在或无管理权限返回 404。\n- 复制失败（模型校验不通过）返回 400。\n返回结构见 schema「Form」（get_schema 可查看）。",
+  "tag": "Forms",
+  "method": "post",
+  "path": "/forms/{form_token}/copy",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": false,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "forms。"
+  ],
+  "responseSchema": "Form",
+  "name": "copy_form",
+  "title": "复制表单",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "name": {
+     "type": "string",
+     "description": "新表单名称；省略时沿用服务端默认命名"
+    },
+    "folder_token": {
+     "type": "string",
+     "description": "目标文件夹 token 或 id；省略则不放入文件夹"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "moveFormToFolder",
+  "summary": "移动表单到文件夹",
+  "description": "移动表单到文件夹\n将表单移入指定文件夹，或移出文件夹（`folder_token` 传 null）；同时接受 PUT。移动仅影响当前调用用户的文件夹归属。\n\n- 请求体必须包含 `folder_token` 键（值可为 null），否则 400。\n- `folder_token` 只接受文件夹 token（不接受 id）；文件夹不存在或当前用户无管理权限返回 404。\n- 文件夹类型（form / table）必须与表单类型一致，否则 400。\n- 移动表格请使用 `PATCH /tables/{table_token}/folder`。",
+  "tag": "Forms",
+  "method": "patch",
+  "path": "/forms/{form_token}/folder",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "forms。"
+  ],
+  "responseSchema": "FormFolderMoveResult",
+  "name": "move_form",
+  "title": "移动表单到文件夹",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "folder_token": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "目标文件夹 token；null 表示移出文件夹"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "folder_token"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "form_token",
+    "folder_token"
+   ],
+   "properties": {
+    "form_token": {
+     "type": "string"
+    },
+    "folder_token": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "移动后所在文件夹 token；移出时为 null"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "listFormCooperators",
+  "summary": "获取表单协作者",
+  "description": "获取表单协作者\n返回表单的协作者及其角色名称，包含从文件夹继承的角色；同一用户通过多条路径获得角色时只返回距离最近的一条。",
+  "tag": "Forms",
+  "method": "get",
+  "path": "/forms/{form_token}/cooperators",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms。"
+  ],
+  "name": "list_form_cooperators",
+  "title": "获取表单协作者",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "count",
+    "data"
+   ],
+   "properties": {
+    "count": {
+     "type": "integer"
+    },
+    "data": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "user_id",
+       "name",
+       "role"
+      ],
+      "properties": {
+       "user_id": {
+        "type": "string",
+        "description": "用户 id"
+       },
+       "name": {
+        "type": "string",
+        "description": "用户显示名"
+       },
+       "role": {
+        "type": [
+         "string",
+         "null"
+        ],
+        "description": "角色名称"
+       }
+      }
+     }
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "listFieldRules",
+  "summary": "获取字段显示规则",
+  "description": "获取字段显示规则\n返回表单的有效字段显示规则（逻辑跳转）。`index` 为 0 起始的位置，PATCH /forms/{form_token} 的 field_rules 更新与删除按此 index 定位。",
+  "tag": "Forms",
+  "method": "get",
+  "path": "/forms/{form_token}/field_rules",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms。"
+  ],
+  "name": "get_field_rules",
+  "title": "获取字段显示规则",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "checkFormFieldData",
+  "summary": "检查字段是否已有数据",
+  "description": "检查字段是否已有数据\n删除字段或选项前使用：批量检查字段（或字段的单个选项）是否已有提交的数据。删除仍有数据的字段或选项会连同这些数据一起删除且无法恢复。\n与网页编辑器删除前的检查结果一致。\n- 一次编辑涉及的所有删除目标放在同一次调用的 `checks` 里（最多 100 个，可跨多个字段）；`results` 与 `checks` 顺序一一对应。\n- 某个目标无法检查（如字段不存在）时，该行返回 `unavailable` 说明原因，其余目标照常返回。\n- `checks` 缺失、为空、超过 100 个、不是 JSON 数组或其中某项不是对象时返回 400。\n返回结构见 schema「FieldDataCheckResponse」（get_schema 可查看）。",
+  "tag": "Forms",
+  "method": "get",
+  "path": "/forms/{form_token}/fields/check",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "checks",
+    "in": "query",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "checks"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms。"
+  ],
+  "responseSchema": "FieldDataCheckResponse",
+  "name": "check_field_data",
+  "title": "检查字段是否已有数据",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "checks": {
+     "type": "string",
+     "description": "要检查的目标，JSON 数组（1～100 项），每项一个字段或一个选项：\n| 键 | 类型 | 说明 |\n|---|---|---|\n| `field_api_code` | string | 必填。要检查的字段 api_code；检查表格字段 / 矩阵字段的某一列时传该列的 api_code，并同时传 `parent_field` |\n| `choice_value` | string | 可选。只检查某个选项时传该选项的 api_code；不传则检查整个字段是否有数据 |\n| `choice_type` | string | 可选，配合 `choice_value` 使用：`choice`（默认）、矩阵字段的 `statement` / `dimension`、多级下拉的 `level_1` ～ `level_4` |\n| `parent_field` | string | 可选。检查矩阵 / 表格字段的某一列时，父字段的 api_code |\n| `check_extended_text` | boolean | 可选。为 `true` 时检查该选项的「其他」补充填写内容是否有数据 |\n| `goods_item_dimension_options` | object | 可选。检查商品字段某个规格时，传规格维度与选项的对应关系 |\n"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "checks"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "previewFormFieldTypeChange",
+  "summary": "预览字段类型转换",
+  "description": "预览字段类型转换\n修改字段类型（PATCH /forms/{form_token} 中字段的 `type`）前使用：不修改任何数据，按字段当前的数据统计转换后保留与清空的条数。\n类型转换在原字段上进行（api_code 与数据列不变），因此受影响的只有数据；与网页编辑器转换前的预览结果一致。\n- 一次编辑涉及的所有转换放在同一次调用的 `checks` 里（最多 20 个）；`results` 与 `checks` 顺序一一对应。\n- `supported=false` 表示该字段不支持转换为目标类型，实际编辑也会被拒绝。\n- 多行文本转换为单选 / 多选等选择类字段时，额外返回将从已有数据生成的选项数 `choice_count`，以及是否超过选项上限 `choice_limit_exceeded`（超过时转换会被拒绝，而不是截断）。\n- 某项无法预览（字段不存在、`target_type` 不是该表单可用的类型等）时，该行返回 `unavailable` 说明原因，其余项照常返回。\n- `checks` 缺失、为空、超过 20 个、不是 JSON 数组或其中某项不是对象时返回 400。\n返回结构见 schema「FieldTypeChangePreviewResponse」（get_schema 可查看）。",
+  "tag": "Forms",
+  "method": "get",
+  "path": "/forms/{form_token}/fields/preview_convert",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "checks",
+    "in": "query",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "checks"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms。"
+  ],
+  "responseSchema": "FieldTypeChangePreviewResponse",
+  "name": "preview_field_type_change",
+  "title": "预览字段类型转换",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "checks": {
+     "type": "string",
+     "description": "要预览的类型转换，JSON 数组（1～20 项），每项一个字段：\n| 键 | 类型 | 说明 |\n|---|---|---|\n| `field_api_code` | string | 必填。要转换的字段 api_code |\n| `target_type` | string | 必填。目标字段类型，取值见 `GET /field_types`（表格见 `GET /field_types?kind=table`） |\n| `target_precision` | string | 可选。目标为 `DateTimeField` 时，编辑将使用的日期精度（`month` / `day` / `minute` / `second`），使预览与实际转换一致；其他情况忽略 |\n"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "checks"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "updateFormTheme",
+  "summary": "更新表单主题",
+  "description": "更新表单主题\n增量修改表单主题（配色、背景、头图、字体、表单容器、提交按钮）；同时接受 PUT。\n- 请求体必须至少包含 primary_color / secondary_color / wallpaper / header / typography / form_container / submit_button 之一（`generate_header_image` 会被转换为 header.header_image_url，因此也算），否则 400。\n- 头图来源优先级：header_image_upload_token > header_image_base64 > header_image_url > header_image_attachment_id；设置头图后若未指定 header.type，则自动设为 image。\n- 背景图来源优先级：background_image_upload_token > background_image_url > background_image_attachment_id。设置或移除背景图时会同时去掉主题模板自带的预设背景图，背景色保留。\n- `header_image_attachment_id` / `background_image_attachment_id` 填「上传表单图片」（image_type 为 header / wallpaper）返回的 `attachment_id`；传空字符串 `\"\"` 移除当前图片。\n- `header.carousel_images` 整体替换轮播图，最多 5 张，不能为空；每项需提供 image_upload_token / image_url / attachment_id 之一，attachment_id 必须是该表单已有的轮播图；传入后若未指定 header.type，则自动设为 carousel。\n- `text_style` 与 `typography.*` 中的键使用下划线（如 font_size），服务端转换为 CSS 连字符键并与现有样式合并；返回值中为连字符键。\n- `generate_header_image` 调用 AI 生成头图，消耗 AI 点数；点数不足返回 402，生成失败返回 400。\n- 图片 upload_token 即「上传表单图片」使用的 `form_image_token`，其记录的图片用途需匹配（header / wallpaper / carousel），且必须已完成上传。",
+  "tag": "Form Settings",
+  "method": "patch",
+  "path": "/forms/{form_token}/theme",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": false,
+   "param": "theme"
+  },
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "FormTheme",
+  "name": "edit_theme",
+  "title": "更新表单主题",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "theme": {
+     "type": "object",
+     "description": "结构见 schema「ThemeInput」：调用 get_schema 工具（name=\"ThemeInput\"）或读取资源 jinshuju://schemas/ThemeInput。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "theme"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "description": "结构见 schema「FormTheme」：调用 get_schema 工具（name=\"FormTheme\"）或读取资源 jinshuju://schemas/FormTheme。"
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "listEntries",
+  "summary": "获取数据列表",
+  "description": "获取数据列表\n分页返回表单数据，每页缺省 50 条，可用 `limit` 指定（最大 1000）。默认按序号升序，`next` 为下一页第一条的序号。\n- `filters` / `keyword` 触发条件查询，`created_at` 只返回该时间及之后创建的数据（并改为按创建时间排序）；\n  这两种情况以及传 `sort` 时，`next` 变为行偏移量。\n- `fields` 只返回指定字段（序号始终返回）。\n- 每条数据的键为字段 api_code（配置了 api_code_alias 的字段以别名为键），值的形态见 `EntryData`。",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/entries",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "fields",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "sort",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "created_at",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "include_labels",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "fields",
+   "filters",
+   "keyword",
+   "sort",
+   "created_at",
+   "next",
+   "skip",
+   "include_labels",
+   "limit"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntryListResponse",
+  "name": "list_entries",
+  "title": "获取数据列表",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "fields": {
+     "type": "string",
+     "description": "只返回指定字段。JSON 数组、逗号分隔字符串或重复参数均可，值为字段 api_code；序号始终返回。含未知 api_code 时返回 400 并列出可用字段。"
+    },
+    "filters": {
+     "type": "string",
+     "description": "筛选条件，JSON 数组，每项为 `{\"field\": \"<api_code>\", \"operator\": \"<op>\", \"value\": ...}`（`field` 也可写作 `api_code` / `trigger`），多个条件为「且」关系。\n- 操作符全集：`eq` `ne` `any_in` `none_in` `between` `not_between` `null` `not_null` `gte` `gt` `lte` `lt` `like` `not_like` `within_last`，\n  别名 `equal` / `not_equal` / `start`（=gte）/ `end`（=lte）。每种字段类型只接受其中一部分，不支持时返回 400 并列出可用操作符。\n- 选项类字段（单选 / 多选 / 下拉 / 多级下拉）的 `value` 可以是选项 api_code 或选项显示值；多级下拉可用 `一级-二级` 路径。\n- `between` / `not_between` 的 `value` 为二元数组 `[min, max]`；矩阵 / 表格字段需写成 `{\"<列 api_code>\": [min, max]}`。\n- `within_last` 仅日期字段可用，`value` 形如 `{\"unit\":\"day\",\"n\":30}`（unit 可为 minute / day / week / month）。\n- `creator_id` 可作为特殊字段用 `eq` 筛选提交人（值为用户 id），且只能出现一次。\n- 含 `created_at` 条件时结果改为按创建时间排序。\n"
+    },
+    "keyword": {
+     "type": "string",
+     "maxLength": 200,
+     "description": "全文关键字（最长 200 字符），在所有可搜索字段中模糊匹配。数据量超过 99999 条且未启用分析引擎的表单不支持全文搜索（返回 400），除非同时用 `creator_id` 限定提交人。"
+    },
+    "sort": {
+     "type": "string",
+     "description": "排序规则，JSON 数组，每项 `{\"api_code\": \"<api_code>\", \"order\": \"asc\"|\"desc\"}`，按顺序生效，末尾自动追加按序号升序。\n只有可排序字段可用，否则返回 400 并列出可排序字段。传 `sort` 后 `next` 变为行偏移量。\n"
+    },
+    "created_at": {
+     "type": "string",
+     "description": "只返回在该时间及之后创建的数据（按北京时间解析，如 `2024-01-01` 或 `2024-01-01 08:00:00`），并改为按创建时间升序。格式无法解析时返回 400。与 `filters` / `keyword` 同时传时忽略。"
+    },
+    "next": {
+     "type": "integer",
+     "description": "上一页响应中的 `next`。默认排序下是序号游标（返回序号 ≥ 该值的数据）；条件查询 / 按创建时间 / 显式排序时是行偏移量。不能与 `skip` 同时传。"
+    },
+    "skip": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 10000,
+     "description": "起始行偏移（0 起，最大 10000），用于并行切片读取。不能与 `next` 同时传。"
+    },
+    "include_labels": {
+     "type": "boolean",
+     "default": false,
+     "description": "为 true 时，每条数据中表单字段的值改为 `{\"label\": \"<字段标题>\", \"value\": <原值>}`，免去再读一次表单结构。\n系统键（如 `serial_number`、`creator_id`、`token`）与考试 / 测评的 `<api_code>_extra_value` 保持原样。缺省为 false。\n"
+    },
+    "limit": {
+     "type": "integer",
+     "default": 50,
+     "description": "每页条数，缺省 50，最大 1000（超过按 1000 处理）。传 0 时只返回 `total`，`data` 为空。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "total",
+    "count",
+    "data",
+    "next"
+   ],
+   "properties": {
+    "total": {
+     "type": "integer",
+     "description": "满足条件的数据总数"
+    },
+    "count": {
+     "type": "integer",
+     "description": "本页条数"
+    },
+    "data": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "description": "结构见 schema「EntryData」：调用 get_schema 工具（name=\"EntryData\"）或读取资源 jinshuju://schemas/EntryData。"
+     }
+    },
+    "next": {
+     "type": [
+      "integer",
+      "null"
+     ],
+     "description": "下一页游标（默认排序下为序号，其他情况为行偏移量）；末页为 null"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "getEntry",
+  "summary": "获取单条数据",
+  "description": "获取单条数据\n按序号返回一条数据。`fields` 可限定返回的字段。",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/entries/{serial_number}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "serial_number",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "fields",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "include_labels",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "serial_number",
+   "fields",
+   "include_labels"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "Entry",
+  "name": "get_entry",
+  "title": "获取单条数据",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "serial_number": {
+     "type": "integer",
+     "description": "数据序号"
+    },
+    "fields": {
+     "type": "string",
+     "description": "只返回指定字段。JSON 数组、逗号分隔字符串或重复参数均可，值为字段 api_code；序号始终返回。含未知 api_code 时返回 400 并列出可用字段。"
+    },
+    "include_labels": {
+     "type": "boolean",
+     "default": false,
+     "description": "为 true 时，每条数据中表单字段的值改为 `{\"label\": \"<字段标题>\", \"value\": <原值>}`，免去再读一次表单结构。\n系统键（如 `serial_number`、`creator_id`、`token`）与考试 / 测评的 `<api_code>_extra_value` 保持原样。缺省为 false。\n"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "serial_number"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "form",
+    "form_name",
+    "entry"
+   ],
+   "properties": {
+    "form": {
+     "type": "string",
+     "description": "表单 token"
+    },
+    "form_name": {
+     "type": "string"
+    },
+    "entry": {
+     "type": "object",
+     "description": "结构见 schema「EntryData」：调用 get_schema 工具（name=\"EntryData\"）或读取资源 jinshuju://schemas/EntryData。"
+    },
+    "url": {
+     "type": "string",
+     "format": "uri",
+     "description": "该条数据在金数据数据页中的打开地址（表单为数据页、表格为表格页，定位到该条序号），给用户核对用。只在获取、新增、更新单条数据的响应中出现；列表与批量接口不返回；快捷收款表单的数据没有该键。"
+    }
+   },
+   "examples": [
+    {
+     "form": "kjFelJqi",
+     "form_name": "报名表",
+     "entry": {
+      "token": "kjFelJqi",
+      "serial_number": 36,
+      "field_1": "张三"
+     },
+     "url": "https://next.jinshuju.net/forms/kjFelJqi/entries?serial_number=36"
+    }
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "createEntry",
+  "summary": "新增数据",
+  "description": "新增数据\n以字段 api_code（或 api_code_alias）为键提交一条数据。未知键被忽略；有效键为空时返回 400，`error_description` 以 `Entry attributes cannot be empty` 开头，并逐个说明被丢弃的键（不是该表单的字段，或是不可写入的签名 / 计算字段）。\n- 表单的「字段规则」与字段校验依然生效，校验失败返回 400，`error_description` 是 `{ \"<api_code>\": [\"错误\"] }` 序列化后的 JSON 字符串。\n- 手机字段跳过短信验证；签名字段、计算字段不可写入。\n- 表单数据量达到套餐上限时返回 403。\n- 附件字段接受多种写法，见 `EntryInput`。",
+  "tag": "Entries",
+  "method": "post",
+  "path": "/forms/{form_token}/entries",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": false,
+   "param": "entry"
+  },
+  "successStatus": 201,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "Entry",
+  "name": "create_entry",
+  "title": "新增数据",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "entry": {
+     "type": "object",
+     "description": "写入数据时的字段值，键为字段 api_code 或 api_code_alias。未知键与不可写字段（签名、计算）被忽略。\n选项类字段可传选项 api_code 或显示值，多级下拉与选项补充文本见下表；数字字段接受数字或数字字符串。\n\n| 字段 | 写法 |\n|---|---|\n| 单行 / 多行文字、姓名、手机、邮箱、电话、网址、身份证 | 字符串 |\n| 单选、下拉 | `\"选项 api_code\"` 或 `\"选项显示值\"`；补充文本用 `\"<api_code>_extended_text\": {\"<选项>\": \"补充\"}`，「其他」文本用 `\"<api_code>_other\": \"...\"` |\n| 多选 | 数组，元素同上 |\n| 图片单选 / 图片多选 | 选项 api_code（字符串 / 数组） |\n| 多级下拉 | `{\"level_1\": \"...\", \"level_2\": \"...\"}`（api_code 或显示值） |\n| 数字、评分、NPS | 数字 |\n| 是否 | 布尔 |\n| 日期 | `\"2012-12-25\"` 或 `\"2012-12-25 12:13:15\"`（北京时间） |\n| 时间 | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| 地址 | `{\"province\",\"city\",\"district\",\"street\"}` |\n| 地理位置 | `{\"longitude\",\"latitude\",\"address\"}` |\n| 上传文件（可多个） | 数组，元素可为：已上传附件的 id；本表单已有附件的下载地址（用于保留）；`{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}`（≤ 5MB，`base64` 也可为 data URI）；`{\"attachment_token\": \"...\"}`（预上传令牌） |\n| 商品 | `[{\"value\": \"商品 api_code\", \"number\": 2, \"specification\": {\"规格维度\": \"选项\"}?}]` |\n| 矩阵填空 / 矩阵量表 | `{\"<题目 api_code>\": {\"<列 api_code>\": 值}}` |\n| 矩阵单选 | `{\"<题目 api_code>\": \"选项 api_code\"}` |\n| 表格 | `[{\"<列 api_code>\": 值}, ...]`，附件列写法同上传文件 |\n| 横向填空 | `{\"<子字段 api_code>\": \"...\"}` |\n| 排序 | 有序数组 `[\"选项 api_code\", ...]` |\n| 表单关联 | 关联数据的 token / id，或用关联键匹配的显示值（多个关联键传数组） |\n| 预约 | `[{\"api_code\": \"项目\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| 颜色标记 | `\"color_mark\": \"<颜色 api_code 或名称>\"` |\n| 国际手机号 | 另传 `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+     "additionalProperties": true,
+     "examples": [
+      {
+       "field_1": "张三",
+       "field_2": "13800000000",
+       "field_3": [
+        "选项 A",
+        "选项 B"
+       ],
+       "field_4": "2024-05-01",
+       "field_5": [
+        "5f3a1b2c4d5e6f7a8b9c0d1e",
+        {
+         "base64": "iVBORw0KGgo...",
+         "file_name": "photo.png",
+         "content_type": "image/png"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "entry"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "form",
+    "form_name",
+    "entry"
+   ],
+   "properties": {
+    "form": {
+     "type": "string",
+     "description": "表单 token"
+    },
+    "form_name": {
+     "type": "string"
+    },
+    "entry": {
+     "type": "object",
+     "description": "结构见 schema「EntryData」：调用 get_schema 工具（name=\"EntryData\"）或读取资源 jinshuju://schemas/EntryData。"
+    },
+    "url": {
+     "type": "string",
+     "format": "uri",
+     "description": "该条数据在金数据数据页中的打开地址（表单为数据页、表格为表格页，定位到该条序号），给用户核对用。只在获取、新增、更新单条数据的响应中出现；列表与批量接口不返回；快捷收款表单的数据没有该键。"
+    }
+   },
+   "examples": [
+    {
+     "form": "kjFelJqi",
+     "form_name": "报名表",
+     "entry": {
+      "token": "kjFelJqi",
+      "serial_number": 36,
+      "field_1": "张三"
+     },
+     "url": "https://next.jinshuju.net/forms/kjFelJqi/entries?serial_number=36"
+    }
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "updateEntry",
+  "summary": "增量更新数据",
+  "description": "增量更新数据\n**增量更新**：只修改请求体中出现的字段，其余字段保持原值。附件字段是整组覆盖，要保留已有文件需把读到的地址或附件 id 一并回传。\n校验失败返回 400，`error_description` 为字段错误的 JSON 字符串。\n只更新传入的键（PATCH）；整体覆盖的 PUT 不提供。",
+  "tag": "Entries",
+  "method": "patch",
+  "path": "/forms/{form_token}/entries/{serial_number}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "serial_number",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "serial_number"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": false,
+   "param": "entry"
+  },
+  "successStatus": 200,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "Entry",
+  "name": "update_entry",
+  "title": "增量更新数据",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "serial_number": {
+     "type": "integer",
+     "description": "数据序号"
+    },
+    "entry": {
+     "type": "object",
+     "description": "写入数据时的字段值，键为字段 api_code 或 api_code_alias。未知键与不可写字段（签名、计算）被忽略。\n选项类字段可传选项 api_code 或显示值，多级下拉与选项补充文本见下表；数字字段接受数字或数字字符串。\n\n| 字段 | 写法 |\n|---|---|\n| 单行 / 多行文字、姓名、手机、邮箱、电话、网址、身份证 | 字符串 |\n| 单选、下拉 | `\"选项 api_code\"` 或 `\"选项显示值\"`；补充文本用 `\"<api_code>_extended_text\": {\"<选项>\": \"补充\"}`，「其他」文本用 `\"<api_code>_other\": \"...\"` |\n| 多选 | 数组，元素同上 |\n| 图片单选 / 图片多选 | 选项 api_code（字符串 / 数组） |\n| 多级下拉 | `{\"level_1\": \"...\", \"level_2\": \"...\"}`（api_code 或显示值） |\n| 数字、评分、NPS | 数字 |\n| 是否 | 布尔 |\n| 日期 | `\"2012-12-25\"` 或 `\"2012-12-25 12:13:15\"`（北京时间） |\n| 时间 | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| 地址 | `{\"province\",\"city\",\"district\",\"street\"}` |\n| 地理位置 | `{\"longitude\",\"latitude\",\"address\"}` |\n| 上传文件（可多个） | 数组，元素可为：已上传附件的 id；本表单已有附件的下载地址（用于保留）；`{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}`（≤ 5MB，`base64` 也可为 data URI）；`{\"attachment_token\": \"...\"}`（预上传令牌） |\n| 商品 | `[{\"value\": \"商品 api_code\", \"number\": 2, \"specification\": {\"规格维度\": \"选项\"}?}]` |\n| 矩阵填空 / 矩阵量表 | `{\"<题目 api_code>\": {\"<列 api_code>\": 值}}` |\n| 矩阵单选 | `{\"<题目 api_code>\": \"选项 api_code\"}` |\n| 表格 | `[{\"<列 api_code>\": 值}, ...]`，附件列写法同上传文件 |\n| 横向填空 | `{\"<子字段 api_code>\": \"...\"}` |\n| 排序 | 有序数组 `[\"选项 api_code\", ...]` |\n| 表单关联 | 关联数据的 token / id，或用关联键匹配的显示值（多个关联键传数组） |\n| 预约 | `[{\"api_code\": \"项目\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| 颜色标记 | `\"color_mark\": \"<颜色 api_code 或名称>\"` |\n| 国际手机号 | 另传 `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+     "additionalProperties": true,
+     "examples": [
+      {
+       "field_1": "张三",
+       "field_2": "13800000000",
+       "field_3": [
+        "选项 A",
+        "选项 B"
+       ],
+       "field_4": "2024-05-01",
+       "field_5": [
+        "5f3a1b2c4d5e6f7a8b9c0d1e",
+        {
+         "base64": "iVBORw0KGgo...",
+         "file_name": "photo.png",
+         "content_type": "image/png"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "serial_number",
+    "entry"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "form",
+    "form_name",
+    "entry"
+   ],
+   "properties": {
+    "form": {
+     "type": "string",
+     "description": "表单 token"
+    },
+    "form_name": {
+     "type": "string"
+    },
+    "entry": {
+     "type": "object",
+     "description": "结构见 schema「EntryData」：调用 get_schema 工具（name=\"EntryData\"）或读取资源 jinshuju://schemas/EntryData。"
+    },
+    "url": {
+     "type": "string",
+     "format": "uri",
+     "description": "该条数据在金数据数据页中的打开地址（表单为数据页、表格为表格页，定位到该条序号），给用户核对用。只在获取、新增、更新单条数据的响应中出现；列表与批量接口不返回；快捷收款表单的数据没有该键。"
+    }
+   },
+   "examples": [
+    {
+     "form": "kjFelJqi",
+     "form_name": "报名表",
+     "entry": {
+      "token": "kjFelJqi",
+      "serial_number": 36,
+      "field_1": "张三"
+     },
+     "url": "https://next.jinshuju.net/forms/kjFelJqi/entries?serial_number=36"
+    }
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "deleteEntry",
+  "summary": "删除数据",
+  "description": "删除数据\n删除一条数据并记录删除活动。成功返回被删除数据的序号；删除失败（如表单状态不允许）返回 400。",
+  "tag": "Entries",
+  "method": "delete",
+  "path": "/forms/{form_token}/entries/{serial_number}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "serial_number",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "serial_number"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "write_entries"
+  ],
+  "name": "delete_entry",
+  "title": "删除数据",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "serial_number": {
+     "type": "integer",
+     "description": "数据序号"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "serial_number"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "serial_number"
+   ],
+   "properties": {
+    "serial_number": {
+     "type": "integer"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": true,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "createEntriesBatch",
+  "summary": "批量新增数据",
+  "description": "批量新增数据\n一次最多提交 200 条数据。逐条校验，合法的批量写入，非法的记录在 `errors` 中（`index` 为请求数组下标）。\n至少一条成功返回 201，全部失败返回 422；`entries` 为空或超过 200 条返回 400。\n提交前会按条数检查数据量上限，超限返回 403。批量写入不会触发单条新增的回调，但会创建一条「导入」活动记录并回填计算字段。",
+  "tag": "Entries",
+  "method": "post",
+  "path": "/forms/{form_token}/entries/batch",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "BatchCreateResult",
+  "name": "create_entries",
+  "title": "批量新增数据",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "entries": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 200,
+     "items": {
+      "type": "object",
+      "description": "写入数据时的字段值，键为字段 api_code 或 api_code_alias。未知键与不可写字段（签名、计算）被忽略。\n选项类字段可传选项 api_code 或显示值，多级下拉与选项补充文本见下表；数字字段接受数字或数字字符串。\n\n| 字段 | 写法 |\n|---|---|\n| 单行 / 多行文字、姓名、手机、邮箱、电话、网址、身份证 | 字符串 |\n| 单选、下拉 | `\"选项 api_code\"` 或 `\"选项显示值\"`；补充文本用 `\"<api_code>_extended_text\": {\"<选项>\": \"补充\"}`，「其他」文本用 `\"<api_code>_other\": \"...\"` |\n| 多选 | 数组，元素同上 |\n| 图片单选 / 图片多选 | 选项 api_code（字符串 / 数组） |\n| 多级下拉 | `{\"level_1\": \"...\", \"level_2\": \"...\"}`（api_code 或显示值） |\n| 数字、评分、NPS | 数字 |\n| 是否 | 布尔 |\n| 日期 | `\"2012-12-25\"` 或 `\"2012-12-25 12:13:15\"`（北京时间） |\n| 时间 | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| 地址 | `{\"province\",\"city\",\"district\",\"street\"}` |\n| 地理位置 | `{\"longitude\",\"latitude\",\"address\"}` |\n| 上传文件（可多个） | 数组，元素可为：已上传附件的 id；本表单已有附件的下载地址（用于保留）；`{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}`（≤ 5MB，`base64` 也可为 data URI）；`{\"attachment_token\": \"...\"}`（预上传令牌） |\n| 商品 | `[{\"value\": \"商品 api_code\", \"number\": 2, \"specification\": {\"规格维度\": \"选项\"}?}]` |\n| 矩阵填空 / 矩阵量表 | `{\"<题目 api_code>\": {\"<列 api_code>\": 值}}` |\n| 矩阵单选 | `{\"<题目 api_code>\": \"选项 api_code\"}` |\n| 表格 | `[{\"<列 api_code>\": 值}, ...]`，附件列写法同上传文件 |\n| 横向填空 | `{\"<子字段 api_code>\": \"...\"}` |\n| 排序 | 有序数组 `[\"选项 api_code\", ...]` |\n| 表单关联 | 关联数据的 token / id，或用关联键匹配的显示值（多个关联键传数组） |\n| 预约 | `[{\"api_code\": \"项目\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| 颜色标记 | `\"color_mark\": \"<颜色 api_code 或名称>\"` |\n| 国际手机号 | 另传 `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+      "additionalProperties": true,
+      "examples": [
+       {
+        "field_1": "张三",
+        "field_2": "13800000000",
+        "field_3": [
+         "选项 A",
+         "选项 B"
+        ],
+        "field_4": "2024-05-01",
+        "field_5": [
+         "5f3a1b2c4d5e6f7a8b9c0d1e",
+         {
+          "base64": "iVBORw0KGgo...",
+          "file_name": "photo.png",
+          "content_type": "image/png"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "entries"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "created_count",
+    "errors"
+   ],
+   "properties": {
+    "created_count": {
+     "type": "integer"
+    },
+    "errors": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "index",
+       "reason"
+      ],
+      "properties": {
+       "index": {
+        "type": "integer",
+        "description": "请求数组中的下标"
+       },
+       "reason": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "patchEntriesBatch",
+  "summary": "批量更新数据",
+  "description": "批量更新数据\n按序号批量增量更新，一次最多 200 行。每行 `serial_number` 必填，`entry` 为要修改的字段（未提及的字段保持不变）。\n逐行校验，失败的行记录在 `failed_rows`（`reason` 为 `invalid_serial_number` / `invalid_attributes` 等）。\n至少一行成功返回 200，全部失败返回 422；`entries` 为空或超过 200 行返回 400。\n批量更新不处理附件生命周期，因此**不能写附件字段**（含表格字段中的附件列），需要逐条更新。",
+  "tag": "Entries",
+  "method": "patch",
+  "path": "/forms/{form_token}/entries/batch",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "BatchPatchResult",
+  "name": "patch_entries",
+  "title": "批量更新数据",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "entries": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 200,
+     "items": {
+      "type": "object",
+      "required": [
+       "serial_number",
+       "entry"
+      ],
+      "properties": {
+       "serial_number": {
+        "type": "integer",
+        "description": "要更新的数据序号"
+       },
+       "entry": {
+        "type": "object",
+        "description": "写入数据时的字段值，键为字段 api_code 或 api_code_alias。未知键与不可写字段（签名、计算）被忽略。\n选项类字段可传选项 api_code 或显示值，多级下拉与选项补充文本见下表；数字字段接受数字或数字字符串。\n\n| 字段 | 写法 |\n|---|---|\n| 单行 / 多行文字、姓名、手机、邮箱、电话、网址、身份证 | 字符串 |\n| 单选、下拉 | `\"选项 api_code\"` 或 `\"选项显示值\"`；补充文本用 `\"<api_code>_extended_text\": {\"<选项>\": \"补充\"}`，「其他」文本用 `\"<api_code>_other\": \"...\"` |\n| 多选 | 数组，元素同上 |\n| 图片单选 / 图片多选 | 选项 api_code（字符串 / 数组） |\n| 多级下拉 | `{\"level_1\": \"...\", \"level_2\": \"...\"}`（api_code 或显示值） |\n| 数字、评分、NPS | 数字 |\n| 是否 | 布尔 |\n| 日期 | `\"2012-12-25\"` 或 `\"2012-12-25 12:13:15\"`（北京时间） |\n| 时间 | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| 地址 | `{\"province\",\"city\",\"district\",\"street\"}` |\n| 地理位置 | `{\"longitude\",\"latitude\",\"address\"}` |\n| 上传文件（可多个） | 数组，元素可为：已上传附件的 id；本表单已有附件的下载地址（用于保留）；`{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}`（≤ 5MB，`base64` 也可为 data URI）；`{\"attachment_token\": \"...\"}`（预上传令牌） |\n| 商品 | `[{\"value\": \"商品 api_code\", \"number\": 2, \"specification\": {\"规格维度\": \"选项\"}?}]` |\n| 矩阵填空 / 矩阵量表 | `{\"<题目 api_code>\": {\"<列 api_code>\": 值}}` |\n| 矩阵单选 | `{\"<题目 api_code>\": \"选项 api_code\"}` |\n| 表格 | `[{\"<列 api_code>\": 值}, ...]`，附件列写法同上传文件 |\n| 横向填空 | `{\"<子字段 api_code>\": \"...\"}` |\n| 排序 | 有序数组 `[\"选项 api_code\", ...]` |\n| 表单关联 | 关联数据的 token / id，或用关联键匹配的显示值（多个关联键传数组） |\n| 预约 | `[{\"api_code\": \"项目\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| 颜色标记 | `\"color_mark\": \"<颜色 api_code 或名称>\"` |\n| 国际手机号 | 另传 `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+        "additionalProperties": true,
+        "examples": [
+         {
+          "field_1": "张三",
+          "field_2": "13800000000",
+          "field_3": [
+           "选项 A",
+           "选项 B"
+          ],
+          "field_4": "2024-05-01",
+          "field_5": [
+           "5f3a1b2c4d5e6f7a8b9c0d1e",
+           {
+            "base64": "iVBORw0KGgo...",
+            "file_name": "photo.png",
+            "content_type": "image/png"
+           }
+          ]
+         }
+        ]
+       }
+      },
+      "additionalProperties": false
+     }
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "entries"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "updated_count",
+    "failed_rows"
+   ],
+   "properties": {
+    "updated_count": {
+     "type": "integer"
+    },
+    "failed_rows": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "serial_number": {
+        "type": [
+         "integer",
+         "null"
+        ]
+       },
+       "reason": {
+        "type": "string",
+        "description": "如 `invalid_serial_number`、`invalid_attributes`"
+       },
+       "errors": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "aggregateEntries",
+  "summary": "聚合统计数据",
+  "description": "聚合统计数据\n在服务端对满足筛选条件的数据做整列聚合（求和、平均、计数、分位数等），可按 1～2 个字段分组。响应大小只取决于指标与分组数，与数据量无关。\n- `metrics` 必填，1～20 项；每个字段可用的函数见 `GET /forms/{form_token}?include_analytics=true` 返回的 `analytics.agg_funcs`。\n- `dimensions` 可选，最多 2 项；只有 `analytics.groupable` 为 true 的字段（单值的选项类字段和日期字段）可以分组，日期字段必须指定 `bucket`。\n- 不传 `dimensions` 时 `rows` 只有一行；分组时每组一行，最多 `limit` 组，`row_count` 为分组总数，超出时 `truncated` 为 true。\n- `filters` / `keyword` 与数据列表相同，但不支持 `creator_id` 条件（返回 400）。\n- 字段不存在、无权读取、函数或分组方式不适用于该字段时返回 400，并说明可用的字段 / 函数 / 分组方式。\n返回结构见 schema「EntryAggregateResponse」（get_schema 可查看）。",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/entries/aggregate",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "metrics",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "dimensions",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "metrics",
+   "dimensions",
+   "limit",
+   "filters",
+   "keyword"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntryAggregateResponse",
+  "name": "aggregate_entries",
+  "title": "聚合统计数据",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "metrics": {
+     "type": "string",
+     "description": "必填。要计算的指标，JSON 数组，1～20 项，每项 `{\"func\": \"<函数>\", \"field\": \"<api_code>\"}`，缺失或为空返回 400。\n可用函数随字段而定（以字段的 `analytics.agg_funcs` 为准）：\n| 字段 | 函数 |\n|---|---|\n| 全部字段 | `count` `count_non_empty` `count_empty` |\n| 文本类 | 另加 `count_unique` |\n| 数字类 | 另加 `count_unique` `sum` `avg` `min` `max` `stddev` `median` `p25` `p75` `p90` |\n| 日期类 | 另加 `count_unique` `min` `max` |\n"
+    },
+    "dimensions": {
+     "type": "string",
+     "description": "分组字段，JSON 数组，最多 2 项，每项 `{\"field\": \"<api_code>\", \"bucket\": \"<粒度>\"}`。\n只有 `analytics.groupable` 为 true 的字段可以分组；日期字段必须带 `bucket`（`day` / `week` / `month`，按北京时间），非日期字段不能带 `bucket`。\n"
+    },
+    "limit": {
+     "type": "integer",
+     "default": 20,
+     "description": "分组时最多返回的组数，缺省 20，最大 200（超过按 200 处理，小于 1 按缺省处理）。不分组时忽略。"
+    },
+    "filters": {
+     "type": "string",
+     "description": "筛选条件，JSON 数组，每项为 `{\"field\": \"<api_code>\", \"operator\": \"<op>\", \"value\": ...}`（`field` 也可写作 `api_code` / `trigger`），多个条件为「且」关系。\n- 操作符全集：`eq` `ne` `any_in` `none_in` `between` `not_between` `null` `not_null` `gte` `gt` `lte` `lt` `like` `not_like` `within_last`，\n  别名 `equal` / `not_equal` / `start`（=gte）/ `end`（=lte）。每种字段类型只接受其中一部分，不支持时返回 400 并列出可用操作符。\n- 选项类字段（单选 / 多选 / 下拉 / 多级下拉）的 `value` 可以是选项 api_code 或选项显示值；多级下拉可用 `一级-二级` 路径。\n- `between` / `not_between` 的 `value` 为二元数组 `[min, max]`；矩阵 / 表格字段需写成 `{\"<列 api_code>\": [min, max]}`。\n- `within_last` 仅日期字段可用，`value` 形如 `{\"unit\":\"day\",\"n\":30}`（unit 可为 minute / day / week / month）。\n- `creator_id` 可作为特殊字段用 `eq` 筛选提交人（值为用户 id），且只能出现一次。\n- 含 `created_at` 条件时结果改为按创建时间排序。\n"
+    },
+    "keyword": {
+     "type": "string",
+     "maxLength": 200,
+     "description": "全文关键字（最长 200 字符），在所有可搜索字段中模糊匹配。数据量超过 99999 条且未启用分析引擎的表单不支持全文搜索（返回 400），除非同时用 `creator_id` 限定提交人。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "summarizeEntries",
+  "summary": "数据概况",
+  "description": "数据概况\n一次读取表单数据的整体概况：总览（匹配条数、今日新增）加上每个可分析字段的分布或数值统计。响应只有几 KB，与数据量无关。\n- 每个字段按 `kind` 返回统一结构：选项类给出各选项计数与占比，矩阵类按题目分组，数字给出最小 / 最大 / 求和 / 平均，日期给出最早 / 最晚，文本给出去重数。\n- 默认包含全部可分析字段（`analytics.summarisable` 为 true 的字段，另含 `created_at`），最多 60 个；超出的字段列在 `omitted_fields` 中，`truncated` 为 true。\n- `fields` 指定的字段不可分析或无权读取时返回 400。\n- `filters` / `keyword` 与数据列表相同，但不支持 `creator_id` 条件（返回 400）。\n返回结构见 schema「EntrySummaryResponse」（get_schema 可查看）。",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/entries/summary",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "fields",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "include_overview",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "fields",
+   "include_overview",
+   "filters",
+   "keyword"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntrySummaryResponse",
+  "name": "get_form_data_summary",
+  "title": "数据概况",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "fields": {
+     "type": "string",
+     "description": "只概括指定字段，值为字段 api_code，逗号分隔（或 `fields[]=` 重复传），按传入顺序返回。缺省为全部可分析字段。字段不可分析或无权读取时返回 400 并列出可分析字段。"
+    },
+    "include_overview": {
+     "type": "boolean",
+     "default": true,
+     "description": "是否返回 `overview`（匹配条数与今日新增），缺省为 true。"
+    },
+    "filters": {
+     "type": "string",
+     "description": "筛选条件，JSON 数组，每项为 `{\"field\": \"<api_code>\", \"operator\": \"<op>\", \"value\": ...}`（`field` 也可写作 `api_code` / `trigger`），多个条件为「且」关系。\n- 操作符全集：`eq` `ne` `any_in` `none_in` `between` `not_between` `null` `not_null` `gte` `gt` `lte` `lt` `like` `not_like` `within_last`，\n  别名 `equal` / `not_equal` / `start`（=gte）/ `end`（=lte）。每种字段类型只接受其中一部分，不支持时返回 400 并列出可用操作符。\n- 选项类字段（单选 / 多选 / 下拉 / 多级下拉）的 `value` 可以是选项 api_code 或选项显示值；多级下拉可用 `一级-二级` 路径。\n- `between` / `not_between` 的 `value` 为二元数组 `[min, max]`；矩阵 / 表格字段需写成 `{\"<列 api_code>\": [min, max]}`。\n- `within_last` 仅日期字段可用，`value` 形如 `{\"unit\":\"day\",\"n\":30}`（unit 可为 minute / day / week / month）。\n- `creator_id` 可作为特殊字段用 `eq` 筛选提交人（值为用户 id），且只能出现一次。\n- 含 `created_at` 条件时结果改为按创建时间排序。\n"
+    },
+    "keyword": {
+     "type": "string",
+     "maxLength": 200,
+     "description": "全文关键字（最长 200 字符），在所有可搜索字段中模糊匹配。数据量超过 99999 条且未启用分析引擎的表单不支持全文搜索（返回 400），除非同时用 `creator_id` 限定提交人。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "searchEntriesAcrossForms",
+  "summary": "跨表单搜索数据",
+  "description": "跨表单搜索数据\n用同一个关键字在多个表单 / 表格中做全文搜索，按表单返回匹配条数与部分数据序号（每个表单最多 50 个），不返回数据内容。\n- 搜索范围：传 `form_tokens` 时为这些表单；不传时为当前身份可访问的全部表单与表格（企业 Access Token 为企业账户下全部表单与表格）。\n  两种方式都再经 `filters` 过滤；未在 `filters` 中指定 `entries_count` 时默认只搜索有数据的表单（`entries_count > 0`）。\n- 范围内最多 10 个表单，超过时返回 400，需用 `filters` 缩小范围或直接指定 `form_tokens`。\n- 没有匹配的表单不出现在结果中；无法访问、角色不允许读取数据、搜索超时或搜索服务未响应的表单会列出并带 `unavailable` 说明原因（此时不代表没有匹配）。\n返回结构见 schema「EntrySearchResponse」（get_schema 可查看）。",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/entries/search",
+  "params": [
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": true
+   },
+   {
+    "name": "form_tokens",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "keyword",
+   "form_tokens",
+   "filters"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntrySearchResponse",
+  "name": "search_entries_in_forms",
+  "title": "跨表单搜索数据",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "keyword": {
+     "type": "string",
+     "maxLength": 200,
+     "description": "搜索关键字（最长 200 字符），为空返回 400。"
+    },
+    "form_tokens": {
+     "type": "string",
+     "description": "要搜索的表单或表格 token（也接受 id），逗号分隔（或 `form_tokens[]=` 重复传），去重后最多 10 个。不传时搜索全部可访问的表单。"
+    },
+    "filters": {
+     "type": "string",
+     "description": "按表单属性筛选搜索范围，JSON 数组，写法与可用字段同 `GET /forms` 的 `filters`（`form_name` / `created_at` / `last_entry_created_at` / `entries_count`），多个条件为「且」关系。\n未指定 `entries_count` 条件时自动追加 `entries_count > 0`。\n"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "keyword"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "getEntryStats",
+  "summary": "按日期范围统计各表单提交量",
+  "description": "按日期范围统计各表单提交量\n统计当前身份可访问的全部表单 / 表格（企业 Access Token 为企业账户下全部表单与表格）在日期范围内收到的提交次数：返回总数，以及有提交的表单按提交次数降序排列的列表。\n- 日期按北京时间计，`from` / `to` 均包含当天。\n- 统计的是提交发生时的次数：导入的数据计在导入当天，删除的数据不会扣减，因此与按数据 `created_at` 统计的结果不一定一致。\n- 列表最多 `limit` 行，超出时 `truncated` 为 true，`total` 与 `forms_with_data` 仍覆盖全部表单。\n- 传 `by`（`day` / `week` / `month`）时响应另带 `buckets`：范围内每个时间段各一份同样结构的统计（没有提交的时间段也返回），周从周一起算，首尾两段按范围裁剪。范围最多覆盖 92 天 / 53 周 / 24 个月，超过返回 400 并提示改用更粗的粒度或去掉 `by`。\n返回结构见 schema「EntryStatsResponse」（get_schema 可查看）。",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/entries/stats",
+  "params": [
+   {
+    "name": "from",
+    "in": "query",
+    "required": true
+   },
+   {
+    "name": "to",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "kind",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "by",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "from",
+   "to",
+   "kind",
+   "by",
+   "limit"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntryStatsResponse",
+  "name": "list_form_entry_stats",
+  "title": "按日期范围统计各表单提交量",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "from": {
+     "type": "string",
+     "description": "起始日期（含），`YYYY-MM-DD`。缺失或无法解析时返回 400。"
+    },
+    "to": {
+     "type": "string",
+     "description": "结束日期（含），`YYYY-MM-DD`，缺省为今天。早于 `from` 或无法解析时返回 400。"
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "form",
+      "table"
+     ],
+     "description": "只统计表单（`form`）或表格（`table`），缺省两者都统计。其他取值返回 400。"
+    },
+    "by": {
+     "type": "string",
+     "enum": [
+      "day",
+      "week",
+      "month"
+     ],
+     "description": "按 `day` / `week` / `month` 拆分统计，响应带 `buckets`；其他取值返回 400。"
+    },
+    "limit": {
+     "type": "integer",
+     "description": "列表最多返回的表单数，最大 100；缺省 100，传 `by` 时每个时间段缺省 10。超过 100 按 100 处理，小于 1 按缺省处理。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "from"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "listMyFilledForms",
+  "summary": "获取我填写过的表单",
+  "description": "获取我填写过的表单\n返回当前用户作为填写者提交过数据的表单（不含快速支付），按最近一次提交时间倒序。这些表单不必是当前用户创建或被共享的；\n每行给出的是当前用户自己的提交次数与最近提交时间，而不是表单的全部数据量。已删除的表单不出现在 `data` 中（`total` 仍计入）。\n- 分页：`next` 为行偏移量，原样回传取下一页；`skip` 与 `next` 不能同时传。每页默认 50 条，可用 `limit` 调整（最大 1000）。\n- 企业 Access Token 没有「当前用户」，调用返回 400。\n返回结构见 schema「MyFilledFormListResponse」（get_schema 可查看）。",
+  "tag": "Forms",
+  "method": "get",
+  "path": "/my/forms",
+  "params": [
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "limit",
+   "next",
+   "skip"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "MyFilledFormListResponse",
+  "name": "list_my_submitted_forms",
+  "title": "获取我填写过的表单",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "limit": {
+     "type": "integer",
+     "default": 50,
+     "description": "每页条数，缺省 50，最大 1000（超过按 1000 处理）。传 0 时只返回 `total`，`data` 为空。"
+    },
+    "next": {
+     "type": "integer",
+     "minimum": 0,
+     "description": "上一页响应中的 `next`（行偏移量，从 0 开始），原样回传以取下一页。不能与 `skip` 同时传。"
+    },
+    "skip": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 10000,
+     "description": "起始行偏移（0 起，最大 10000），用于并行切片读取。不能与 `next` 同时传。"
+    }
+   },
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "listMySubmittedEntries",
+  "summary": "获取我在某表单提交的数据",
+  "description": "获取我在某表单提交的数据\n返回当前用户在指定表单中自己提交的数据，按提交时间倒序。表单不必是当前用户创建或被共享的：只返回本人提交的数据，\n且只包含表单对填写者公开的字段（隐藏字段既不返回，也不能用于筛选或搜索）。没有提交过时返回空列表。\n- `fields` 只保留指定的公开字段，未知或非公开的 api_code 直接略过（不报错）。\n- `filters` 语义与数据列表相同，但不能按 `creator_id` 筛选（结果已限定为本人），也不能筛选非公开字段，否则返回 400。\n- `keyword` 只在本人的数据中搜索，不受表单数据量上限限制。\n- 分页：`next` 为行偏移量；`skip` 与 `next` 不能同时传。每页默认 50 条，可用 `limit` 调整（最大 1000）。\n- 企业 Access Token 没有「当前用户」，调用返回 400；表单不存在返回 404。",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/my/forms/{form_token}/entries",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "fields",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "include_labels",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "fields",
+   "filters",
+   "keyword",
+   "include_labels",
+   "limit",
+   "next",
+   "skip"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "MySubmittedEntryListResponse",
+  "name": "list_my_submitted_entries",
+  "title": "获取我在某表单提交的数据",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /my/forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "fields": {
+     "type": "string",
+     "description": "只返回指定字段。逗号分隔字符串或数组参数（`fields[]=`），值为字段 api_code；未知或非公开字段被略过。序号始终返回。"
+    },
+    "filters": {
+     "type": "string",
+     "description": "筛选条件，JSON 数组，每项为 `{\"field\": \"<api_code>\", \"operator\": \"<op>\", \"value\": ...}`（`field` 也可写作 `api_code` / `trigger`），多个条件为「且」关系。\n- 操作符全集：`eq` `ne` `any_in` `none_in` `between` `not_between` `null` `not_null` `gte` `gt` `lte` `lt` `like` `not_like` `within_last`，\n  别名 `equal` / `not_equal` / `start`（=gte）/ `end`（=lte）。每种字段类型只接受其中一部分，不支持时返回 400 并列出可用操作符。\n- 选项类字段（单选 / 多选 / 下拉 / 多级下拉）的 `value` 可以是选项 api_code 或选项显示值；多级下拉可用 `一级-二级` 路径。\n- `between` / `not_between` 的 `value` 为二元数组 `[min, max]`；矩阵 / 表格字段需写成 `{\"<列 api_code>\": [min, max]}`。\n- `within_last` 仅日期字段可用，`value` 形如 `{\"unit\":\"day\",\"n\":30}`（unit 可为 minute / day / week / month）。\n- `creator_id` 可作为特殊字段用 `eq` 筛选提交人（值为用户 id），且只能出现一次。\n- 含 `created_at` 条件时结果改为按创建时间排序。\n"
+    },
+    "keyword": {
+     "type": "string",
+     "maxLength": 200,
+     "description": "全文关键字（最长 200 字符），在所有可搜索字段中模糊匹配。数据量超过 99999 条且未启用分析引擎的表单不支持全文搜索（返回 400），除非同时用 `creator_id` 限定提交人。"
+    },
+    "include_labels": {
+     "type": "boolean",
+     "default": false,
+     "description": "为 true 时，每条数据中表单字段的值改为 `{\"label\": \"<字段标题>\", \"value\": <原值>}`，免去再读一次表单结构。\n系统键（如 `serial_number`、`creator_id`、`token`）与考试 / 测评的 `<api_code>_extra_value` 保持原样。缺省为 false。\n"
+    },
+    "limit": {
+     "type": "integer",
+     "default": 50,
+     "description": "每页条数，缺省 50，最大 1000（超过按 1000 处理）。传 0 时只返回 `total`，`data` 为空。"
+    },
+    "next": {
+     "type": "integer",
+     "minimum": 0,
+     "description": "上一页响应中的 `next`（行偏移量，从 0 开始），原样回传以取下一页。不能与 `skip` 同时传。"
+    },
+    "skip": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 10000,
+     "description": "起始行偏移（0 起，最大 10000），用于并行切片读取。不能与 `next` 同时传。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "total",
+    "count",
+    "data",
+    "next"
+   ],
+   "properties": {
+    "total": {
+     "type": "integer",
+     "description": "满足条件的本人数据总数"
+    },
+    "count": {
+     "type": "integer",
+     "description": "本页条数"
+    },
+    "data": {
+     "type": "array",
+     "description": "本人提交的数据，只含表单对填写者公开的字段；值的形态见 `EntryData`",
+     "items": {
+      "type": "object",
+      "description": "结构见 schema「EntryData」：调用 get_schema 工具（name=\"EntryData\"）或读取资源 jinshuju://schemas/EntryData。"
+     }
+    },
+    "next": {
+     "type": [
+      "integer",
+      "null"
+     ],
+     "description": "下一页的行偏移量；末页为 null"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "searchMySubmittedEntries",
+  "summary": "在我提交的数据中搜索",
+  "description": "在我提交的数据中搜索\n用同一个关键字搜索当前用户在各表单中自己提交的数据（只搜索表单对填写者公开的字段），返回每个命中表单的命中数与序号。\n- `keyword` 必填，为空返回 400。\n- 默认搜索当前用户填写过的全部表单（不含快速支付）；`form_tokens` 可限定为其中一部分，不在填写记录中的 token 会被忽略。\n  参与搜索的表单超过 20 个时返回 400，需用 `form_tokens` 缩小范围。\n- 没有命中的表单不出现在结果中；某个表单无法搜索时（如关键字过长）该表单返回 `unavailable` 说明，其余表单照常返回。\n- 每个表单最多返回 50 个序号，`matched` 为该表单的实际命中总数。\n- 企业 Access Token 没有「当前用户」，调用返回 400。",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/my/search",
+  "params": [
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": true
+   },
+   {
+    "name": "form_tokens",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "keyword",
+   "form_tokens"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "MySearchResponse",
+  "name": "search_my_submitted_entries",
+  "title": "在我提交的数据中搜索",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "keyword": {
+     "type": "string",
+     "minLength": 1,
+     "description": "搜索关键字（最长 200 字符），在表单公开的可搜索字段中模糊匹配。"
+    },
+    "form_tokens": {
+     "type": "string",
+     "description": "只搜索这些表单。逗号分隔的表单 token，或数组参数（`form_tokens[]=`）。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "keyword"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "total",
+    "forms"
+   ],
+   "properties": {
+    "total": {
+     "type": "integer",
+     "description": "所有表单的命中总数"
+    },
+    "forms": {
+     "type": "array",
+     "description": "有命中或无法搜索的表单；没有命中的表单不出现",
+     "items": {
+      "type": "object",
+      "required": [
+       "form_token"
+      ],
+      "properties": {
+       "form_token": {
+        "type": "string",
+        "description": "表单 token"
+       },
+       "name": {
+        "type": [
+         "string",
+         "null"
+        ],
+        "description": "表单名称；`unavailable` 时不返回"
+       },
+       "matched": {
+        "type": "integer",
+        "description": "该表单中命中的本人数据条数；`unavailable` 时不返回"
+       },
+       "serial_numbers": {
+        "type": "array",
+        "maxItems": 50,
+        "description": "命中数据的序号，最多 50 个；`unavailable` 时不返回",
+        "items": {
+         "type": "integer"
+        }
+       },
+       "unavailable": {
+        "type": "string",
+        "description": "该表单无法搜索的原因；出现时没有 `name` / `matched` / `serial_numbers`"
+       }
+      }
+     }
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "createEntryImport",
+  "summary": "从已上传的表格文件导入数据",
+  "description": "从已上传的表格文件导入数据\n把「上传导入文件」得到的表格文件逐行追加为该表单的数据。先上传文件拿到导入附件 ID（`attachment_id`），再在这里说明哪一列写入哪个字段。\n文件、套餐导入上限、表头行、列映射等能预先判断的问题都在创建任务之前校验，被拒绝的导入不会写入任何数据；错误信息会带上这份表格的实际布局（行列范围与表头内容），便于据此修正后重试。\n校验通过后返回 `201`，数据在后台写入：`201` 表示任务已开始而非已完成，用「获取数据导入任务」轮询结果。\n- `attachment_id` 必须是当前用户为该表单上传的导入文件，否则返回 400（找不到该文件，需重新上传）；文件不是 xls / xlsx / csv 或无法读取时返回 400。\n- `columns` 不能为空；每项用 `field_api_code` 指定目标字段，并用 `column_label`（表头文字，需与表头单元格去掉首尾空格后完全一致）或 `sheet_column_index`（列号）指定来源列，两者都给时以 `sheet_column_index` 为准。\n- 字段必须是该表单可导入的字段；同一字段不能对应多列；表头中有多列同名时必须改用 `sheet_column_index`；列号必须在表格的列范围内。\n- `header_row_index` 缺省为表格的第一行，且其下方必须还有数据行。\n- 表单的必填字段都必须有对应的列，否则返回 400 并列出缺少的字段。\n- `unique_field_code` 指定一个字段做去重：文件中该字段的值已存在于表单数据时，这一行会被跳过（计入 `skip_count`）。\n- 表单不存在或当前身份无权访问时返回 404 `form cannot be found`。",
+  "tag": "Entries",
+  "method": "post",
+  "path": "/forms/{form_token}/entry_imports",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "EntryImportCreated",
+  "name": "import_entries_from_file",
+  "title": "从已上传的表格文件导入数据",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "attachment_id": {
+     "type": "string",
+     "description": "「上传导入文件」返回的导入附件 `id`"
+    },
+    "columns": {
+     "type": "array",
+     "minItems": 1,
+     "description": "列映射；每项把表格中的一列写入一个字段",
+     "items": {
+      "type": "object",
+      "required": [
+       "field_api_code"
+      ],
+      "properties": {
+       "field_api_code": {
+        "type": "string",
+        "description": "目标字段的 api_code，必须是该表单可导入的字段"
+       },
+       "column_label": {
+        "type": "string",
+        "description": "来源列的表头文字，按去掉首尾空格后完全相等匹配；与 `sheet_column_index` 至少给一个"
+       },
+       "sheet_column_index": {
+        "type": [
+         "integer",
+         "string"
+        ],
+        "pattern": "^[0-9]+$",
+        "description": "来源列的列号（与表格列号一致，从 1 起）；表头缺失或重名时使用，优先于 `column_label`"
+       }
+      },
+      "additionalProperties": false,
+      "examples": [
+       {
+        "field_api_code": "field_1",
+        "column_label": "姓名"
+       },
+       {
+        "field_api_code": "field_2",
+        "sheet_column_index": 3
+       }
+      ]
+     }
+    },
+    "header_row_index": {
+     "type": [
+      "integer",
+      "string",
+      "null"
+     ],
+     "pattern": "^[0-9]+$",
+     "description": "表头所在行号（与表格行号一致，从 1 起）；缺省为表格第一行，其下方必须还有数据行",
+     "examples": [
+      1
+     ]
+    },
+    "unique_field_code": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "去重字段的 api_code；文件中该字段的值已存在于表单数据时跳过这一行"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "attachment_id",
+    "columns"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "job_id",
+    "status"
+   ],
+   "properties": {
+    "job_id": {
+     "type": "string",
+     "description": "导入任务 ID，用于「获取数据导入任务」"
+    },
+    "status": {
+     "type": "string",
+     "description": "任务状态；刚创建时为 `pending`",
+     "enum": [
+      "pending",
+      "running",
+      "success",
+      "failed",
+      "cancelled"
+     ]
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "listEntryComments",
+  "summary": "列出数据评论",
+  "description": "列出数据评论\n按创建时间升序返回该条数据的全部评论，含创建者、被提及的用户与附件。 调用者若为协作者，需要对该表单具备数据读取权限且该条数据在其数据范围内，否则返回 400。 OAuth 令牌需要 scope：read_entries。",
+  "tag": "Comments",
+  "method": "get",
+  "path": "/forms/{form_token}/entries/{serial_number}/comments",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "serial_number",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "serial_number"
+  ],
+  "successStatus": 200,
+  "scopes": [],
+  "name": "list_entry_comments",
+  "title": "列出数据评论",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "serial_number": {
+     "type": "integer",
+     "description": "数据序号"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "serial_number"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "createEntryComment",
+  "summary": "创建数据评论",
+  "description": "创建数据评论\n在该条数据下创建评论，评论者为当前调用者，content 会去除首尾空白。content 为空或超过 2000 字返回 400。 content 中可用 @[<user_id>]（24 位十六进制用户 id）提及用户，被提及者必须是该表单的协作者，否则返回 400 并且不创建评论。 parent_id 用于回复，父评论必须属于同一条数据，否则返回 400。通过本接口无法附加文件。 调用者若为协作者，需要具备数据读取权限且该条数据在其数据范围内，否则返回 400。 OAuth 令牌需要 scope：read_entries。\n返回结构见 schema「EntryComment」（get_schema 可查看）。",
+  "tag": "Comments",
+  "method": "post",
+  "path": "/forms/{form_token}/entries/{serial_number}/comments",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "serial_number",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "serial_number"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [],
+  "responseSchema": "EntryComment",
+  "name": "create_entry_comment",
+  "title": "创建数据评论",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "serial_number": {
+     "type": "integer",
+     "description": "数据序号"
+    },
+    "content": {
+     "type": "string",
+     "maxLength": 2000,
+     "description": "评论内容，去除首尾空白后不能为空；用 @[<user_id>] 提及协作者（user_id 为 24 位十六进制）"
+    },
+    "parent_id": {
+     "type": "string",
+     "description": "回复的父评论 id，必须属于同一条数据；仅创建时读取"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "serial_number",
+    "content"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "updateEntryComment",
+  "summary": "更新数据评论",
+  "description": "更新数据评论\n修改评论内容，也接受 PUT。只有评论作者本人可以编辑，表单管理员也不能编辑他人评论，否则返回 400。 content 规则与创建相同（去除首尾空白、最长 2000 字、提及者必须是协作者）；评论已有的附件保持不变。 评论不属于该条数据时返回 404（comment cannot be found）。 OAuth 令牌需要 scope：read_entries。\n返回结构见 schema「EntryComment」（get_schema 可查看）。",
+  "tag": "Comments",
+  "method": "patch",
+  "path": "/forms/{form_token}/entries/{serial_number}/comments/{comment_id}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "serial_number",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "comment_id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "serial_number",
+   "comment_id"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [],
+  "responseSchema": "EntryComment",
+  "name": "update_entry_comment",
+  "title": "更新数据评论",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "serial_number": {
+     "type": "integer",
+     "description": "数据序号"
+    },
+    "comment_id": {
+     "type": "string",
+     "description": "评论 id"
+    },
+    "content": {
+     "type": "string",
+     "maxLength": 2000,
+     "description": "新的评论内容，可包含 @[<user_id>] 提及"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "serial_number",
+    "comment_id",
+    "content"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "deleteEntryComment",
+  "summary": "删除数据评论",
+  "description": "删除数据评论\n删除评论。评论作者本人、表单创建者或管理员角色的协作者可以删除，其他协作者返回 400。 已删除或不属于该条数据的评论返回 404（comment cannot be found）。 OAuth 令牌需要 scope：read_entries。",
+  "tag": "Comments",
+  "method": "delete",
+  "path": "/forms/{form_token}/entries/{serial_number}/comments/{comment_id}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "serial_number",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "comment_id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "serial_number",
+   "comment_id"
+  ],
+  "successStatus": 200,
+  "scopes": [],
+  "name": "delete_entry_comment",
+  "title": "删除数据评论",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "serial_number": {
+     "type": "integer",
+     "description": "数据序号"
+    },
+    "comment_id": {
+     "type": "string",
+     "description": "评论 id"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "serial_number",
+    "comment_id"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "id"
+   ],
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "被删除评论的 id"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": true,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "listFormViews",
+  "summary": "列出表单视图",
+  "description": "列出表单视图\n返回当前调用者在该表单上可见的视图：自己创建的视图，以及其他协作者设为 cooperators 可见的视图； 其他用户的 personal 视图不会返回。排序遵循调用者自己保存的视图顺序，未排序的视图按 position、created_at 追加在后。 OAuth 令牌需要 scope：forms。",
+  "tag": "Views",
+  "method": "get",
+  "path": "/forms/{form_token}/views",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [],
+  "name": "list_form_views",
+  "title": "列出表单视图",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "count",
+    "data"
+   ],
+   "properties": {
+    "count": {
+     "type": "integer",
+     "description": "返回的视图数量"
+    },
+    "data": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "description": "结构见 schema「FormView」：调用 get_schema 工具（name=\"FormView\"）或读取资源 jinshuju://schemas/FormView。"
+     }
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "getFormView",
+  "summary": "获取表单视图",
+  "description": "获取表单视图\n返回单个视图。只能读取调用者可见的视图（自己创建的或 cooperators 可见的），其他用户的 personal 视图返回 404（View cannot be found）。 OAuth 令牌需要 scope：forms。",
+  "tag": "Views",
+  "method": "get",
+  "path": "/forms/{form_token}/views/{view_token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "view_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "view_token"
+  ],
+  "successStatus": 200,
+  "scopes": [],
+  "responseSchema": "FormView",
+  "name": "get_form_view",
+  "title": "获取表单视图",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "view_token": {
+     "type": "string",
+     "description": "视图 token"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "view_token"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "description": "结构见 schema「FormView」：调用 get_schema 工具（name=\"FormView\"）或读取资源 jinshuju://schemas/FormView。"
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "createFormView",
+  "summary": "创建表单视图",
+  "description": "创建表单视图\n为表单创建一个新视图，创建者为当前调用者，visibility 未传时默认为 cooperators，position 为当前可见视图的最大值加 1。 每个用户在同一表单最多 100 个视图，达到上限返回 422（View limit reached）。 view_type 为 kanban 且未传 kanban_group_by_api_code 时，服务端自动选择分组字段；未传 kanban_hidden_groups 时默认隐藏 __unset__ 分组； prefer_columns 为空时使用表单默认列（看板视图最多 5 列，含 serial_number）。 filter 不合法（不是数组、字段不存在、运算符不支持、值不合法）返回 422。模型校验失败（如 name 为空或超过 120 字、分组字段不支持看板分组）返回 422。 表单视图（view_type 为 form）：仅表格支持，否则 422；title 缺省为表格名称，未传 field_overrides 时按当前列顺序勾选全部可填写的列，published 缺省 false（未发布时填写链接不可用）。title / description / published / field_overrides 只适用于表单视图，用在其他类型上返回 422。创建、修改、删除表单视图（包括把视图切换为或切换出表单视图）需要调用者在该表格上拥有可新增数据的预置角色，否则 403；企业令牌不受此限制。填写项的列不存在、不能作为填写项或设置了该列类型不支持的校验时返回 422，错误信息带列 api_code。 OAuth 令牌需要 scope：forms。",
+  "tag": "Views",
+  "method": "post",
+  "path": "/forms/{form_token}/views",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": false,
+   "param": "view"
+  },
+  "successStatus": 201,
+  "scopes": [],
+  "responseSchema": "FormView",
+  "name": "create_form_view",
+  "title": "创建表单视图",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "view": {
+     "allOf": [
+      {
+       "type": "object",
+       "description": "结构见 schema「FormViewInput」：调用 get_schema 工具（name=\"FormViewInput\"）或读取资源 jinshuju://schemas/FormViewInput。"
+      },
+      {
+       "type": "object",
+       "required": [
+        "name"
+       ]
+      }
+     ]
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "view"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "description": "结构见 schema「FormView」：调用 get_schema 工具（name=\"FormView\"）或读取资源 jinshuju://schemas/FormView。"
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "updateFormView",
+  "summary": "更新表单视图",
+  "description": "更新表单视图\n更新视图配置，也接受 PUT。只更新请求中出现的键：filter 传空数组会清空筛选，不传则保持不变； kanban_group_by_api_code 变化且未同时传 kanban_group_order / kanban_hidden_groups 时，这两个列表重置为默认值。 协作者可以修改 cooperators 可见视图的配置，但只有视图创建者可以切换 visibility，否则返回 403； view_scope 为 form 的视图不允许切换 visibility。filter 不合法或模型校验失败返回 422。 field_overrides 整体替换填写项配置；表单视图的权限要求与参数限制同创建。 OAuth 令牌需要 scope：forms。",
+  "tag": "Views",
+  "method": "patch",
+  "path": "/forms/{form_token}/views/{view_token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "view_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "view_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": false,
+   "param": "view"
+  },
+  "successStatus": 200,
+  "scopes": [],
+  "responseSchema": "FormView",
+  "name": "edit_form_view",
+  "title": "更新表单视图",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "view_token": {
+     "type": "string",
+     "description": "视图 token"
+    },
+    "view": {
+     "type": "object",
+     "description": "结构见 schema「FormViewInput」：调用 get_schema 工具（name=\"FormViewInput\"）或读取资源 jinshuju://schemas/FormViewInput。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "view_token",
+    "view"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "description": "结构见 schema「FormView」：调用 get_schema 工具（name=\"FormView\"）或读取资源 jinshuju://schemas/FormView。"
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "deleteFormView",
+  "summary": "删除表单视图",
+  "description": "删除表单视图\n删除视图。预置视图（predefined）和 view_scope 为 form 的视图不能删除，删除后调用者将不再有任何可见视图时也会拒绝，均返回 422。 删除表单视图需要与创建相同的权限（否则 403），删除后其填写链接立即失效，不可恢复。 OAuth 令牌需要 scope：forms。",
+  "tag": "Views",
+  "method": "delete",
+  "path": "/forms/{form_token}/views/{view_token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "view_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "view_token"
+  ],
+  "successStatus": 200,
+  "scopes": [],
+  "name": "delete_form_view",
+  "title": "删除表单视图",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "view_token": {
+     "type": "string",
+     "description": "视图 token"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "view_token"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "token"
+   ],
+   "properties": {
+    "token": {
+     "type": "string",
+     "description": "被删除视图的 token"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": true,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "listFormViewEntries",
+  "summary": "列出视图数据",
+  "description": "列出视图数据\n按视图的筛选条件和排序规则返回表单数据，每页最多 50 条。返回字段限定为视图 prefer_columns 中的字段（始终包含 serial_number）， prefer_columns 为空时返回全部可推送字段；排序按视图 sort 规则，未包含 serial_number 时追加 serial_number 升序。 分页使用 next 参数（行偏移量），最后一页 next 为 null。视图筛选中存在查询引擎不支持的运算符时返回 400。 只能访问调用者可见的视图，否则 404（View cannot be found）。 OAuth 令牌需要 scope：read_entries。",
+  "tag": "Views",
+  "method": "get",
+  "path": "/forms/{form_token}/views/{view_token}/entries",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "view_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "include_labels",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "view_token",
+   "next",
+   "include_labels"
+  ],
+  "successStatus": 200,
+  "scopes": [],
+  "responseSchema": "EntryListResponse",
+  "name": "list_form_view_entries",
+  "title": "列出视图数据",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "view_token": {
+     "type": "string",
+     "description": "视图 token"
+    },
+    "next": {
+     "type": "integer",
+     "minimum": 0,
+     "description": "上一页响应中的 next 值（行偏移量，从 0 开始），负数按 0 处理"
+    },
+    "include_labels": {
+     "type": "boolean",
+     "default": false,
+     "description": "为 true 时，每条数据中表单字段的值改为 `{\"label\": \"<字段标题>\", \"value\": <原值>}`，免去再读一次表单结构。\n系统键（如 `serial_number`、`creator_id`、`token`）与考试 / 测评的 `<api_code>_extra_value` 保持原样。缺省为 false。\n"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "view_token"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "total",
+    "count",
+    "data",
+    "next"
+   ],
+   "properties": {
+    "total": {
+     "type": "integer",
+     "description": "满足条件的数据总数"
+    },
+    "count": {
+     "type": "integer",
+     "description": "本页条数"
+    },
+    "data": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "description": "结构见 schema「EntryData」：调用 get_schema 工具（name=\"EntryData\"）或读取资源 jinshuju://schemas/EntryData。"
+     }
+    },
+    "next": {
+     "type": [
+      "integer",
+      "null"
+     ],
+     "description": "下一页游标（默认排序下为序号，其他情况为行偏移量）；末页为 null"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "listTables",
+  "summary": "获取表格列表",
+  "description": "获取表格列表\n返回当前身份可见的数据表格（`kind=table`）。分页、`q`、`filters`、`sort`、`next`、`skip`、`limit` 的语义与表单列表相同，每页默认 50 条，最大 1000。\n返回结构见 schema「TableListResponse」（get_schema 可查看）。",
+  "tag": "Tables",
+  "method": "get",
+  "path": "/tables",
+  "params": [
+   {
+    "name": "q",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "sort",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "q",
+   "filters",
+   "sort",
+   "next",
+   "skip",
+   "limit"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "TableListResponse",
+  "name": "list_tables",
+  "title": "获取表格列表",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "q": {
+     "type": "string",
+     "description": "按名称模糊匹配（不区分大小写，同时匹配对外名称与站内名称）。可传多个值（`q[]=A&q[]=B`），匹配名称包含其中任一的表单。等价于 `filters=[{\"field\":\"form_name\",\"operator\":\"like\",\"value\":...}]`。"
+    },
+    "filters": {
+     "type": "string",
+     "description": "筛选条件，JSON 数组，多个条件为「且」关系。可筛选字段与操作符：\n| field | 类型 | 操作符 |\n|---|---|---|\n| `form_name` | 文本 | `eq` `ne` `any_in` `none_in` `like` `not_like` |\n| `created_at` | 时间 | `eq` `ne` `gte` `gt` `lte` `lt` `within_last` |\n| `last_entry_created_at` | 时间 | 同上（从未收到数据的表单没有该值） |\n| `entries_count` | 整数 | `eq` `ne` `gte` `gt` `lte` `lt` |\n\n`within_last` 的值形如 `{\"unit\":\"day\",\"n\":30}`（unit 可为 minute / day / week / month），表示从现在起往前的窗口。\n示例：`[{\"field\":\"last_entry_created_at\",\"operator\":\"within_last\",\"value\":{\"unit\":\"day\",\"n\":7}}]`\n"
+    },
+    "sort": {
+     "type": "string",
+     "description": "排序规则，JSON 数组，每项 `{\"field\": \"<字段>\", \"order\": \"asc\"|\"desc\"}`（order 缺省 asc），按顺序生效。\n可排序字段：`created_at`、`last_entry_created_at`、`entries_count`；其他字段、非法 order 或无法解析的 JSON 返回 400。\n传 `sort` 后 `next` 变为 `row:<偏移量>` 形式的游标，只能用于同样 `sort` 的请求；值相同的行在翻页间可能出现顺序变化。\n"
+    },
+    "next": {
+     "type": "string",
+     "description": "上一页响应中的 `next`，原样回传以取下一页。不能与 `skip` 同时传。"
+    },
+    "skip": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 10000,
+     "description": "起始行偏移（0 起，最大 10000），用于并行切片读取；返回的 `next` 仍可继续翻页。不能与 `next` 同时传。"
+    },
+    "limit": {
+     "type": "integer",
+     "default": 50,
+     "description": "每页条数，缺省 50，最大 1000（超过按 1000 处理）。传 0 时只返回 `total`，`data` 为空。"
+    }
+   },
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "getTable",
+  "summary": "获取表格结构",
+  "description": "获取表格结构\n返回表格的基本信息、字段定义与当前身份可见的视图列表。token 对应的不是表格（如是普通表单）时返回 404 `table cannot be found`。\n返回结构见 schema「Table」（get_schema 可查看）。",
+  "tag": "Tables",
+  "method": "get",
+  "path": "/tables/{table_token}",
+  "params": [
+   {
+    "name": "table_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "include_analytics",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "table_token",
+   "include_analytics"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "Table",
+  "name": "get_table",
+  "title": "获取表格结构",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "table_token": {
+     "type": "string",
+     "description": "表格 token（`GET /tables` 返回的 `token`），也接受 24 位十六进制的表格 id。"
+    },
+    "include_analytics": {
+     "type": "boolean",
+     "default": false,
+     "description": "是否在每个可分析字段上附带 `analytics`（可用的聚合函数、能否分组、数据概况形态），缺省为 false。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "table_token"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "createTable",
+  "summary": "创建表格",
+  "description": "创建表格\n创建一个数据表格。与创建表单相同，但：\n- 字段类型只能是表格支持的列类型：`TextArea`、`RadioButton`、`CheckBox`、`BooleanField`、`MobileField`、`NumberField`、`DateTimeField`、`EmailField`、`LinkField`、`AttachmentField`、`FormulaField`；\n- 附件列不接受数量 / 大小上限等限制属性，数字 / 计算列的精度受限，违反时返回 400 并列出问题列；\n- 选项列不会生成「其他」选项；`folder_token` 必须是 table 文件夹；不支持 `layout`。\n- `with_default_entries: true` 时创建后预置 3 条空白数据（与产品内新建表格一致），缺省不预置。\n返回包含字段与视图的表格结构。\n返回结构见 schema「Table」（get_schema 可查看）。",
+  "tag": "Tables",
+  "method": "post",
+  "path": "/tables",
+  "params": [],
+  "paramNames": [],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "Table",
+  "name": "create_table",
+  "title": "创建表格",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "表格名称"
+    },
+    "description": {
+     "type": "string",
+     "description": "表格描述"
+    },
+    "fields": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "object",
+      "description": "表格列定义，type 限于表格支持的列类型\n按 type 分支，每个分支的专属属性用 get_schema 查看：TextAreaInput、RadioButtonInput、CheckBoxInput、BooleanFieldInput、MobileFieldInput、NumberFieldInput、DateTimeFieldInput、EmailFieldInput 等 11 种。",
+      "required": [
+       "type",
+       "label"
+      ],
+      "properties": {
+       "type": {
+        "type": "string",
+        "enum": [
+         "TextArea",
+         "RadioButton",
+         "CheckBox",
+         "BooleanField",
+         "MobileField",
+         "NumberField",
+         "DateTimeField",
+         "EmailField",
+         "LinkField",
+         "AttachmentField",
+         "FormulaField"
+        ]
+       },
+       "label": {
+        "type": "string",
+        "description": "字段标题"
+       }
+      },
+      "title": "TableColumnInput"
+     },
+     "description": "列定义"
+    },
+    "setting": {
+     "type": "object",
+     "description": "结构见 schema「FormSettingWriteInput」：调用 get_schema 工具（name=\"FormSettingWriteInput\"）或读取资源 jinshuju://schemas/FormSettingWriteInput。"
+    },
+    "folder_token": {
+     "type": "string",
+     "description": "放入的 table 文件夹 token"
+    },
+    "with_default_entries": {
+     "type": "boolean",
+     "default": false,
+     "description": "为 true 时创建后预置 3 条空白数据"
+    },
+    "scene": {
+     "type": "string",
+     "enum": [
+      "form",
+      "survey",
+      "registry",
+      "vote",
+      "exam",
+      "reservation",
+      "customer_acquisition",
+      "evaluation",
+      "online_payment",
+      "quickpay"
+     ]
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "name",
+    "fields"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "updateTable",
+  "summary": "编辑表格",
+  "description": "编辑表格\n增量编辑表格，也接受 `PUT`。请求体与编辑表单相同（`kind` 会被忽略）；`fields.add` 与 `fields.update` 中的附件列不接受限制属性，`fields.add` 的类型必须是表格支持的列类型。\n返回结构见 schema「Table」（get_schema 可查看）。",
+  "tag": "Tables",
+  "method": "patch",
+  "path": "/tables/{table_token}",
+  "params": [
+   {
+    "name": "table_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "table_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "Table",
+  "name": "edit_table",
+  "title": "编辑表格",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "table_token": {
+     "type": "string",
+     "description": "表格 token（`GET /tables` 返回的 `token`），也接受 24 位十六进制的表格 id。"
+    },
+    "name": {
+     "type": "string"
+    },
+    "description": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "setting": {
+     "type": "object",
+     "description": "结构见 schema「FormSettingWriteInput」：调用 get_schema 工具（name=\"FormSettingWriteInput\"）或读取资源 jinshuju://schemas/FormSettingWriteInput。"
+    },
+    "fields": {
+     "type": "object",
+     "description": "字段增量操作，至少一个子键非空才生效",
+     "properties": {
+      "add": {
+       "type": "array",
+       "description": "新增字段；可带 `position`（0 起）指定插入位置，缺省追加到末尾",
+       "items": {
+        "type": "object",
+        "description": "结构见 schema「FieldInput」：调用 get_schema 工具（name=\"FieldInput\"）或读取资源 jinshuju://schemas/FieldInput。"
+       }
+      },
+      "remove": {
+       "type": "array",
+       "description": "要删除的字段 api_code；不存在时返回 400",
+       "items": {
+        "type": "string"
+       }
+      },
+      "update": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "description": "结构见 schema「FieldUpdateInput」：调用 get_schema 工具（name=\"FieldUpdateInput\"）或读取资源 jinshuju://schemas/FieldUpdateInput。"
+       }
+      },
+      "update_choices": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "required": [
+         "field_api_code"
+        ],
+        "description": "对某个选项类字段（或矩阵 / 表格中的选项列）的选项做增量修改；字段不存在或不支持选项时返回 400",
+        "properties": {
+         "field_api_code": {
+          "type": "string"
+         },
+         "add": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "title": "ChoiceInput",
+           "additionalProperties": false,
+           "description": "选项；value 与 name 等价，任填其一",
+           "anyOf": [
+            {
+             "required": [
+              "value"
+             ]
+            },
+            {
+             "required": [
+              "name"
+             ]
+            }
+           ],
+           "properties": {
+            "value": {
+             "type": "string",
+             "description": "选项显示值"
+            },
+            "name": {
+             "type": "string",
+             "description": "与 value 等价"
+            },
+            "api_code": {
+             "type": "string",
+             "description": "指定选项 api_code；缺省由服务端生成，编辑时用于保留身份"
+            },
+            "quota": {
+             "type": "integer",
+             "minimum": 1,
+             "description": "名额上限；不限名额时省略"
+            },
+            "operand_value": {
+             "type": "number",
+             "description": "选项赋值"
+            },
+            "selected": {
+             "type": "boolean",
+             "description": "默认选中"
+            }
+           }
+          }
+         },
+         "remove": {
+          "type": "array",
+          "description": "要删除的选项 api_code（或显示值），也可写成 `{\"api_code\": \"...\"}`",
+          "items": {
+           "oneOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "object",
+             "properties": {
+              "api_code": {
+               "type": "string"
+              }
+             }
+            }
+           ]
+          }
+         },
+         "update": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "api_code"
+           ],
+           "properties": {
+            "api_code": {
+             "type": "string"
+            },
+            "value": {
+             "type": "string",
+             "description": "新显示值"
+            },
+            "operand_value": {
+             "type": "number"
+            },
+            "selected": {
+             "type": "boolean"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      }
+     },
+     "additionalProperties": false
+    },
+    "field_rules": {
+     "type": "object",
+     "description": "字段规则增量操作，`remove` / `update` 以 `GET /forms/{form_token}/field_rules` 返回的 0 起 `index` 定位；同一 index 不能同时删除和更新",
+     "properties": {
+      "add": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "仅 update 操作使用：要修改的规则下标（0 起）"
+         },
+         "targets": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          },
+          "description": "受影响字段的 api_code；`targets_display_mode=abort` 时可省略"
+         },
+         "targets_display_mode": {
+          "type": "string",
+          "description": "`show` / `hide` / `abort`，默认 show"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "条件之间的关系，默认 or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "触发字段 api_code"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "比较符，缺省取该字段支持的第一个；不支持时返回 400 并列出可用比较符"
+            },
+            "value": {
+             "description": "比较值"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      },
+      "remove": {
+       "type": "array",
+       "items": {
+        "type": "integer"
+       }
+      },
+      "update": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "仅 update 操作使用：要修改的规则下标（0 起）"
+         },
+         "targets": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          },
+          "description": "受影响字段的 api_code；`targets_display_mode=abort` 时可省略"
+         },
+         "targets_display_mode": {
+          "type": "string",
+          "description": "`show` / `hide` / `abort`，默认 show"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "条件之间的关系，默认 or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "触发字段 api_code"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "比较符，缺省取该字段支持的第一个；不支持时返回 400 并列出可用比较符"
+            },
+            "value": {
+             "description": "比较值"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      }
+     },
+     "additionalProperties": false
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "table_token"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "moveTableToFolder",
+  "summary": "移动表格到文件夹",
+  "description": "移动表格到文件夹\n将表格移入指定文件夹，或移出文件夹（`folder_token` 传 null）；同时接受 PUT。移动仅影响当前调用用户的文件夹归属。\n\n- 请求体必须包含 `folder_token` 键（值可为 null），否则 400。\n- `folder_token` 只接受文件夹 token（不接受 id）；文件夹不存在或当前用户无管理权限返回 404。\n- 目标文件夹的 kind 必须是 table，否则 400。\n- token 对应的不是表格时返回 404 `table cannot be found`。",
+  "tag": "Tables",
+  "method": "patch",
+  "path": "/tables/{table_token}/folder",
+  "params": [
+   {
+    "name": "table_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "table_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "forms。"
+  ],
+  "responseSchema": "TableFolderMoveResult",
+  "name": "move_table",
+  "title": "移动表格到文件夹",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "table_token": {
+     "type": "string",
+     "description": "表格 token（`GET /tables` 返回的 `token`），也接受 24 位十六进制的表格 id。"
+    },
+    "folder_token": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "目标文件夹 token；null 表示移出文件夹"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "table_token",
+    "folder_token"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "table_token",
+    "folder_token"
+   ],
+   "properties": {
+    "table_token": {
+     "type": "string"
+    },
+    "folder_token": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "移动后所在文件夹 token；移出时为 null"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "listOpensearchQueries",
+  "summary": "列出对外查询",
+  "description": "列出对外查询\n返回当前调用者创建的对外查询（账户级令牌视为账户所有者），按创建时间倒序，只含摘要字段。 传 form_token 时只返回该表单下的查询；form_token 不存在或调用者无权访问时返回 404，而不是忽略该参数。 OAuth 令牌需要 scope：forms。",
+  "tag": "OpenSearch",
+  "method": "get",
+  "path": "/opensearch/queries",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [],
+  "name": "list_opensearch_queries",
+  "title": "列出对外查询",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "按表单 token 过滤"
+    }
+   },
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "getOpensearchQuery",
+  "summary": "获取对外查询",
+  "description": "获取对外查询\n返回对外查询详情，含查询字段规则与展示字段规则。只能读取调用者自己创建的查询，其他用户的查询返回 404（opensearch query cannot be found）。 OAuth 令牌需要 scope：forms。",
+  "tag": "OpenSearch",
+  "method": "get",
+  "path": "/opensearch/queries/{query_token}",
+  "params": [
+   {
+    "name": "query_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "query_token"
+  ],
+  "successStatus": 200,
+  "scopes": [],
+  "responseSchema": "OpensearchQuery",
+  "name": "get_opensearch_query",
+  "title": "获取对外查询",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "query_token": {
+     "type": "string",
+     "description": "对外查询 token（也接受 id）"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "query_token"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "description": "结构见 schema「OpensearchQuery」：调用 get_schema 工具（name=\"OpensearchQuery\"）或读取资源 jinshuju://schemas/OpensearchQuery。"
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "createOpensearchQuery",
+  "summary": "创建对外查询",
+  "description": "创建对外查询\n为 form_token 指定的表单创建对外查询，创建者为当前调用者。调用者必须能管理该表单：无权访问返回 404，能读取但不能管理返回 403； 当前套餐不含对外查询功能返回 402。 search_field_rules 中引用的字段必须是该表单可查询的字段，display_field_rules 中的必须是可展示的字段，否则返回 400 并列出可用的 api_code； search_field_rules / display_field_rules 传入时不能为空数组；scope_conditions 需要套餐支持限定可查询数据范围。 保存后异步生成预览图。 OAuth 令牌需要 scope：forms。",
+  "tag": "OpenSearch",
+  "method": "post",
+  "path": "/opensearch/queries",
+  "params": [],
+  "paramNames": [],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": false,
+   "param": "query"
+  },
+  "successStatus": 201,
+  "scopes": [],
+  "responseSchema": "OpensearchQuery",
+  "name": "create_opensearch_query",
+  "title": "创建对外查询",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "query": {
+     "allOf": [
+      {
+       "type": "object",
+       "description": "结构见 schema「OpensearchQueryInput」：调用 get_schema 工具（name=\"OpensearchQueryInput\"）或读取资源 jinshuju://schemas/OpensearchQueryInput。"
+      },
+      {
+       "type": "object",
+       "required": [
+        "form_token",
+        "name",
+        "display_field_rules"
+       ],
+       "properties": {
+        "form_token": {
+         "type": "string",
+         "description": "所属表单的 token（也可作为 query 参数传递）"
+        }
+       }
+      }
+     ]
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "query"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "description": "结构见 schema「OpensearchQuery」：调用 get_schema 工具（name=\"OpensearchQuery\"）或读取资源 jinshuju://schemas/OpensearchQuery。"
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "updateOpensearchQuery",
+  "summary": "更新对外查询",
+  "description": "更新对外查询\n更新调用者自己创建的对外查询，也接受 PUT，只更新请求中出现的键。所属表单已被删除时返回 400。 字段规则校验与创建相同：引用了不可查询 / 不可展示的字段、规则为空数组、name 为空等均返回 400。 更新不再检查表单管理权限与对外查询套餐功能。 OAuth 令牌需要 scope：forms。",
+  "tag": "OpenSearch",
+  "method": "patch",
+  "path": "/opensearch/queries/{query_token}",
+  "params": [
+   {
+    "name": "query_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "query_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": false,
+   "param": "query"
+  },
+  "successStatus": 200,
+  "scopes": [],
+  "responseSchema": "OpensearchQuery",
+  "name": "edit_opensearch_query",
+  "title": "更新对外查询",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "query_token": {
+     "type": "string",
+     "description": "对外查询 token（也接受 id）"
+    },
+    "query": {
+     "type": "object",
+     "description": "结构见 schema「OpensearchQueryInput」：调用 get_schema 工具（name=\"OpensearchQueryInput\"）或读取资源 jinshuju://schemas/OpensearchQueryInput。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "query_token",
+    "query"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "description": "结构见 schema「OpensearchQuery」：调用 get_schema 工具（name=\"OpensearchQuery\"）或读取资源 jinshuju://schemas/OpensearchQuery。"
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "listOpensearchQuerySuggestions",
+  "summary": "对外查询字段建议",
+  "description": "对外查询字段建议\n返回某表单上可用于对外查询的查询字段与展示字段，以及推荐的字段 api_code，用于构造 search_field_rules / display_field_rules。 调用者必须能管理该表单：无权访问返回 404，能读取但不能管理返回 403。不检查对外查询套餐功能。 OAuth 令牌需要 scope：forms。",
+  "tag": "OpenSearch",
+  "method": "get",
+  "path": "/opensearch/query_suggestions",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "query",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [],
+  "name": "get_opensearch_field_suggestions",
+  "title": "对外查询字段建议",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "listFolders",
+  "summary": "获取文件夹列表",
+  "description": "获取文件夹列表\n列出当前用户拥有管理权限的文件夹（表单文件夹与表格文件夹都在内，用 `kind` 区分），按创建时间倒序。使用账号级凭证时返回账号所有者的文件夹。\n`limit` 缺省 50，取值会被限定在 1 到 100 之间；不支持翻页，`total` 为全部数量，`count` 为本次返回数量。",
+  "tag": "Folders",
+  "method": "get",
+  "path": "/folders",
+  "params": [
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "limit"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "name": "list_folders",
+  "title": "获取文件夹列表",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "limit": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100,
+     "default": 50,
+     "description": "返回数量上限，缺省 50，最大 100"
+    }
+   },
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "total",
+    "count",
+    "data"
+   ],
+   "properties": {
+    "total": {
+     "type": "integer",
+     "description": "可管理的文件夹总数"
+    },
+    "count": {
+     "type": "integer",
+     "description": "本次返回的数量"
+    },
+    "data": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "token",
+       "name",
+       "kind",
+       "created_at"
+      ],
+      "properties": {
+       "token": {
+        "type": "string",
+        "description": "文件夹 token"
+       },
+       "name": {
+        "type": "string",
+        "description": "文件夹名称"
+       },
+       "kind": {
+        "type": [
+         "string",
+         "null"
+        ],
+        "enum": [
+         "form",
+         "table",
+         "quickpay",
+         null
+        ],
+        "description": "文件夹类型：`form` 放表单、`table` 放表格；早期创建的表单文件夹可能为 null，按 `form` 对待"
+       },
+       "created_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "创建时间（UTC）"
+       }
+      }
+     }
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "createFolder",
+  "summary": "创建文件夹",
+  "description": "创建文件夹\n以当前用户身份创建一个文件夹，创建者自动成为文件夹管理者。`kind` 决定文件夹放表单（`form`，缺省）还是表格（`table`）。\n`name` 为空时返回 400 `Name cannot be empty`；`kind` 不是 form / table 时返回 400 `Kind must be one of: form, table`；模型校验失败时返回 400，`error_description` 为校验信息。",
+  "tag": "Folders",
+  "method": "post",
+  "path": "/folders",
+  "params": [],
+  "paramNames": [],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "Folder",
+  "name": "create_folder",
+  "title": "创建文件夹",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "minLength": 1,
+     "description": "文件夹名称，不能为空"
+    },
+    "kind": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "enum": [
+      "form",
+      "table",
+      null
+     ],
+     "default": "form",
+     "description": "文件夹类型；一个文件夹只能放一类内容，表格只能放进 `table` 文件夹。缺省为 `form`"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "name"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "token",
+    "name",
+    "kind",
+    "created_at"
+   ],
+   "properties": {
+    "token": {
+     "type": "string",
+     "description": "文件夹 token"
+    },
+    "name": {
+     "type": "string",
+     "description": "文件夹名称"
+    },
+    "kind": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "enum": [
+      "form",
+      "table",
+      "quickpay",
+      null
+     ],
+     "description": "文件夹类型：`form` 放表单、`table` 放表格；早期创建的表单文件夹可能为 null，按 `form` 对待"
+    },
+    "created_at": {
+     "type": "string",
+     "format": "date-time",
+     "description": "创建时间（UTC）"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "getCurrentUser",
+  "summary": "获取当前用户",
+  "description": "获取当前用户\n返回当前凭证对应的用户信息。使用账号级凭证（无具体用户）时返回账号所有者。",
+  "tag": "Account",
+  "method": "get",
+  "path": "/me",
+  "params": [],
+  "paramNames": [],
+  "successStatus": 200,
+  "scopes": [
+   "users。"
+  ],
+  "responseSchema": "CurrentUser",
+  "name": "get_current_user",
+  "title": "获取当前用户",
+  "inputSchema": {
+   "type": "object",
+   "properties": {},
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "id",
+    "name",
+    "email",
+    "mobile",
+    "role",
+    "billing_account_id",
+    "created_at"
+   ],
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "用户 ID"
+    },
+    "name": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "显示名称"
+    },
+    "email": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "邮箱"
+    },
+    "mobile": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "手机号"
+    },
+    "role": {
+     "type": "string",
+     "enum": [
+      "owner",
+      "admin",
+      "worker",
+      "outworker"
+     ],
+     "description": "在账号中的角色"
+    },
+    "billing_account_id": {
+     "type": "string",
+     "description": "所属账号 ID"
+    },
+    "created_at": {
+     "type": "string",
+     "format": "date-time",
+     "description": "注册时间（UTC）"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "getBillingAccount",
+  "summary": "获取当前账号",
+  "description": "获取当前账号\n返回当前凭证所属账号的信息：套餐、当月用量与配额、功能试用状态，以及已绑定的收款商户 / 微信支付 / 支付宝账户。\n\n`usage` 在账号尚无当月用量记录时为 null；每项增值服务的配额为无限时只返回 `unit`、`unlimited: true`、`consumed_quota`。",
+  "tag": "Account",
+  "method": "get",
+  "path": "/billing_account",
+  "params": [],
+  "paramNames": [],
+  "successStatus": 200,
+  "scopes": [
+   "users。"
+  ],
+  "responseSchema": "BillingAccount",
+  "name": "get_current_billing_account",
+  "title": "获取当前账号",
+  "inputSchema": {
+   "type": "object",
+   "properties": {},
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "type": "object",
+   "description": "结构见 schema「BillingAccount」：调用 get_schema 工具（name=\"BillingAccount\"）或读取资源 jinshuju://schemas/BillingAccount。"
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "listBillingAccountUsers",
+  "summary": "获取账号成员",
+  "description": "获取账号成员\n列出当前账号下的成员（含已停用成员），先按状态升序（active 在前）、再按创建时间倒序。\n\n`limit` 缺省 50，取值会被限定在 1 到 100 之间；不支持翻页，`total` 为成员总数，`count` 为本次返回数量。",
+  "tag": "Account",
+  "method": "get",
+  "path": "/billing_account/users",
+  "params": [
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "limit"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "users。"
+  ],
+  "name": "list_account_users",
+  "title": "获取账号成员",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "limit": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 100,
+     "default": 50,
+     "description": "返回数量上限，缺省 50，最大 100"
+    }
+   },
+   "additionalProperties": false
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "uploadEntryAttachment",
+  "summary": "上传数据附件",
+  "description": "上传数据附件\n为表单的附件字段（或表格字段中的附件列）预先上传一个文件，返回附件 ID；之后在创建 / 更新数据时把该 ID（或上传令牌）填入对应字段即可完成绑定。上传后未被任何数据引用的附件处于未使用状态。\n鉴权方式二选一：\n1. 常规 API 凭证（HTTP Basic 的 api_key / api_secret，或 Bearer 令牌）。\n2. 一次性上传令牌 `attachment_token`（代替常规凭证）：令牌以 `entry_att_tok_` 开头，30 分钟内有效、只能使用一次，并绑定到表单、字段、列与文件元数据。请求中带有 `attachment_token` 时不再校验常规凭证，以令牌所属用户的身份访问；令牌无效、过期、已使用、所属用户已被删除，或与请求的表单 / 字段 / 列不一致时返回 400 `attachment_token is invalid or expired; prepare upload again`；上传文件的文件名、Content-Type、字节数与令牌不一致时同样返回 400。\n没有凭证也没有 `attachment_token` 时返回 401。\n文件内容二选一：`multipart/form-data` 的 `file` 字段；或 JSON / 表单中的 `base64`（亦可用 `data`）字段传 Base64 字符串（可带 `data:<mime>;base64,` 前缀），配合 `file_name`（亦可用 `filename`）与 `content_type`。Base64 方式解码后不能超过 5 MB，超过返回 400 `attachment exceeds 5MB limit`，解码失败返回 400 `base64 is invalid`；两者都没有时返回 400 `file or base64 is required`。\n`field_api_code` 必须指向附件字段或表格字段；指向表格字段时必须同时传 `dimension_api_code` 且指向该表格中的附件列，否则返回 400；字段或列不存在返回 404。\n文件大小受字段（或列）设置的单文件上限限制，超出时返回 422，`error_description` 为具体校验信息（如 `文件超过了10 MB`）；上传到对象存储失败时返回 422 `上传失败，请重试`（以服务端文案为准）。\n表单不存在或当前身份无权访问时返回 404 `form cannot be found`。",
+  "tag": "Uploads",
+  "method": "post",
+  "path": "/forms/{form_token}/entry_attachments",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "UploadedEntryAttachment",
+  "name": "upload_entry_attachment",
+  "title": "上传数据附件",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "field_api_code": {
+     "type": "string",
+     "description": "附件字段的 api_code；表格字段中的附件列则传表格字段的 api_code"
+    },
+    "dimension_api_code": {
+     "type": "string",
+     "description": "表格字段中附件列的 api_code，`field_api_code` 为表格字段时必填"
+    },
+    "attachment_token": {
+     "type": "string",
+     "description": "一次性上传令牌，以 `entry_att_tok_` 开头；传入时代替常规凭证"
+    },
+    "base64": {
+     "type": "string",
+     "description": "文件内容的 Base64 字符串，可带 `data:<mime>;base64,` 前缀，解码后不超过 5 MB；亦可用 `data` 键"
+    },
+    "data": {
+     "type": "string",
+     "description": "与 `base64` 等价的别名"
+    },
+    "file_name": {
+     "type": "string",
+     "description": "文件名，缺省为 `attachment`；亦可用 `filename` 键"
+    },
+    "filename": {
+     "type": "string",
+     "description": "与 `file_name` 等价的别名"
+    },
+    "content_type": {
+     "type": "string",
+     "description": "MIME 类型，缺省取 data URI 前缀，否则为 `application/octet-stream`"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "field_api_code",
+    "base64"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "id",
+    "file_name",
+    "content_type",
+    "file_size",
+    "download_url"
+   ],
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "附件 ID，创建 / 更新数据时填入附件字段"
+    },
+    "file_name": {
+     "type": "string",
+     "description": "文件名"
+    },
+    "content_type": {
+     "type": "string",
+     "description": "MIME 类型"
+    },
+    "file_size": {
+     "type": "integer",
+     "description": "文件字节数"
+    },
+    "download_url": {
+     "type": "string",
+     "description": "下载地址（长期有效）"
+    },
+    "preview_url": {
+     "type": "string",
+     "description": "图片预览地址，仅图片附件返回"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "uploadFormImage",
+  "summary": "上传表单图片",
+  "description": "上传表单图片\n上传一张属于表单本身的图片（图片选项图、表头图、背景图、表头轮播图的一帧），返回图片附件 ID。图片此时尚未绑定到任何表单，之后在表单或主题中引用它时才生效。\n鉴权方式二选一：\n1. 常规 API 凭证（HTTP Basic 的 api_key / api_secret，或 Bearer 令牌），此时必须用 `image_type` 说明图片用途，且只能是 `header`（表头图）或 `wallpaper`（背景图）：返回的 `attachment_id` 交给「更新表单主题」的 `header.header_image_attachment_id` / `wallpaper.background_image_attachment_id`。`image_type` 缺失或不在 `field_choice` / `header` / `wallpaper` / `carousel` 之内时返回 400 `image_type must be one of: field_choice, header, wallpaper, carousel.`；`field_choice` / `carousel` 没有接受附件 ID 的地方，只能配合上传令牌上传，否则返回 400。\n2. 一次性上传令牌 `form_image_token`（代替常规凭证）：令牌以 `form_img_tok_` 开头，30 分钟内有效、只能使用一次，已记录图片用途（`field_choice` / `header` / `wallpaper` / `carousel`，此时忽略 `image_type`）与文件元数据；上传文件的原始文件名、Content-Type、字节数必须与令牌记录的一致，否则返回 400。上传成功后不要直接使用返回的 `attachment_id`，而是在「创建表单」/「编辑表单」的选项 `image_upload_token`，或「更新表单主题」的 `header.header_image_upload_token` / `wallpaper.background_image_upload_token` / `header.carousel_images[].image_upload_token` 中引用同一个令牌。令牌不存在、已过期、已使用，或所属用户已被删除时返回 400 `form_image_token is invalid or expired; prepare upload again`。\n没有凭证也没有 `form_image_token` 时返回 401。请求必须为 `multipart/form-data`，字段 `file` 携带图片二进制；缺少文件返回 400 `file is required`。",
+  "tag": "Uploads",
+  "method": "post",
+  "path": "/form_image_attachments",
+  "params": [],
+  "paramNames": [],
+  "body": {
+   "contentType": "multipart/form-data",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "`image_type`（或令牌记录的用途）为",
+   "field_choice",
+   "时需要",
+   "forms，其余需要",
+   "form_setting"
+  ],
+  "responseSchema": "UploadedFormImage",
+  "name": "upload_form_image",
+  "title": "上传表单图片",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "image_type": {
+     "type": "string",
+     "enum": [
+      "field_choice",
+      "header",
+      "wallpaper",
+      "carousel"
+     ],
+     "description": "图片用途；不带上传令牌时必填且只能为 header / wallpaper，带上传令牌时忽略"
+    },
+    "form_image_token": {
+     "type": "string",
+     "description": "一次性上传令牌，以 `form_img_tok_` 开头；传入时代替常规凭证"
+    },
+    "file_base64": {
+     "type": "string",
+     "description": "图片文件；使用上传令牌时文件名、Content-Type、大小须与令牌记录的一致。文件内容的 Base64（可带 data URI 前缀）。"
+    },
+    "file_name": {
+     "type": "string",
+     "description": "文件名（含扩展名）"
+    },
+    "content_type": {
+     "type": "string",
+     "description": "文件的 MIME 类型，如 image/png、text/csv"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "file_base64",
+    "file_name",
+    "content_type"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "attachment_id"
+   ],
+   "properties": {
+    "attachment_id": {
+     "type": "string",
+     "description": "图片附件 ID（见「上传表单图片」）"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "uploadImportFile",
+  "summary": "上传导入文件",
+  "description": "上传导入文件\n上传一个用于批量导入数据的表格文件（`.xlsx` / `.xls` / `.csv`）到指定表单，返回导入附件 ID；随后把它作为 `attachment_id` 交给「从已上传的表格文件导入数据」（`POST /forms/{form_token}/entry_imports`）发起导入。\n鉴权方式二选一：\n1. 常规 API 凭证（HTTP Basic 的 api_key / api_secret，或 Bearer 令牌）。\n2. 一次性上传令牌 `import_file_token`（代替常规凭证）：令牌以 `import_file_tok_` 开头，30 分钟内有效、只能使用一次，并绑定到表单与文件元数据。请求中带有 `import_file_token` 时不再校验常规凭证，以令牌所属用户的身份访问；上传文件的原始文件名、Content-Type、字节数必须与令牌记录的一致，否则返回 400。令牌不存在、已过期、已使用，或所属用户已被删除时返回 400 `import_file_token is invalid or expired; prepare upload again`；令牌属于另一个表单时返回 400 `import_file_token was issued for another form; prepare upload again`。\n没有凭证也没有 `import_file_token` 时返回 401。\n请求必须为 `multipart/form-data`，字段 `file` 携带文件；缺少文件返回 400 `file is required`。\n文件大小受账号套餐的 Excel 导入上限（单位 MB）限制，扩展名须为 xls / xlsx / csv；不满足时返回 422，`error_description` 为具体校验信息（使用上传令牌时令牌保持可用，可重新上传）。\n表单不存在或当前身份无权访问时返回 404 `form cannot be found`。",
+  "tag": "Uploads",
+  "method": "post",
+  "path": "/forms/{form_token}/import_files",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "multipart/form-data",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "UploadedImportFile",
+  "name": "upload_import_file",
+  "title": "上传导入文件",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "import_file_token": {
+     "type": "string",
+     "description": "一次性上传令牌，以 `import_file_tok_` 开头；传入时代替常规凭证"
+    },
+    "file_base64": {
+     "type": "string",
+     "description": "待导入的 xlsx / xls / csv 文件；使用上传令牌时文件名、Content-Type、大小须与令牌记录的一致。文件内容的 Base64（可带 data URI 前缀）。"
+    },
+    "file_name": {
+     "type": "string",
+     "description": "文件名（含扩展名）"
+    },
+    "content_type": {
+     "type": "string",
+     "description": "文件的 MIME 类型，如 image/png、text/csv"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "file_base64",
+    "file_name",
+    "content_type"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "id",
+    "file_name",
+    "content_type",
+    "file_size"
+   ],
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "导入附件 ID，作为 `attachment_id` 交给「从已上传的表格文件导入数据」"
+    },
+    "file_name": {
+     "type": "string",
+     "description": "文件名"
+    },
+    "content_type": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "MIME 类型"
+    },
+    "file_size": {
+     "type": "integer",
+     "description": "文件字节数"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "updateForm",
+  "summary": "编辑表单",
+  "description": "增量编辑表单的字段显示规则（逻辑跳转）：add 追加、update / remove 按 get_field_rules 返回的 0 起 index 定位， 其它规则不受影响。等价于 edit_form 只传 field_rules。\n字段规则增量操作，`remove` / `update` 以 `GET /forms/{form_token}/field_rules` 返回的 0 起 `index` 定位；同一 index 不能同时删除和更新",
+  "tag": "Forms",
+  "method": "patch",
+  "path": "/forms/{form_token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true,
+   "wrap": "field_rules"
+  },
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "Form",
+  "name": "edit_field_rules",
+  "title": "编辑字段规则",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "add": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "index": {
+        "type": "integer",
+        "description": "仅 update 操作使用：要修改的规则下标（0 起）"
+       },
+       "targets": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        },
+        "description": "受影响字段的 api_code；`targets_display_mode=abort` 时可省略"
+       },
+       "targets_display_mode": {
+        "type": "string",
+        "description": "`show` / `hide` / `abort`，默认 show"
+       },
+       "operator": {
+        "type": "string",
+        "enum": [
+         "or",
+         "and"
+        ],
+        "description": "条件之间的关系，默认 or"
+       },
+       "conditions": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "trigger"
+         ],
+         "properties": {
+          "trigger": {
+           "type": "string",
+           "description": "触发字段 api_code"
+          },
+          "comparator": {
+           "type": "string",
+           "description": "比较符，缺省取该字段支持的第一个；不支持时返回 400 并列出可用比较符"
+          },
+          "value": {
+           "description": "比较值"
+          }
+         },
+         "additionalProperties": false
+        }
+       }
+      },
+      "additionalProperties": false
+     }
+    },
+    "remove": {
+     "type": "array",
+     "items": {
+      "type": "integer"
+     }
+    },
+    "update": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "index": {
+        "type": "integer",
+        "description": "仅 update 操作使用：要修改的规则下标（0 起）"
+       },
+       "targets": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        },
+        "description": "受影响字段的 api_code；`targets_display_mode=abort` 时可省略"
+       },
+       "targets_display_mode": {
+        "type": "string",
+        "description": "`show` / `hide` / `abort`，默认 show"
+       },
+       "operator": {
+        "type": "string",
+        "enum": [
+         "or",
+         "and"
+        ],
+        "description": "条件之间的关系，默认 or"
+       },
+       "conditions": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "trigger"
+         ],
+         "properties": {
+          "trigger": {
+           "type": "string",
+           "description": "触发字段 api_code"
+          },
+          "comparator": {
+           "type": "string",
+           "description": "比较符，缺省取该字段支持的第一个；不支持时返回 400 并列出可用比较符"
+          },
+          "value": {
+           "description": "比较值"
+          }
+         },
+         "additionalProperties": false
+        }
+       }
+      },
+      "additionalProperties": false
+     }
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "createForm",
+  "summary": "创建表单",
+  "description": "创建在线考试表单（scene=exam，自动判分）。题目必须用考试题型（SingleSelect / MultiSelect / TrueOrFalse / DropDownSelect / FillInBlank / ShortAnswer / FillInNumber），每题带 answers（正确答案与分值）。 先建表单，再用 exam_setting 更新考试设置；设置被拒绝时表单已创建，结果里会说明。\n用字段定义列表创建一个表单，返回完整的表单结构。`name` 与 `fields` 必填。\n- `scene` 决定表单场景；考试 / 测评题型（如 `SingleSelect`、`FillInBlank`）只能在支持的场景下使用。\n- `layout=card`（分页式）不支持 PageBreak、Matrix*、TableField、GoodsField、ESignatureField、FormAssociation、MultipleBlanksField 及各类 Widget 字段。\n- `folder_token` 指定的文件夹必须可管理且 kind 为 form，否则分别返回 404 / 400。\n- `setting` 只接受白名单内的键（见 `FormSettingWriteInput`），`setting.notification_rules` 会整体替换由 API 创建的通知规则。\n- 返回的表单结构带 `url`（对外填写地址）。",
+  "tag": "Forms",
+  "method": "post",
+  "path": "/forms",
+  "params": [],
+  "paramNames": [],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "Form",
+  "name": "create_exam_form",
+  "title": "创建考试表单",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "表单名称"
+    },
+    "description": {
+     "type": "string",
+     "description": "表单描述"
+    },
+    "fields": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "object",
+      "description": "结构见 schema「FieldInput」：调用 get_schema 工具（name=\"FieldInput\"）或读取资源 jinshuju://schemas/FieldInput。"
+     }
+    },
+    "setting": {
+     "type": "object",
+     "description": "结构见 schema「FormSettingWriteInput」：调用 get_schema 工具（name=\"FormSettingWriteInput\"）或读取资源 jinshuju://schemas/FormSettingWriteInput。"
+    },
+    "folder_token": {
+     "type": "string",
+     "description": "放入的文件夹 token（或 id），必须可管理且 kind 为 form"
+    },
+    "layout": {
+     "type": "string",
+     "enum": [
+      "classic",
+      "card"
+     ],
+     "description": "布局，仅 survey / form / exam / evaluation 场景有效；card 为分页式"
+    },
+    "exam_setting": {
+     "type": "object",
+     "properties": {
+      "notice_after_filling_mode": {
+       "type": "string",
+       "enum": [
+        "appreciation",
+        "grade",
+        "explaination",
+        "none",
+        "answer"
+       ],
+       "description": "套餐不支持显示成绩时会被强制写为 none"
+      },
+      "show_timeout": {
+       "type": "boolean"
+      },
+      "limited_time": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 9999,
+       "description": "限时分钟数"
+      },
+      "need_attention": {
+       "type": "string"
+      },
+      "success_message_rich_text": {
+       "type": "string",
+       "description": "交卷后提示富文本；仅套餐支持显示成绩时写入"
+      },
+      "interval_comments": {
+       "type": "array",
+       "description": "整体替换区间评语；需互不重叠。仅 notice_after_filling_mode 为 grade / explaination / answer 时生效，空数组被忽略",
+       "items": {
+        "type": "object",
+        "properties": {
+         "start_point": {
+          "type": "number"
+         },
+         "end_point": {
+          "type": "number",
+          "description": "不小于 start_point"
+         },
+         "comment": {
+          "type": "string"
+         },
+         "retry": {
+          "type": "boolean"
+         }
+        }
+       }
+      }
+     },
+     "description": "考试设置（updateExamSetting）：增量更新考试场景表单的设置；同时接受 PUT。仅考试场景表单可用，否则返回 400。\n\n- 套餐不支持\"提交后显示成绩\"时，`notice_after_filling_mode` 会被强制写为 none，且 `success_message_rich_text` 被忽略。\n- `interval_comments` 整体替换现有区间评语；仅在（本次传入或已保存的）`notice_after_filling_mode` 为 grade / explaination / answer 时生效；传空数组不会关闭区间评语。\n- 区间评语需满足 end_point ≥ start_point 且互不重叠，否则 400。\n- `notice_after_filling_mode` 不为 none 时，服务端会清空表单设置中的 success_redirect_url / success_redirect_fields。\n- 请求体不含任何可识别键时视为无操作，直接返回当前设置。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "name",
+    "fields"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  },
+  "composite": {
+   "kind": "scene_form_create",
+   "scene": "exam",
+   "settingOperation": "updateExamSetting",
+   "settingKey": "exam_setting"
+  }
+ },
+ {
+  "operationId": "updateForm",
+  "summary": "编辑表单",
+  "description": "编辑考试场景表单：名称 / 描述 / 题目增删改 / 通用设置，以及 exam_setting 考试设置。 先更新考试设置（非考试表单会被拒绝，此时不改动其它内容），再更新表单本身。\n增量编辑表单，也接受 `PUT`。请求体至少包含 `name` / `description` / `fields` / `setting` / `field_rules` 之一，否则返回 400。\n- `fields` 按 `add` / `remove` / `update` / `update_choices` 四类操作增量修改，未提及的字段、选项与 api_code 全部保留；\n  `update[].type` 可原地切换字段类型，会清空数据的切换必须带 `confirm_data_loss: true`。\n- `field_rules` 以 `GET /forms/{form_token}/field_rules` 返回的 `index` 定位规则做 `add` / `remove` / `update`。\n- `setting` 与创建时相同，只接受白名单内的键。\n返回更新后的完整表单结构。",
+  "tag": "Forms",
+  "method": "patch",
+  "path": "/forms/{form_token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "Form",
+  "name": "edit_exam_form",
+  "title": "编辑考试表单",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "name": {
+     "type": "string"
+    },
+    "description": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "setting": {
+     "type": "object",
+     "description": "结构见 schema「FormSettingWriteInput」：调用 get_schema 工具（name=\"FormSettingWriteInput\"）或读取资源 jinshuju://schemas/FormSettingWriteInput。"
+    },
+    "fields": {
+     "type": "object",
+     "description": "字段增量操作，至少一个子键非空才生效",
+     "properties": {
+      "add": {
+       "type": "array",
+       "description": "新增字段；可带 `position`（0 起）指定插入位置，缺省追加到末尾",
+       "items": {
+        "type": "object",
+        "description": "结构见 schema「FieldInput」：调用 get_schema 工具（name=\"FieldInput\"）或读取资源 jinshuju://schemas/FieldInput。"
+       }
+      },
+      "remove": {
+       "type": "array",
+       "description": "要删除的字段 api_code；不存在时返回 400",
+       "items": {
+        "type": "string"
+       }
+      },
+      "update": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "description": "结构见 schema「FieldUpdateInput」：调用 get_schema 工具（name=\"FieldUpdateInput\"）或读取资源 jinshuju://schemas/FieldUpdateInput。"
+       }
+      },
+      "update_choices": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "required": [
+         "field_api_code"
+        ],
+        "description": "对某个选项类字段（或矩阵 / 表格中的选项列）的选项做增量修改；字段不存在或不支持选项时返回 400",
+        "properties": {
+         "field_api_code": {
+          "type": "string"
+         },
+         "add": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "title": "ChoiceInput",
+           "additionalProperties": false,
+           "description": "选项；value 与 name 等价，任填其一",
+           "anyOf": [
+            {
+             "required": [
+              "value"
+             ]
+            },
+            {
+             "required": [
+              "name"
+             ]
+            }
+           ],
+           "properties": {
+            "value": {
+             "type": "string",
+             "description": "选项显示值"
+            },
+            "name": {
+             "type": "string",
+             "description": "与 value 等价"
+            },
+            "api_code": {
+             "type": "string",
+             "description": "指定选项 api_code；缺省由服务端生成，编辑时用于保留身份"
+            },
+            "quota": {
+             "type": "integer",
+             "minimum": 1,
+             "description": "名额上限；不限名额时省略"
+            },
+            "operand_value": {
+             "type": "number",
+             "description": "选项赋值"
+            },
+            "selected": {
+             "type": "boolean",
+             "description": "默认选中"
+            }
+           }
+          }
+         },
+         "remove": {
+          "type": "array",
+          "description": "要删除的选项 api_code（或显示值），也可写成 `{\"api_code\": \"...\"}`",
+          "items": {
+           "oneOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "object",
+             "properties": {
+              "api_code": {
+               "type": "string"
+              }
+             }
+            }
+           ]
+          }
+         },
+         "update": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "api_code"
+           ],
+           "properties": {
+            "api_code": {
+             "type": "string"
+            },
+            "value": {
+             "type": "string",
+             "description": "新显示值"
+            },
+            "operand_value": {
+             "type": "number"
+            },
+            "selected": {
+             "type": "boolean"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      }
+     },
+     "additionalProperties": false
+    },
+    "field_rules": {
+     "type": "object",
+     "description": "字段规则增量操作，`remove` / `update` 以 `GET /forms/{form_token}/field_rules` 返回的 0 起 `index` 定位；同一 index 不能同时删除和更新",
+     "properties": {
+      "add": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "仅 update 操作使用：要修改的规则下标（0 起）"
+         },
+         "targets": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          },
+          "description": "受影响字段的 api_code；`targets_display_mode=abort` 时可省略"
+         },
+         "targets_display_mode": {
+          "type": "string",
+          "description": "`show` / `hide` / `abort`，默认 show"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "条件之间的关系，默认 or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "触发字段 api_code"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "比较符，缺省取该字段支持的第一个；不支持时返回 400 并列出可用比较符"
+            },
+            "value": {
+             "description": "比较值"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      },
+      "remove": {
+       "type": "array",
+       "items": {
+        "type": "integer"
+       }
+      },
+      "update": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "仅 update 操作使用：要修改的规则下标（0 起）"
+         },
+         "targets": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          },
+          "description": "受影响字段的 api_code；`targets_display_mode=abort` 时可省略"
+         },
+         "targets_display_mode": {
+          "type": "string",
+          "description": "`show` / `hide` / `abort`，默认 show"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "条件之间的关系，默认 or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "触发字段 api_code"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "比较符，缺省取该字段支持的第一个；不支持时返回 400 并列出可用比较符"
+            },
+            "value": {
+             "description": "比较值"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      }
+     },
+     "additionalProperties": false
+    },
+    "exam_setting": {
+     "type": "object",
+     "properties": {
+      "notice_after_filling_mode": {
+       "type": "string",
+       "enum": [
+        "appreciation",
+        "grade",
+        "explaination",
+        "none",
+        "answer"
+       ],
+       "description": "套餐不支持显示成绩时会被强制写为 none"
+      },
+      "show_timeout": {
+       "type": "boolean"
+      },
+      "limited_time": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 9999,
+       "description": "限时分钟数"
+      },
+      "need_attention": {
+       "type": "string"
+      },
+      "success_message_rich_text": {
+       "type": "string",
+       "description": "交卷后提示富文本；仅套餐支持显示成绩时写入"
+      },
+      "interval_comments": {
+       "type": "array",
+       "description": "整体替换区间评语；需互不重叠。仅 notice_after_filling_mode 为 grade / explaination / answer 时生效，空数组被忽略",
+       "items": {
+        "type": "object",
+        "properties": {
+         "start_point": {
+          "type": "number"
+         },
+         "end_point": {
+          "type": "number",
+          "description": "不小于 start_point"
+         },
+         "comment": {
+          "type": "string"
+         },
+         "retry": {
+          "type": "boolean"
+         }
+        }
+       }
+      }
+     },
+     "description": "考试设置（updateExamSetting）：增量更新考试场景表单的设置；同时接受 PUT。仅考试场景表单可用，否则返回 400。\n\n- 套餐不支持\"提交后显示成绩\"时，`notice_after_filling_mode` 会被强制写为 none，且 `success_message_rich_text` 被忽略。\n- `interval_comments` 整体替换现有区间评语；仅在（本次传入或已保存的）`notice_after_filling_mode` 为 grade / explaination / answer 时生效；传空数组不会关闭区间评语。\n- 区间评语需满足 end_point ≥ start_point 且互不重叠，否则 400。\n- `notice_after_filling_mode` 不为 none 时，服务端会清空表单设置中的 success_redirect_url / success_redirect_fields。\n- 请求体不含任何可识别键时视为无操作，直接返回当前设置。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  },
+  "composite": {
+   "kind": "scene_form_update",
+   "scene": "exam",
+   "settingOperation": "updateExamSetting",
+   "settingKey": "exam_setting"
+  }
+ },
+ {
+  "operationId": "createForm",
+  "summary": "创建表单",
+  "description": "创建测评表单（scene=evaluation）。计分测评用 SingleSelect / MultiSelect / DropDownSelect / Rating / Nps 并带分值； 反馈问卷用普通字段。先建表单，再用 evaluation_setting 更新测评设置。\n用字段定义列表创建一个表单，返回完整的表单结构。`name` 与 `fields` 必填。\n- `scene` 决定表单场景；考试 / 测评题型（如 `SingleSelect`、`FillInBlank`）只能在支持的场景下使用。\n- `layout=card`（分页式）不支持 PageBreak、Matrix*、TableField、GoodsField、ESignatureField、FormAssociation、MultipleBlanksField 及各类 Widget 字段。\n- `folder_token` 指定的文件夹必须可管理且 kind 为 form，否则分别返回 404 / 400。\n- `setting` 只接受白名单内的键（见 `FormSettingWriteInput`），`setting.notification_rules` 会整体替换由 API 创建的通知规则。\n- 返回的表单结构带 `url`（对外填写地址）。",
+  "tag": "Forms",
+  "method": "post",
+  "path": "/forms",
+  "params": [],
+  "paramNames": [],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "Form",
+  "name": "create_evaluation_form",
+  "title": "创建测评表单",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "表单名称"
+    },
+    "description": {
+     "type": "string",
+     "description": "表单描述"
+    },
+    "fields": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "object",
+      "description": "结构见 schema「FieldInput」：调用 get_schema 工具（name=\"FieldInput\"）或读取资源 jinshuju://schemas/FieldInput。"
+     }
+    },
+    "setting": {
+     "type": "object",
+     "description": "结构见 schema「FormSettingWriteInput」：调用 get_schema 工具（name=\"FormSettingWriteInput\"）或读取资源 jinshuju://schemas/FormSettingWriteInput。"
+    },
+    "folder_token": {
+     "type": "string",
+     "description": "放入的文件夹 token（或 id），必须可管理且 kind 为 form"
+    },
+    "layout": {
+     "type": "string",
+     "enum": [
+      "classic",
+      "card"
+     ],
+     "description": "布局，仅 survey / form / exam / evaluation 场景有效；card 为分页式"
+    },
+    "evaluation_setting": {
+     "type": "object",
+     "description": "测评设置（updateEvaluationSetting）：增量更新测评场景表单的设置；同时接受 PUT。仅测评场景表单可用，否则返回 400。\n\n- 套餐不支持\"提交后显示测评报告\"时，`notice_after_filling_mode` 会被强制写为 none。\n- `evaluation_comments` 整体替换总分区间评语，传空数组则关闭区间评语；仅在（本次传入或已保存的）`notice_after_filling_mode` 为 reports / customize 时生效。\n- 按分数区间的评语必须同时给出 start_point 与 end_point；在表单编辑器中按条件编写的评语会以 `id` + `conditions` 读回，更新时必须按原 id 传回（只能改 comment / retry，不能改条件或加区间），遗漏或改动均返回 400。\n- `indicator_setting.indicators` 整体替换维度；传回 `api_code` 可保留已有维度身份。维度只能绑定表单上可见的可计分题目，可用 `field_api_codes` 或 `field_cids` 引用，引用未知字段返回 400。\n- `notice_after_filling_mode` 不为 none 时，服务端会清空表单设置中的 success_redirect_url / success_redirect_fields。\n- 请求体不含任何可识别键时视为无操作，直接返回当前设置。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "name",
+    "fields"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  },
+  "composite": {
+   "kind": "scene_form_create",
+   "scene": "evaluation",
+   "settingOperation": "updateEvaluationSetting",
+   "settingKey": "evaluation_setting"
+  }
+ },
+ {
+  "operationId": "updateForm",
+  "summary": "编辑表单",
+  "description": "编辑测评场景表单：名称 / 描述 / 题目增删改 / 通用设置，以及 evaluation_setting 测评设置。先更新测评设置，再更新表单本身。\n增量编辑表单，也接受 `PUT`。请求体至少包含 `name` / `description` / `fields` / `setting` / `field_rules` 之一，否则返回 400。\n- `fields` 按 `add` / `remove` / `update` / `update_choices` 四类操作增量修改，未提及的字段、选项与 api_code 全部保留；\n  `update[].type` 可原地切换字段类型，会清空数据的切换必须带 `confirm_data_loss: true`。\n- `field_rules` 以 `GET /forms/{form_token}/field_rules` 返回的 `index` 定位规则做 `add` / `remove` / `update`。\n- `setting` 与创建时相同，只接受白名单内的键。\n返回更新后的完整表单结构。",
+  "tag": "Forms",
+  "method": "patch",
+  "path": "/forms/{form_token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "Form",
+  "name": "edit_evaluation_form",
+  "title": "编辑测评表单",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "表单 token（`GET /forms` 返回的 `token`），也接受 24 位十六进制的表单 id。"
+    },
+    "name": {
+     "type": "string"
+    },
+    "description": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "setting": {
+     "type": "object",
+     "description": "结构见 schema「FormSettingWriteInput」：调用 get_schema 工具（name=\"FormSettingWriteInput\"）或读取资源 jinshuju://schemas/FormSettingWriteInput。"
+    },
+    "fields": {
+     "type": "object",
+     "description": "字段增量操作，至少一个子键非空才生效",
+     "properties": {
+      "add": {
+       "type": "array",
+       "description": "新增字段；可带 `position`（0 起）指定插入位置，缺省追加到末尾",
+       "items": {
+        "type": "object",
+        "description": "结构见 schema「FieldInput」：调用 get_schema 工具（name=\"FieldInput\"）或读取资源 jinshuju://schemas/FieldInput。"
+       }
+      },
+      "remove": {
+       "type": "array",
+       "description": "要删除的字段 api_code；不存在时返回 400",
+       "items": {
+        "type": "string"
+       }
+      },
+      "update": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "description": "结构见 schema「FieldUpdateInput」：调用 get_schema 工具（name=\"FieldUpdateInput\"）或读取资源 jinshuju://schemas/FieldUpdateInput。"
+       }
+      },
+      "update_choices": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "required": [
+         "field_api_code"
+        ],
+        "description": "对某个选项类字段（或矩阵 / 表格中的选项列）的选项做增量修改；字段不存在或不支持选项时返回 400",
+        "properties": {
+         "field_api_code": {
+          "type": "string"
+         },
+         "add": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "title": "ChoiceInput",
+           "additionalProperties": false,
+           "description": "选项；value 与 name 等价，任填其一",
+           "anyOf": [
+            {
+             "required": [
+              "value"
+             ]
+            },
+            {
+             "required": [
+              "name"
+             ]
+            }
+           ],
+           "properties": {
+            "value": {
+             "type": "string",
+             "description": "选项显示值"
+            },
+            "name": {
+             "type": "string",
+             "description": "与 value 等价"
+            },
+            "api_code": {
+             "type": "string",
+             "description": "指定选项 api_code；缺省由服务端生成，编辑时用于保留身份"
+            },
+            "quota": {
+             "type": "integer",
+             "minimum": 1,
+             "description": "名额上限；不限名额时省略"
+            },
+            "operand_value": {
+             "type": "number",
+             "description": "选项赋值"
+            },
+            "selected": {
+             "type": "boolean",
+             "description": "默认选中"
+            }
+           }
+          }
+         },
+         "remove": {
+          "type": "array",
+          "description": "要删除的选项 api_code（或显示值），也可写成 `{\"api_code\": \"...\"}`",
+          "items": {
+           "oneOf": [
+            {
+             "type": "string"
+            },
+            {
+             "type": "object",
+             "properties": {
+              "api_code": {
+               "type": "string"
+              }
+             }
+            }
+           ]
+          }
+         },
+         "update": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "api_code"
+           ],
+           "properties": {
+            "api_code": {
+             "type": "string"
+            },
+            "value": {
+             "type": "string",
+             "description": "新显示值"
+            },
+            "operand_value": {
+             "type": "number"
+            },
+            "selected": {
+             "type": "boolean"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      }
+     },
+     "additionalProperties": false
+    },
+    "field_rules": {
+     "type": "object",
+     "description": "字段规则增量操作，`remove` / `update` 以 `GET /forms/{form_token}/field_rules` 返回的 0 起 `index` 定位；同一 index 不能同时删除和更新",
+     "properties": {
+      "add": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "仅 update 操作使用：要修改的规则下标（0 起）"
+         },
+         "targets": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          },
+          "description": "受影响字段的 api_code；`targets_display_mode=abort` 时可省略"
+         },
+         "targets_display_mode": {
+          "type": "string",
+          "description": "`show` / `hide` / `abort`，默认 show"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "条件之间的关系，默认 or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "触发字段 api_code"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "比较符，缺省取该字段支持的第一个；不支持时返回 400 并列出可用比较符"
+            },
+            "value": {
+             "description": "比较值"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      },
+      "remove": {
+       "type": "array",
+       "items": {
+        "type": "integer"
+       }
+      },
+      "update": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "仅 update 操作使用：要修改的规则下标（0 起）"
+         },
+         "targets": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          },
+          "description": "受影响字段的 api_code；`targets_display_mode=abort` 时可省略"
+         },
+         "targets_display_mode": {
+          "type": "string",
+          "description": "`show` / `hide` / `abort`，默认 show"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "条件之间的关系，默认 or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "触发字段 api_code"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "比较符，缺省取该字段支持的第一个；不支持时返回 400 并列出可用比较符"
+            },
+            "value": {
+             "description": "比较值"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      }
+     },
+     "additionalProperties": false
+    },
+    "evaluation_setting": {
+     "type": "object",
+     "description": "测评设置（updateEvaluationSetting）：增量更新测评场景表单的设置；同时接受 PUT。仅测评场景表单可用，否则返回 400。\n\n- 套餐不支持\"提交后显示测评报告\"时，`notice_after_filling_mode` 会被强制写为 none。\n- `evaluation_comments` 整体替换总分区间评语，传空数组则关闭区间评语；仅在（本次传入或已保存的）`notice_after_filling_mode` 为 reports / customize 时生效。\n- 按分数区间的评语必须同时给出 start_point 与 end_point；在表单编辑器中按条件编写的评语会以 `id` + `conditions` 读回，更新时必须按原 id 传回（只能改 comment / retry，不能改条件或加区间），遗漏或改动均返回 400。\n- `indicator_setting.indicators` 整体替换维度；传回 `api_code` 可保留已有维度身份。维度只能绑定表单上可见的可计分题目，可用 `field_api_codes` 或 `field_cids` 引用，引用未知字段返回 400。\n- `notice_after_filling_mode` 不为 none 时，服务端会清空表单设置中的 success_redirect_url / success_redirect_fields。\n- 请求体不含任何可识别键时视为无操作，直接返回当前设置。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  },
+  "composite": {
+   "kind": "scene_form_update",
+   "scene": "evaluation",
+   "settingOperation": "updateEvaluationSetting",
+   "settingKey": "evaluation_setting"
+  }
+ },
+ {
+  "operationId": "countEntries",
+  "summary": "统计数据条数",
+  "description": "按条件统计数据条数，不返回数据本身。form_token 传单个 token 统计一个表单（支持 keyword / filters）； 传最多 10 个 token 的数组则一次统计多个表单并给出合计（此时 filters 只能用 created_at / updated_at / creator_id，不支持 keyword）。\n多表单统计（form_token 为数组时）：一次统计最多 10 个表单 / 表格各自满足条件的数据条数，以及它们的合计。\n- 无法访问的 token（不存在、不属于当前身份）不会让整个请求失败，而是在该行返回 `unavailable` 说明原因；合计只累加可统计的行。\n- 各表单的字段 api_code 含义不同，因此 `filters` 只能使用 `created_at` / `updated_at` / `creator_id` 三个与表单无关的条件，其他字段返回 400。\n- 不支持 `keyword`（传入返回 400）；需要按关键字查多个表单时使用 `GET /entries/search`。",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/entries/count",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "filters",
+   "keyword"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntryCountResponse",
+  "name": "count_entries",
+  "title": "统计数据条数",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 10,
+     "description": "表单 token；或最多 10 个 token 的数组，一次统计多个表单"
+    },
+    "filters": {
+     "type": "string",
+     "description": "筛选条件，JSON 数组，每项为 `{\"field\": \"<api_code>\", \"operator\": \"<op>\", \"value\": ...}`（`field` 也可写作 `api_code` / `trigger`），多个条件为「且」关系。\n- 操作符全集：`eq` `ne` `any_in` `none_in` `between` `not_between` `null` `not_null` `gte` `gt` `lte` `lt` `like` `not_like` `within_last`，\n  别名 `equal` / `not_equal` / `start`（=gte）/ `end`（=lte）。每种字段类型只接受其中一部分，不支持时返回 400 并列出可用操作符。\n- 选项类字段（单选 / 多选 / 下拉 / 多级下拉）的 `value` 可以是选项 api_code 或选项显示值；多级下拉可用 `一级-二级` 路径。\n- `between` / `not_between` 的 `value` 为二元数组 `[min, max]`；矩阵 / 表格字段需写成 `{\"<列 api_code>\": [min, max]}`。\n- `within_last` 仅日期字段可用，`value` 形如 `{\"unit\":\"day\",\"n\":30}`（unit 可为 minute / day / week / month）。\n- `creator_id` 可作为特殊字段用 `eq` 筛选提交人（值为用户 id），且只能出现一次。\n- 含 `created_at` 条件时结果改为按创建时间排序。\n"
+    },
+    "keyword": {
+     "type": "string",
+     "maxLength": 200,
+     "description": "全文关键字（最长 200 字符），在所有可搜索字段中模糊匹配。数据量超过 99999 条且未启用分析引擎的表单不支持全文搜索（返回 400），除非同时用 `creator_id` 限定提交人。"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "matched_entries"
+   ],
+   "properties": {
+    "matched_entries": {
+     "type": "integer",
+     "description": "满足条件的数据条数"
+    }
+   },
+   "examples": [
+    {
+     "matched_entries": 1284
+    }
+   ]
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  },
+  "composite": {
+   "kind": "count_entries"
+  }
+ }
+]
