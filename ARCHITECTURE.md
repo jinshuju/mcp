@@ -28,7 +28,8 @@ src/
   tools.ts        把 ToolSpec 注册成 MCP 工具；get_schema
   composites.ts   组合工具的编排：考试 / 测评建改（两个请求）、count_entries 单 / 多表单分发
   server.ts       buildServer：McpServer + 工具 + resources + instructions
-  credential.ts   凭证来源：Bearer 字符串；或 ~/.jinshuju/config.json（与 @jinshuju/cli 共用，含 refresh）
+  credential.ts   凭证接口 + Bearer 字符串凭证（无 Node 依赖，Worker 包只带这个）
+  cli-credential.ts  stdio 的本地凭证：~/.jinshuju/config.json（与 @jinshuju/cli 共用，含 refresh）
   auth.ts         HTTP 鉴权：Bearer 提取、按令牌哈希缓存的校验（GET /me）、401 challenge、AS 元数据
   app.ts          Hono 应用：/、/healthz、/.well-known/*、/mcp
   node.ts         Node 入口（官方部署：Docker）
@@ -94,7 +95,9 @@ openapi.yaml 与线上实现偶有出入时，一次成功的 API 调用不应�
 - **stdio。** `JINSHUJU_ACCESS_TOKEN` 优先，其次 `~/.jinshuju/config.json`（`jinshuju auth login` 写的）。
   OAuth 会话快过期或遇到 401 时用 refresh_token 续期并原子写回（mode 600）。cli 和 mcp 共用一次登录。
 - **Node（官方）。** `Dockerfile` 一个进程，`PORT` 监听，`/healthz` 探活。无状态，随便扩副本。
-  对外地址可配 `JINSHUJU_MCP_PUBLIC_URL`，否则信任反向代理的 `X-Forwarded-Proto/Host`。
+  对外地址可配 `JINSHUJU_MCP_PUBLIC_URL`（可含路径前缀，如 `https://host/jinshuju-mcp`），否则信任反向代理的
+  `X-Forwarded-Proto/Host/Prefix`。挂在前缀下时，401 质询里的 `resource_metadata` 指向本服务自己路径下的 well-known 文档，
+  而不是域名根（根路径不归本服务管）；RFC 9728 允许客户端直接按质询给的 URL 取。
 - **Workers（可选）。** `wrangler.jsonc` 没有任何绑定；`worker.ts` 只是把 Hono app 导出。
 
 ## 测试

@@ -5,7 +5,8 @@
  */
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { configFromEnv } from './config.js';
-import { MissingCredentialError, resolveCredential } from './credential.js';
+import { resolveCredential } from './cli-credential.js';
+import { MissingCredentialError } from './credential.js';
 import { buildServer } from './server.js';
 import { VERSION } from './version.js';
 

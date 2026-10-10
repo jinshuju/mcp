@@ -47,6 +47,29 @@ test('无令牌：401 + WWW-Authenticate 指向本服务的 PRM', async () => {
   assert.match(challenge, /resource_metadata="https:\/\/mcp\.test\/\.well-known\/oauth-protected-resource\/mcp"/);
 });
 
+test('路径前缀部署：对外地址含前缀时，质询与 PRM 都按前缀给出', async () => {
+  const a = createApp({
+    config: { apiBaseUrl: 'https://api.test/api/v1', publicUrl: 'https://host.test/jinshuju-mcp/' },
+    fetch: async () => new Response('{}', { status: 404 }),
+    authServerMetadata: AS
+  });
+  // 平台把 /jinshuju-mcp 前缀剥掉后转发，worker 看到的是 /mcp
+  const res = await a.request('https://host.test/mcp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+    body: '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+  });
+  assert.equal(res.status, 401);
+  assert.match(
+    res.headers.get('www-authenticate') ?? '',
+    /resource_metadata="https:\/\/host\.test\/jinshuju-mcp\/\.well-known\/oauth-protected-resource\/mcp"/
+  );
+  const prm = await a.request('https://host.test/.well-known/oauth-protected-resource/mcp');
+  assert.equal(((await prm.json()) as { resource: string }).resource, 'https://host.test/jinshuju-mcp/mcp');
+  const home = (await (await a.request('https://host.test/')).json()) as { mcp: string };
+  assert.equal(home.mcp, 'https://host.test/jinshuju-mcp/mcp');
+});
+
 test('PRM 与 AS 元数据：/mcp 路径与根路径都能取到', async () => {
   const a = app({ count: 0 });
   for (const path of ['/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-protected-resource']) {
