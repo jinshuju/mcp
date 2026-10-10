@@ -47,6 +47,27 @@ test('无令牌：401 + WWW-Authenticate 指向本服务的 PRM', async () => {
   assert.match(challenge, /resource_metadata="https:\/\/mcp\.test\/\.well-known\/oauth-protected-resource\/mcp"/);
 });
 
+test('令牌校验时 API 不可达：503 而不是裸 500', async () => {
+  const a = createApp({
+    config: { apiBaseUrl: 'https://api.test/api/v1', publicUrl: 'https://mcp.test' },
+    fetch: async () => {
+      throw new TypeError('Illegal invocation');
+    },
+    authServerMetadata: AS
+  });
+  const res = await a.request('https://mcp.test/mcp', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer x',
+      'Content-Type': 'application/json',
+      Accept: 'application/json, text/event-stream'
+    },
+    body: '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+  });
+  assert.equal(res.status, 503);
+  assert.match(((await res.json()) as { error_description: string }).error_description, /不可达/);
+});
+
 test('路径前缀部署：对外地址含前缀时，质询与 PRM 都按前缀给出', async () => {
   const a = createApp({
     config: { apiBaseUrl: 'https://api.test/api/v1', publicUrl: 'https://host.test/jinshuju-mcp/' },

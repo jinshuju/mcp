@@ -38,7 +38,7 @@ export const MCP_PATH = '/mcp';
 
 export function createApp(options: AppOptions = {}): Hono {
   const cfg: Config = { ...DEFAULTS, ...options.config };
-  const fetchImpl = options.fetch ?? fetch;
+  const fetchImpl: typeof fetch = options.fetch ?? ((input, init) => fetch(input, init));
   const api = new JinshujuApi({ baseUrl: cfg.apiBaseUrl, fetch: fetchImpl, timeoutMs: cfg.timeoutMs });
   const verifier = new TokenVerifier({ api, cacheTtlMs: cfg.tokenCacheTtlMs });
   let metadata: Promise<OAuthMetadata> | undefined;
@@ -115,7 +115,19 @@ export function createApp(options: AppOptions = {}): Hono {
     const prm = resourceMetadataUrl(request);
     const token = bearerToken(request);
     if (!token) return challenge(prm, 'Missing or invalid access token');
-    const authInfo = await verifier.verify(token);
+    let authInfo;
+    try {
+      authInfo = await verifier.verify(token);
+    } catch (error) {
+      console.error('token verification failed:', error);
+      return new Response(
+        JSON.stringify({ error: 'server_error', error_description: '无法校验令牌：金数据 API 暂时不可达' }),
+        {
+          status: 503,
+          headers: { 'Content-Type': 'application/json', 'Retry-After': '5' }
+        }
+      );
+    }
     if (!authInfo) return challenge(prm, 'Missing or invalid access token');
     const response = await handler.fetch(request, { authInfo });
     // 工具调用中 API 回了 401（令牌中途失效）：让下一次请求重新校验。

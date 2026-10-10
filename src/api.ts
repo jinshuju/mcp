@@ -110,7 +110,8 @@ export function buildBody(op: OperationSpec, args: Args): { body?: BodyInit; con
 export class JinshujuApi {
   private readonly fetchImpl: typeof fetch;
   constructor(private readonly options: ApiOptions) {
-    this.fetchImpl = options.fetch ?? fetch;
+    // 不直接存全局 fetch：作为方法调用时 this 不是全局对象，workerd / 浏览器会抛 Illegal invocation。
+    this.fetchImpl = options.fetch ?? ((input, init) => fetch(input, init));
   }
 
   get baseUrl() {
@@ -154,7 +155,8 @@ export class JinshujuApi {
       res = await this.fetchImpl(url, { method, headers, body, signal: controller.signal });
     } catch (error) {
       const reason = controller.signal.aborted ? '请求超时' : '无法连接金数据 API';
-      throw new TransportError(`${reason}（${method} ${url.pathname}）`, { cause: error });
+      const detail = error instanceof Error ? `：${error.message}` : '';
+      throw new TransportError(`${reason}（${method} ${url.pathname}）${detail}`, { cause: error });
     } finally {
       clearTimeout(timer);
     }

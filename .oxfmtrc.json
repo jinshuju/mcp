@@ -3,5 +3,11 @@
   "printWidth": 120,
   "singleQuote": true,
   "trailingComma": "none",
-  "ignorePatterns": ["CHANGELOG.md", "package-lock.json", "src/generated", "spec"]
+  "ignorePatterns": [
+    "CHANGELOG.md",
+    "package-lock.json",
+    "src/generated",
+    "spec",
+    ".deploy-dist"
+  ]
 }
