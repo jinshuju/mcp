@@ -5,6 +5,5 @@
   "name": "jinshuju-mcp",
   "main": "src/worker.ts",
   "compatibility_date": "2026-06-17",
-  "compatibility_flags": ["nodejs_compat"],
-  "observability": { "enabled": true }
+  "compatibility_flags": ["nodejs_compat"]
 }
