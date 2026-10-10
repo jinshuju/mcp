@@ -20108,6 +20108,7 @@
      "default_messages",
      "search_button",
      "allow_to_export_results",
+     "header",
      "updated_at"
     ],
     "properties": {
@@ -20312,6 +20313,55 @@
       "type": "boolean",
       "description": "是否允许查询者导出结果"
      },
+     "header": {
+      "type": "object",
+      "description": "页头设置",
+      "required": [
+       "background_image"
+      ],
+      "properties": {
+       "background_image": {
+        "type": [
+         "object",
+         "null"
+        ],
+        "description": "页头背景图，未设置时为 null",
+        "required": [
+         "attachment_id",
+         "position_x",
+         "position_y",
+         "image_url"
+        ],
+        "properties": {
+         "attachment_id": {
+          "type": "string",
+          "description": "背景图附件 id"
+         },
+         "position_x": {
+          "type": [
+           "number",
+           "null"
+          ],
+          "description": "背景图横向位置"
+         },
+         "position_y": {
+          "type": [
+           "number",
+           "null"
+          ],
+          "description": "背景图纵向位置"
+         },
+         "image_url": {
+          "type": [
+           "string",
+           "null"
+          ],
+          "description": "背景图地址"
+         }
+        }
+       }
+      }
+     },
      "updated_at": {
       "type": "string",
       "format": "date-time",
@@ -20488,14 +20538,18 @@
    },
    "header": {
     "type": "object",
-    "description": "页头设置，只读取 background_image 的 attachment_id、position_x、position_y（以服务端实现为准）",
+    "description": "页头设置，只读取 background_image 的 attachment_id、image_upload_token、position_x、position_y（以服务端实现为准）",
     "properties": {
      "background_image": {
       "type": "object",
       "properties": {
        "attachment_id": {
         "type": "string",
-        "description": "背景图附件 id"
+        "description": "背景图附件 id，由「上传表单图片」（`POST /form_image_attachments`，`image_type=opensearch_header`）返回"
+       },
+       "image_upload_token": {
+        "type": "string",
+        "description": "代替 attachment_id：以 `form_image_token`（用途为 opensearch_header）上传后，直接传这个令牌。令牌须已上传、未过期、属于调用者且用途为 opensearch_header，否则返回 400"
        },
        "position_x": {
         "type": "number",
