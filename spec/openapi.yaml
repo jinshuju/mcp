@@ -2152,13 +2152,13 @@ paths:
       - bearerAuth: []
       - basicAuth: []
       description: |
-        上传一张属于表单本身的图片（图片选项图、表头图、背景图、表头轮播图的一帧），返回图片附件 ID。图片此时尚未绑定到任何表单，之后在表单或主题中引用它时才生效。
+        上传一张属于表单本身的图片（图片选项图、表头图、背景图、表头轮播图的一帧，或表单的对外查询页头图），返回图片附件 ID。图片此时尚未绑定到任何表单，之后在表单或主题中引用它时才生效。
         鉴权方式二选一：
-        1. 常规 API 凭证（HTTP Basic 的 api_key / api_secret，或 Bearer 令牌），此时必须用 `image_type` 说明图片用途，且只能是 `header`（表头图）或 `wallpaper`（背景图）：返回的 `attachment_id` 交给「更新表单主题」的 `header.header_image_attachment_id` / `wallpaper.background_image_attachment_id`。`image_type` 缺失或不在 `field_choice` / `header` / `wallpaper` / `carousel` 之内时返回 400 `image_type must be one of: field_choice, header, wallpaper, carousel.`；`field_choice` / `carousel` 没有接受附件 ID 的地方，只能配合上传令牌上传，否则返回 400。
-        2. 一次性上传令牌 `form_image_token`（代替常规凭证）：令牌以 `form_img_tok_` 开头，30 分钟内有效、只能使用一次，已记录图片用途（`field_choice` / `header` / `wallpaper` / `carousel`，此时忽略 `image_type`）与文件元数据；上传文件的原始文件名、Content-Type、字节数必须与令牌记录的一致，否则返回 400。上传成功后不要直接使用返回的 `attachment_id`，而是在「创建表单」/「编辑表单」的选项 `image_upload_token`，或「更新表单主题」的 `header.header_image_upload_token` / `wallpaper.background_image_upload_token` / `header.carousel_images[].image_upload_token` 中引用同一个令牌。令牌不存在、已过期、已使用，或所属用户已被删除时返回 400 `form_image_token is invalid or expired; prepare upload again`。
+        1. 常规 API 凭证（HTTP Basic 的 api_key / api_secret，或 Bearer 令牌），此时必须用 `image_type` 说明图片用途，且只能是 `header`（表头图）、`wallpaper`（背景图）或 `opensearch_header`（对外查询页头图）：返回的 `attachment_id` 交给「更新表单主题」的 `header.header_image_attachment_id` / `wallpaper.background_image_attachment_id`，或「更新对外查询」的 `header.background_image.attachment_id`。`image_type` 缺失或不在 `field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header` 之内时返回 400 `image_type must be one of: field_choice, header, wallpaper, carousel, opensearch_header.`；`field_choice` / `carousel` 没有接受附件 ID 的地方，只能配合上传令牌上传，否则返回 400。
+        2. 一次性上传令牌 `form_image_token`（代替常规凭证）：令牌以 `form_img_tok_` 开头，30 分钟内有效、只能使用一次，已记录图片用途（`field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header`，此时忽略 `image_type`）与文件元数据；上传文件的原始文件名、Content-Type、字节数必须与令牌记录的一致，否则返回 400。上传成功后不要直接使用返回的 `attachment_id`，而是在「创建表单」/「编辑表单」的选项 `image_upload_token`，或「更新表单主题」的 `header.header_image_upload_token` / `wallpaper.background_image_upload_token` / `header.carousel_images[].image_upload_token`，或「更新对外查询」的 `header.background_image.image_upload_token` 中引用同一个令牌。令牌不存在、已过期、已使用，或所属用户已被删除时返回 400 `form_image_token is invalid or expired; prepare upload again`。
         没有凭证也没有 `form_image_token` 时返回 401。请求必须为 `multipart/form-data`，字段 `file` 携带图片二进制；缺少文件返回 400 `file is required`。
 
-        OAuth 令牌需要 scope：`image_type`（或令牌记录的用途）为 field_choice 时需要 forms，其余需要 form_setting
+        OAuth 令牌需要 scope：`image_type`（或令牌记录的用途）为 field_choice、opensearch_header 时需要 forms，其余需要 form_setting
       requestBody:
         required: true
         content:
@@ -2175,7 +2175,8 @@ paths:
                   - header
                   - wallpaper
                   - carousel
-                  description: 图片用途；不带上传令牌时必填且只能为 header / wallpaper，带上传令牌时忽略
+                  - opensearch_header
+                  description: 图片用途；不带上传令牌时必填且只能为 header / wallpaper / opensearch_header，带上传令牌时忽略
                 form_image_token:
                   type: string
                   description: 一次性上传令牌，以 `form_img_tok_` 开头；传入时代替常规凭证
@@ -4864,9 +4865,11 @@ components:
       name: next
       in: query
       required: false
-      description: 上一页响应中的 `next`。默认排序下是序号游标（返回序号 ≥ 该值的数据）；条件查询 / 按创建时间 / 显式排序时是行偏移量。不能与 `skip` 同时传。
+      description: 上一页响应中的 `next`。默认排序下是序号游标（返回序号 ≥ 该值的数据）；条件查询 / 按创建时间 / 显式排序时是行偏移量。不能与 `skip` 同时传。也接受字符串：以整数开头时取该整数，否则视为 0，即从第一页开始。
       schema:
-        type: integer
+        type:
+        - integer
+        - string
     EntriesSkip:
       name: skip
       in: query
@@ -9624,6 +9627,7 @@ components:
         - default_messages
         - search_button
         - allow_to_export_results
+        - header
         - updated_at
         properties:
           description:
@@ -9697,6 +9701,41 @@ components:
           allow_to_export_results:
             type: boolean
             description: 是否允许查询者导出结果
+          header:
+            type: object
+            description: 页头设置
+            required:
+            - background_image
+            properties:
+              background_image:
+                type:
+                - object
+                - 'null'
+                description: 页头背景图，未设置时为 null
+                required:
+                - attachment_id
+                - position_x
+                - position_y
+                - image_url
+                properties:
+                  attachment_id:
+                    type: string
+                    description: 背景图附件 id
+                  position_x:
+                    type:
+                    - number
+                    - 'null'
+                    description: 背景图横向位置
+                  position_y:
+                    type:
+                    - number
+                    - 'null'
+                    description: 背景图纵向位置
+                  image_url:
+                    type:
+                    - string
+                    - 'null'
+                    description: 背景图地址
           updated_at:
             type: string
             format: date-time
@@ -9756,14 +9795,17 @@ components:
           description: 是否允许查询者导出结果
         header:
           type: object
-          description: 页头设置，只读取 background_image 的 attachment_id、position_x、position_y（以服务端实现为准）
+          description: 页头设置，只读取 background_image 的 attachment_id、image_upload_token、position_x、position_y（以服务端实现为准）
           properties:
             background_image:
               type: object
               properties:
                 attachment_id:
                   type: string
-                  description: 背景图附件 id
+                  description: 背景图附件 id，由「上传表单图片」（`POST /form_image_attachments`，`image_type=opensearch_header`）返回
+                image_upload_token:
+                  type: string
+                  description: 代替 attachment_id：以 `form_image_token`（用途为 opensearch_header）上传后，直接传这个令牌。令牌须已上传、未过期、属于调用者且用途为 opensearch_header，否则返回 400
                 position_x:
                   type: number
                   description: 背景图横向位置

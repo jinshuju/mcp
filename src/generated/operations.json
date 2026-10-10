@@ -1596,7 +1596,7 @@
  "uploadFormImage": {
   "operationId": "uploadFormImage",
   "summary": "上传表单图片",
-  "description": "上传一张属于表单本身的图片（图片选项图、表头图、背景图、表头轮播图的一帧），返回图片附件 ID。图片此时尚未绑定到任何表单，之后在表单或主题中引用它时才生效。\n鉴权方式二选一：\n1. 常规 API 凭证（HTTP Basic 的 api_key / api_secret，或 Bearer 令牌），此时必须用 `image_type` 说明图片用途，且只能是 `header`（表头图）或 `wallpaper`（背景图）：返回的 `attachment_id` 交给「更新表单主题」的 `header.header_image_attachment_id` / `wallpaper.background_image_attachment_id`。`image_type` 缺失或不在 `field_choice` / `header` / `wallpaper` / `carousel` 之内时返回 400 `image_type must be one of: field_choice, header, wallpaper, carousel.`；`field_choice` / `carousel` 没有接受附件 ID 的地方，只能配合上传令牌上传，否则返回 400。\n2. 一次性上传令牌 `form_image_token`（代替常规凭证）：令牌以 `form_img_tok_` 开头，30 分钟内有效、只能使用一次，已记录图片用途（`field_choice` / `header` / `wallpaper` / `carousel`，此时忽略 `image_type`）与文件元数据；上传文件的原始文件名、Content-Type、字节数必须与令牌记录的一致，否则返回 400。上传成功后不要直接使用返回的 `attachment_id`，而是在「创建表单」/「编辑表单」的选项 `image_upload_token`，或「更新表单主题」的 `header.header_image_upload_token` / `wallpaper.background_image_upload_token` / `header.carousel_images[].image_upload_token` 中引用同一个令牌。令牌不存在、已过期、已使用，或所属用户已被删除时返回 400 `form_image_token is invalid or expired; prepare upload again`。\n没有凭证也没有 `form_image_token` 时返回 401。请求必须为 `multipart/form-data`，字段 `file` 携带图片二进制；缺少文件返回 400 `file is required`。",
+  "description": "上传一张属于表单本身的图片（图片选项图、表头图、背景图、表头轮播图的一帧，或表单的对外查询页头图），返回图片附件 ID。图片此时尚未绑定到任何表单，之后在表单或主题中引用它时才生效。\n鉴权方式二选一：\n1. 常规 API 凭证（HTTP Basic 的 api_key / api_secret，或 Bearer 令牌），此时必须用 `image_type` 说明图片用途，且只能是 `header`（表头图）、`wallpaper`（背景图）或 `opensearch_header`（对外查询页头图）：返回的 `attachment_id` 交给「更新表单主题」的 `header.header_image_attachment_id` / `wallpaper.background_image_attachment_id`，或「更新对外查询」的 `header.background_image.attachment_id`。`image_type` 缺失或不在 `field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header` 之内时返回 400 `image_type must be one of: field_choice, header, wallpaper, carousel, opensearch_header.`；`field_choice` / `carousel` 没有接受附件 ID 的地方，只能配合上传令牌上传，否则返回 400。\n2. 一次性上传令牌 `form_image_token`（代替常规凭证）：令牌以 `form_img_tok_` 开头，30 分钟内有效、只能使用一次，已记录图片用途（`field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header`，此时忽略 `image_type`）与文件元数据；上传文件的原始文件名、Content-Type、字节数必须与令牌记录的一致，否则返回 400。上传成功后不要直接使用返回的 `attachment_id`，而是在「创建表单」/「编辑表单」的选项 `image_upload_token`，或「更新表单主题」的 `header.header_image_upload_token` / `wallpaper.background_image_upload_token` / `header.carousel_images[].image_upload_token`，或「更新对外查询」的 `header.background_image.image_upload_token` 中引用同一个令牌。令牌不存在、已过期、已使用，或所属用户已被删除时返回 400 `form_image_token is invalid or expired; prepare upload again`。\n没有凭证也没有 `form_image_token` 时返回 401。请求必须为 `multipart/form-data`，字段 `file` 携带图片二进制；缺少文件返回 400 `file is required`。",
   "tag": "Uploads",
   "method": "post",
   "path": "/form_image_attachments",
@@ -1611,6 +1611,7 @@
   "scopes": [
    "`image_type`（或令牌记录的用途）为",
    "field_choice",
+   "opensearch_header",
    "时需要",
    "forms，其余需要",
    "form_setting"
