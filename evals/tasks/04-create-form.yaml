@@ -1,0 +1,149 @@
+# 建表单：普通表单、考试、测评、复制。来源：线上会话里 create_form 是仅次于读数据的高频动作，
+# 常见报错是新字段带了 api_code、图片选项缺图。
+- id: create-01
+  category: 建表单
+  title: 普通表单（多种字段类型与必填）
+  source: 线上会话模式 create_form → get_form
+  prompt: |
+    帮我建一个表单叫「2026 年度客户回访问卷」，字段：客户姓名（必填）、联系电话、回访日期、满意度评分（1-5 星）、
+    是否愿意续约（单选：愿意 / 不愿意 / 再考虑）、补充意见（多行文字）。建好后把填写链接发我。
+  creates_forms: true
+  max_turns: 8
+  expect:
+    tools:
+      any_of: [create_form]
+      must_not_call: [create_exam_form, create_evaluation_form]
+    answer:
+      regex: "https?://[\\w.-]+/f/[A-Za-z0-9]+"
+    state:
+      - check: form_created
+        name: 2026 年度客户回访问卷
+        min_fields: 6
+        fields:
+          - { label_contains: 姓名, type: [name, single_line_text], required: true }
+          - { label_contains: 电话, type: [mobile, phone, single_line_text] }
+          - { label_contains: 日期, type: [date_time, date] }
+          - { label_contains: 评分, type: [rating] }
+          - {
+              label_contains: 续约,
+              type: [single_choice, drop_down],
+              choices: 3,
+              choices_include: [愿意, 不愿意, 再考虑]
+            }
+          - { label_contains: 意见, type: [paragraph_text] }
+
+- id: create-02
+  category: 建表单
+  title: 报名表（选项、唯一性约束）
+  prompt: |
+    创建一个「2026 团建活动报名」表单：收集姓名、手机号、部门（研发部 / 市场部 / 销售部 / 人事部）、
+    是否携带家属（是 / 否）、饮食禁忌（多选：无 / 素食 / 清真 / 海鲜过敏）。手机号不允许重复提交。
+  creates_forms: true
+  max_turns: 8
+  expect:
+    tools:
+      any_of: [create_form]
+    state:
+      - check: form_created
+        name: 2026 团建活动报名
+        min_fields: 5
+        fields:
+          - { label_contains: 姓名, type: [name, single_line_text] }
+          - { label_contains: 手机, type: [mobile], unique: true }
+          - {
+              label_contains: 部门,
+              type: [single_choice, drop_down],
+              choices_include: [研发部, 市场部, 销售部, 人事部]
+            }
+          - { label_contains: 家属, type: [single_choice, drop_down, boolean], choices_min: 2 }
+          - { label_contains: 饮食, type: [multiple_choice], choices_include: [素食, 清真, 海鲜过敏] }
+
+- id: create-03
+  category: 建表单
+  title: 在线考试（单选题、分值、限时）
+  source: 线上会话 create_exam_form
+  prompt: |
+    出一份「信息安全意识测验」在线考试：5 道单选题，每题 4 个选项、每题 20 分，内容分别围绕密码安全、钓鱼邮件识别、
+    离开工位锁屏、重要数据备份、公共 WiFi 使用；限时 15 分钟，交卷后给考生显示成绩。
+  creates_forms: true
+  max_turns: 10
+  expect:
+    tools:
+      must_call: [create_exam_form]
+      must_not_call: [create_form, create_evaluation_form]
+    state:
+      - check: form_created
+        name: 信息安全意识测验
+        scene: exam
+        min_fields: 5
+        max_fields: 7
+        exam_setting: { limited_time: 15 }
+        fields:
+          - { type: [single_choice], choices: 4 }
+          - { type: [single_choice], choices: 4 }
+          - { type: [single_choice], choices: 4 }
+          - { type: [single_choice], choices: 4 }
+          - { type: [single_choice], choices: 4 }
+
+- id: create-04
+  category: 建表单
+  title: 测评问卷（计分选项、测评报告）
+  prompt: |
+    做一个「职场压力自测」测评问卷：8 道单选题，每题的选项都是「从不 / 偶尔 / 经常 / 总是」，分别计 0 / 1 / 2 / 3 分；
+    题目围绕睡眠、注意力、情绪、加班、人际关系等方面出。提交后给填写者显示测评报告。
+  creates_forms: true
+  max_turns: 10
+  expect:
+    tools:
+      must_call: [create_evaluation_form]
+      must_not_call: [create_form, create_exam_form]
+    state:
+      - check: form_created
+        name: 职场压力自测
+        scene: evaluation
+        min_fields: 8
+        fields:
+          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+
+- id: create-05
+  category: 建表单
+  title: 复制已有表单
+  prompt: 把「秋季技术沙龙报名表」复制一份，新表单叫「冬季技术沙龙报名表」。
+  fixtures: [signup]
+  creates_forms: true
+  max_turns: 6
+  expect:
+    tools:
+      must_call: [copy_form]
+      must_not_call: [create_form]
+    state:
+      - check: form_created
+        name: 冬季技术沙龙报名表
+        same_field_count_as: signup
+
+- id: create-06
+  category: 建表单
+  title: 建表单并设置提交提示语
+  prompt: |
+    新建一个「访客登记表」，字段：访客姓名、来访单位、被访人、来访事由（多行）、预计离开时间（日期，精确到分钟）。
+    提交成功后的提示语改成「登记成功，请到前台领取访客证」。
+  creates_forms: true
+  max_turns: 8
+  expect:
+    tools:
+      any_of: [create_form]
+    state:
+      - check: form_created
+        name: 访客登记表
+        min_fields: 5
+        setting: { success_message: 登记成功，请到前台领取访客证 }
+        fields:
+          - { label_contains: 事由, type: [paragraph_text] }
+          - { label_contains: 离开, type: [date_time] }

@@ -1,0 +1,129 @@
+# 批量写入：都作用在一次性表单 signup 上，运行前后重置。来源：线上会话里 create_entry / create_entries / patch_entries / update_entry 都紧跟 get_form。
+- id: write-01
+  category: 批量写入
+  title: 新增一条数据
+  source: 线上会话模式 get_form → create_entry
+  prompt: 帮我在「秋季技术沙龙报名表」里加一条报名：李雷，手机 13800001111，邮箱 lilei@example.com，公司是极光科技，参加下午场，需要午餐。
+  fixtures: [signup]
+  writes: true
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [create_entry, create_entries]
+      must_not_call: [delete_entry]
+    state:
+      - check: entries_match
+        fixture: signup
+        filters: [{ field: name, operator: eq, value: 李雷 }]
+        min: 1
+        all: { mobile: '13800001111', email: lilei@example.com, company: 极光科技, session: 下午场, lunch: 需要 }
+      - check: entry_count
+        fixture: signup
+        equals: 4
+
+- id: write-02
+  category: 批量写入
+  title: 批量新增多条
+  source: 线上会话模式 get_form → create_entries
+  prompt: |
+    把下面这几个人报到「秋季技术沙龙报名表」里（依次是姓名、手机、邮箱、公司、场次、是否需要午餐）：
+    韩梅梅 13800002222 hanmm@example.com 蓝海咨询 上午场 不需要
+    林涛 13800003333 lintao@example.com 星辰数据 上午场 需要
+    周杰 13800004444 zhoujie@example.com 极光科技 下午场 需要
+    吴京 13800005555 wujing@example.com 远航软件 下午场 不需要
+    赵雅 13800006666 zhaoya@example.com 云启科技 上午场 需要
+  fixtures: [signup]
+  writes: true
+  max_turns: 6
+  expect:
+    tools:
+      must_call: [create_entries]
+      must_not_call: [create_entry]
+    max_tool_calls: 6
+    state:
+      - check: entry_count
+        fixture: signup
+        equals: 8
+      - check: entries_match
+        fixture: signup
+        filters: [{ field: name, operator: eq, value: 林涛 }]
+        min: 1
+        all: { mobile: '13800003333', session: 上午场, lunch: 需要 }
+      - check: entries_match
+        fixture: signup
+        filters: [{ field: name, operator: eq, value: 吴京 }]
+        min: 1
+        all: { company: 远航软件, session: 下午场, lunch: 不需要 }
+
+- id: write-03
+  category: 批量写入
+  title: 按条件批量更新
+  source: 线上会话模式 list_entries → patch_entries
+  prompt: 「秋季技术沙龙报名表」里所有报了上午场的人，把「是否需要午餐」统一改成「需要」。其他人不要动。
+  fixtures: [signup]
+  writes: true
+  max_turns: 8
+  expect:
+    tools:
+      any_of: [patch_entries, update_entry]
+      must_not_call: [create_entry, create_entries, delete_entry]
+    state:
+      - check: entries_match
+        fixture: signup
+        filters: [{ field: session, operator: eq, value: 上午场 }]
+        min: 2
+        all: { lunch: 需要 }
+      - check: entries_match
+        fixture: signup
+        filters: [{ field: name, operator: eq, value: 李明 }]
+        min: 1
+        all: { lunch: 需要, session: 下午场 }
+      - check: entry_count
+        fixture: signup
+        equals: 3
+
+- id: write-04
+  category: 批量写入
+  title: 定位一条并改单个字段
+  source: 线上会话模式 get_entry → update_entry
+  prompt: 「秋季技术沙龙报名表」里王芳的手机号填错了，帮我改成 13900009999。
+  fixtures: [signup]
+  writes: true
+  max_turns: 8
+  expect:
+    tools:
+      any_of: [update_entry, patch_entries]
+      must_not_call: [create_entry, create_entries, delete_entry]
+    state:
+      - check: entries_match
+        fixture: signup
+        filters: [{ field: name, operator: eq, value: 王芳 }]
+        min: 1
+        all: { mobile: '13900009999', email: wangfang@example.com, company: 云启科技 }
+      - check: entry_count
+        fixture: signup
+        equals: 3
+
+- id: write-05
+  category: 批量写入
+  title: 按条件删除一条
+  prompt: 「秋季技术沙龙报名表」里备注写着「测试」的那条报名是我测试用的，帮我删掉。
+  fixtures: [signup]
+  writes: true
+  max_turns: 8
+  expect:
+    tools:
+      must_call: [delete_entry]
+    max_tool_calls: 6
+    state:
+      - check: entry_count
+        fixture: signup
+        equals: 2
+      - check: entries_match
+        fixture: signup
+        filters: [{ field: name, operator: eq, value: 王芳 }]
+        min: 1
+      - check: entries_match
+        fixture: signup
+        filters: [{ field: name, operator: eq, value: 李明 }]
+        min: 1

@@ -1,0 +1,92 @@
+# 导入：用户把表格内容贴进来。内置 MCP 走预签名上传（prepare_import_file_upload）、新 MCP 走 base64 上传（upload_import_file），
+# 模型也可以选择 create_entries 直接写入；评分只看数据是否正确落库，走哪条路记录在工具序列里。
+- id: import-01
+  category: 导入
+  title: CSV 文本导入
+  source: 线上会话模式 import_entries_from_file
+  prompt: |
+    把下面这份 CSV 导入到「办公用品采购申请」，表头和表单字段同名：
+    申请人,部门,物品,数量,单价,金额,申请日期,状态,用途说明
+    周杰,研发部,键盘,3,199,597,2026-10-08,待审批,新同事入职
+    韩梅梅,市场部,显示器,1,1800,1800,2026-10-08,待审批,设计需要
+    林涛,销售部,打印纸,15,30,450,2026-10-09,已批准,客户资料
+    赵雅,人事部,办公椅,2,650,1300,2026-10-09,已批准,面试间
+  fixtures: [orders]
+  writes: true
+  max_turns: 8
+  expect:
+    tools:
+      any_of: [import_entries_from_file, create_entries, upload_import_file, prepare_import_file_upload]
+    state:
+      - check: entry_count
+        fixture: orders
+        equals: 19
+      - check: entries_match
+        fixture: orders
+        filters: [{ field: applicant, operator: eq, value: 韩梅梅 }]
+        min: 1
+        all: { department: 市场部, item: 显示器, quantity: 1, amount: 1800, status: 待审批 }
+      - check: entries_match
+        fixture: orders
+        filters: [{ field: applicant, operator: eq, value: 赵雅 }]
+        min: 1
+        all: { apply_date: 2026-10-09, status: 已批准, amount: 1300 }
+
+- id: import-02
+  category: 导入
+  title: 表格文本导入到报名表
+  prompt: |
+    下面是从 Excel 里复制出来的报名名单，帮我导入「秋季技术沙龙报名表」：
+
+    | 姓名 | 手机 | 邮箱 | 公司 | 参加场次 | 是否需要午餐 |
+    |---|---|---|---|---|---|
+    | 孙悟空 | 13600000001 | sunwk@example.com | 花果山科技 | 上午场 | 需要 |
+    | 猪八戒 | 13600000002 | zhubj@example.com | 高老庄餐饮 | 下午场 | 需要 |
+    | 沙悟净 | 13600000003 | shawj@example.com | 流沙河物流 | 上午场 | 不需要 |
+    | 唐三藏 | 13600000004 | tangsz@example.com | 大唐文化 | 下午场 | 不需要 |
+    | 白龙马 | 13600000005 | bailm@example.com | 西海运输 | 上午场 | 需要 |
+    | 观音 | 13600000006 | guanyin@example.com | 南海咨询 | 下午场 | 需要 |
+  fixtures: [signup]
+  writes: true
+  max_turns: 8
+  expect:
+    tools:
+      any_of: [import_entries_from_file, create_entries, upload_import_file, prepare_import_file_upload]
+    state:
+      - check: entry_count
+        fixture: signup
+        equals: 9
+      - check: entries_match
+        fixture: signup
+        filters: [{ field: name, operator: eq, value: 沙悟净 }]
+        min: 1
+        all: { mobile: '13600000003', company: 流沙河物流, session: 上午场, lunch: 不需要 }
+
+- id: import-03
+  category: 导入
+  title: 导入时按邮箱去重
+  prompt: |
+    把这几位员工补录到「员工信息登记表（2026）」，如果邮箱已经登记过就跳过，不要重复：
+    姓名,部门,职级,入职日期,月薪,邮箱,手机
+    何晴,销售部,P5,2026-09-01,15000,heqing@example.com,13800010013
+    李娜,研发部,P5,2026-02-16,18000,lina@example.com,13800010002
+    宋江,市场部,P6,2026-08-18,21000,songjiang@example.com,13800010014
+  fixtures: [employees]
+  writes: true
+  max_turns: 10
+  expect:
+    tools:
+      any_of: [import_entries_from_file, create_entries, create_entry, upload_import_file, prepare_import_file_upload]
+    state:
+      - check: entry_count
+        fixture: employees
+        equals: 14
+      - check: entry_count
+        fixture: employees
+        filters: [{ field: email, operator: eq, value: lina@example.com }]
+        equals: 1
+      - check: entries_match
+        fixture: employees
+        filters: [{ field: name, operator: eq, value: 宋江 }]
+        min: 1
+        all: { department: 市场部, level: P6, salary: 21000, email: songjiang@example.com }

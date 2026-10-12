@@ -105,9 +105,21 @@ npm run spec:update  # 拉最新的线上 openapi.yaml 并重新生成
 
 服务无状态，不需要数据库、KV 或 Durable Objects。
 
+## 评测
+
+`evals/` 是基于真实用例、多模型的自动化测评：42 个任务（找表单 / 读数据 / 统计汇总 / 建表单 / 改设置 / 批量写入 / 导入）
+同时跑在本仓库的 MCP 与内置 MCP（jinshuju.net/mcp）上，按断言打分，输出「模型 × MCP × 类别」的通过率与 token 表，
+并把每次运行写进一张金数据表单。用法、任务格式与指标见 [evals/README.md](evals/README.md)。
+
+```bash
+npm run eval -- seed     # 在测评账户里准备夹具数据
+npm run eval -- run      # 全部任务 × EVAL_MODELS × new,builtin → evals/results/<run_id>/report.md
+```
+
 ## 设计说明
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — 模块、一次调用的路径、生成规则、鉴权
+- [evals/README.md](evals/README.md) — 评测体系：样本集、运行器、打分、持久化
 
 ## 许可证
 

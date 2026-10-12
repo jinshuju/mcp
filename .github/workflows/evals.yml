@@ -1,0 +1,92 @@
+name: Evals
+
+# MCP 评测：发版、openapi.yaml / overlay 变更、每周一，以及手动触发。
+# 需要的 secrets / vars：
+#   secrets.EVAL_JINSHUJU_ACCESS_TOKEN  测评账户的 Access Token（专用账户，夹具数据会被反复重置）
+#   secrets.EVAL_LLM_API_KEY            OpenAI 兼容网关的 key
+#   vars.EVAL_LLM_BASE_URL              网关地址，如 https://<gateway>/v1
+#   vars.EVAL_MODELS                    缺省模型列表（逗号分隔），不设用 evals/src/config.ts 的缺省
+#   vars.EVAL_JUDGE_MODEL               judge 模型（固定，便于跨期比较）
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 模型列表（逗号分隔），留空用 vars.EVAL_MODELS
+        required: false
+        default: ''
+      mcp:
+        description: 被测 MCP（new,builtin 或 name=url）
+        required: false
+        default: new,builtin
+      tasks:
+        description: 只跑这些任务 id（逗号分隔）
+        required: false
+        default: ''
+      category:
+        description: 只跑这些类别（逗号分隔）
+        required: false
+        default: ''
+      repeat:
+        description: 每个组合重复次数
+        required: false
+        default: '1'
+  release:
+    types: [published]
+  push:
+    branches: [main]
+    paths:
+      - spec/openapi.yaml
+      - mcp.overlay.yaml
+      - evals/**
+  schedule:
+    - cron: '0 1 * * 1' # 每周一 09:00（北京时间）
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evals
+  cancel-in-progress: false
+
+jobs:
+  evals:
+    name: Run MCP evals
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      JINSHUJU_ACCESS_TOKEN: ${{ secrets.EVAL_JINSHUJU_ACCESS_TOKEN }}
+      LLM_BASE_URL: ${{ vars.EVAL_LLM_BASE_URL }}
+      LLM_API_KEY: ${{ secrets.EVAL_LLM_API_KEY }}
+      EVAL_MODELS: ${{ inputs.models || vars.EVAL_MODELS }}
+      EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL }}
+      EVAL_CONCURRENCY: '4'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Check credentials are configured
+        run: |
+          test -n "$JINSHUJU_ACCESS_TOKEN" || { echo "缺少 secrets.EVAL_JINSHUJU_ACCESS_TOKEN"; exit 1; }
+          test -n "$LLM_BASE_URL" -a -n "$LLM_API_KEY" || { echo "缺少 vars.EVAL_LLM_BASE_URL / secrets.EVAL_LLM_API_KEY"; exit 1; }
+      - name: Seed fixtures
+        run: npm run eval -- seed --reset
+      - name: Run matrix
+        run: |
+          args=(--mcp "${{ inputs.mcp || 'new,builtin' }}" --repeat "${{ inputs.repeat || '1' }}" --run-id "gha-${{ github.run_number }}")
+          [ -n "${{ inputs.tasks }}" ] && args+=(--tasks "${{ inputs.tasks }}")
+          [ -n "${{ inputs.category }}" ] && args+=(--category "${{ inputs.category }}")
+          npm run eval -- run "${args[@]}"
+      - name: Publish report to job summary
+        if: always()
+        run: |
+          f=$(ls -d evals/results/*/ 2>/dev/null | head -1)
+          [ -n "$f" ] && cat "$f/report.md" >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results
+          path: evals/results/
+          retention-days: 90

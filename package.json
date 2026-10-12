@@ -41,14 +41,16 @@
     "lint": "oxlint",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "check": "npm run typecheck && npm run lint && npm run fmt:check",
+    "check": "npm run typecheck && npm run typecheck:evals && npm run lint && npm run fmt:check",
     "start": "node dist/node.js",
     "dev": "tsx src/node.ts",
     "worker:dev": "wrangler dev",
     "worker:deploy": "wrangler deploy",
     "worker:dry-run": "wrangler deploy --dry-run --outdir .wrangler/dry-run",
     "wdl:deploy": "wdl deploy .",
-    "wdl:tail": "wdl tail jinshuju-mcp"
+    "wdl:tail": "wdl tail jinshuju-mcp",
+    "eval": "tsx evals/src/cli.ts",
+    "typecheck:evals": "tsc -p evals/tsconfig.json"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.4",

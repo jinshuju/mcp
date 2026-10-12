@@ -22,6 +22,15 @@ function ok(res: ApiResponse): boolean {
   return res.status >= 200 && res.status < 300;
 }
 
+/**
+ * 场景设置操作的入参：请求体 flatten 的操作把设置键展开到顶层；请求体是一个整体 schema（如 updateEvaluationSetting
+ * 的 EvaluationSettingInput 指针）的操作则放在 body.param 键下。两种都按操作表来，不在这里猜。
+ */
+function settingArgs(settingOp: OperationSpec, formToken: unknown, setting: Args): Args {
+  if (!settingOp.body || settingOp.body.flatten) return { form_token: formToken, ...setting };
+  return { form_token: formToken, [settingOp.body.param ?? 'body']: setting };
+}
+
 function withText(result: CallToolResult, text: string): CallToolResult {
   const first = result.content[0];
   if (first?.type === 'text') first.text = `${text}\n${first.text}`;
@@ -54,7 +63,7 @@ export async function runComposite(tool: ToolSpec, args: Args, runtime: ToolRunt
     if (!ok(created)) return toToolResult(tool, created, maxResultChars);
     const token = (created.json as { token?: string } | undefined)?.token;
     if (!hasSetting || !token) return toToolResult(tool, created, maxResultChars);
-    const updated = await api.call(settingOp, { form_token: token, ...(setting as Args) }, credential);
+    const updated = await api.call(settingOp, settingArgs(settingOp, token, setting as Args), credential);
     if (!ok(updated)) {
       const failure = toToolResult(tool, updated, maxResultChars);
       return withText(
@@ -70,7 +79,7 @@ export async function runComposite(tool: ToolSpec, args: Args, runtime: ToolRunt
   const hasFormChanges = Object.keys(formArgs).some((k) => k !== 'form_token' && formArgs[k] !== undefined);
   let settingResult: ApiResponse | undefined;
   if (hasSetting) {
-    settingResult = await api.call(settingOp, { form_token: formToken, ...(setting as Args) }, credential);
+    settingResult = await api.call(settingOp, settingArgs(settingOp, formToken, setting as Args), credential);
     if (!ok(settingResult)) return toToolResult(tool, settingResult, maxResultChars);
   }
   if (!hasFormChanges) {

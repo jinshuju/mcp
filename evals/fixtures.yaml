@@ -1,0 +1,576 @@
+# 评测夹具：断言依赖的数据。`npm run eval -- seed` 在测评账户里按这里的描述建表单、灌数据，
+# 并把 token / api_code 记在 evals/state/fixtures.json。样本集与数据一起版本化：改了这里就重新 seed。
+#
+# 约定：
+# - fields[].key 是夹具内部的字段键，任务的状态断言用它引用字段；label 在同一表单内唯一，seed 用 label 对应 api_code。
+# - entries 的键是 field key；选项用显示值，多选用数组，日期用 YYYY-MM-DD。
+# - 带 entries 的表单在 seed 时会被整体重置为这里的数据。
+
+folder: MCP 评测数据（勿动）
+output_folder: MCP 评测产出（可删）
+results_form: MCP 评测结果（自动写入）
+
+forms:
+  - alias: employees
+    name: 员工信息登记表（2026）
+    description: 公司员工基础信息登记，用于评测「读数据 / 统计」类任务。
+    fields:
+      - { key: name, type: NameField, label: 姓名, required: true }
+      - { key: department, type: RadioButton, label: 部门, required: true, choices: [研发部, 市场部, 销售部, 人事部] }
+      - { key: level, type: DropDown, label: 职级, choices: [P5, P6, P7, M1] }
+      - { key: join_date, type: DateTimeField, label: 入职日期, precision: day }
+      - { key: salary, type: NumberField, label: 月薪 }
+      - { key: email, type: EmailField, label: 邮箱, unique: true }
+      - { key: mobile, type: MobileField, label: 手机 }
+      - { key: skills, type: CheckBox, label: 技能, choices: [Python, Java, Go, 前端, 数据分析] }
+    entries:
+      - {
+          name: 张伟,
+          department: 研发部,
+          level: P6,
+          join_date: 2024-03-11,
+          salary: 24000,
+          email: zhangwei@example.com,
+          mobile: '13800010001',
+          skills: [Python, Go]
+        }
+      - {
+          name: 李娜,
+          department: 研发部,
+          level: P5,
+          join_date: 2026-02-16,
+          salary: 18000,
+          email: lina@example.com,
+          mobile: '13800010002',
+          skills: [Python, 前端]
+        }
+      - {
+          name: 王强,
+          department: 研发部,
+          level: P7,
+          join_date: 2022-07-04,
+          salary: 32000,
+          email: wangqiang@example.com,
+          mobile: '13800010003',
+          skills: [Java, Go, 数据分析]
+        }
+      - {
+          name: 赵敏,
+          department: 研发部,
+          level: P6,
+          join_date: 2025-09-01,
+          salary: 25000,
+          email: zhaomin@example.com,
+          mobile: '13800010004',
+          skills: [前端]
+        }
+      - {
+          name: 刘洋,
+          department: 研发部,
+          level: P5,
+          join_date: 2026-06-08,
+          salary: 17000,
+          email: liuyang@example.com,
+          mobile: '13800010005',
+          skills: [Python, Java]
+        }
+      - {
+          name: 陈静,
+          department: 市场部,
+          level: P6,
+          join_date: 2023-05-22,
+          salary: 20000,
+          email: chenjing@example.com,
+          mobile: '13800010006',
+          skills: [数据分析]
+        }
+      - {
+          name: 杨帆,
+          department: 市场部,
+          level: P5,
+          join_date: 2025-11-17,
+          salary: 15000,
+          email: yangfan@example.com,
+          mobile: '13800010007',
+          skills: [Python, 数据分析]
+        }
+      - {
+          name: 周婷,
+          department: 市场部,
+          level: M1,
+          join_date: 2021-10-09,
+          salary: 28000,
+          email: zhouting@example.com,
+          mobile: '13800010008'
+        }
+      - {
+          name: 吴磊,
+          department: 销售部,
+          level: P5,
+          join_date: 2024-08-19,
+          salary: 14000,
+          email: wulei@example.com,
+          mobile: '13800010009'
+        }
+      - {
+          name: 郑爽,
+          department: 销售部,
+          level: P6,
+          join_date: 2023-01-30,
+          salary: 19000,
+          email: zhengshuang@example.com,
+          mobile: '13800010010',
+          skills: [数据分析]
+        }
+      - {
+          name: 孙丽,
+          department: 人事部,
+          level: M1,
+          join_date: 2020-04-13,
+          salary: 26000,
+          email: sunli@example.com,
+          mobile: '13800010011',
+          skills: [Python]
+        }
+      - {
+          name: 马超,
+          department: 人事部,
+          level: P5,
+          join_date: 2026-01-05,
+          salary: 13000,
+          email: machao@example.com,
+          mobile: '13800010012'
+        }
+    # 事实：研发 5 / 市场 3 / 销售 2 / 人事 2；月薪最高 王强 32000；2026 年入职 3 人（马超、李娜、刘洋）；
+    # 会 Python 5 人（张伟、李娜、刘洋、杨帆、孙丽）= 41.7%；部门平均月薪 研发 23200 / 市场 21000 / 销售 16500 / 人事 19500；总平均 20916.67
+
+  - alias: satisfaction
+    name: 客户满意度调查问卷
+    description: 购买后回访问卷，用于评测「统计 / 汇总」类任务。
+    fields:
+      - { key: customer, type: TextField, label: 客户姓名, required: true }
+      - { key: product, type: DropDown, label: 购买产品, choices: [智能门锁, 扫地机器人, 空气净化器] }
+      - { key: rating, type: RatingField, label: 总体满意度, rating_max: 5 }
+      - { key: nps, type: NpsField, label: 推荐意愿 }
+      - { key: issues, type: CheckBox, label: 遇到的问题, choices: [物流慢, 安装复杂, 售后响应慢, 价格偏高, 没有问题] }
+      - { key: comment, type: TextArea, label: 意见建议 }
+      - { key: purchase_date, type: DateTimeField, label: 购买日期, precision: day }
+    entries:
+      - {
+          customer: 刘备,
+          product: 智能门锁,
+          rating: 5,
+          nps: 10,
+          issues: [没有问题],
+          comment: 安装师傅很专业,
+          purchase_date: 2026-07-03
+        }
+      - {
+          customer: 关羽,
+          product: 智能门锁,
+          rating: 4,
+          nps: 8,
+          issues: [物流慢],
+          comment: 发货慢了两天,
+          purchase_date: 2026-07-08
+        }
+      - {
+          customer: 张飞,
+          product: 智能门锁,
+          rating: 4,
+          nps: 9,
+          issues: [价格偏高],
+          comment: 功能不错就是贵,
+          purchase_date: 2026-07-12
+        }
+      - {
+          customer: 赵云,
+          product: 智能门锁,
+          rating: 5,
+          nps: 10,
+          issues: [没有问题],
+          comment: 指纹识别很快,
+          purchase_date: 2026-07-15
+        }
+      - {
+          customer: 黄忠,
+          product: 智能门锁,
+          rating: 3,
+          nps: 6,
+          issues: [物流慢, 安装复杂],
+          comment: 安装说明书看不懂,
+          purchase_date: 2026-07-21
+        }
+      - {
+          customer: 魏延,
+          product: 智能门锁,
+          rating: 4,
+          nps: 7,
+          issues: [售后响应慢],
+          comment: 客服回复要等一天,
+          purchase_date: 2026-07-28
+        }
+      - {
+          customer: 诸葛亮,
+          product: 智能门锁,
+          rating: 5,
+          nps: 9,
+          issues: [没有问题],
+          comment: 整体满意,
+          purchase_date: 2026-08-02
+        }
+      - {
+          customer: 曹操,
+          product: 扫地机器人,
+          rating: 2,
+          nps: 3,
+          issues: [物流慢, 售后响应慢],
+          comment: 边刷一周就坏了,
+          purchase_date: 2026-08-05
+        }
+      - {
+          customer: 夏侯惇,
+          product: 扫地机器人,
+          rating: 3,
+          nps: 5,
+          issues: [价格偏高],
+          comment: 吸力一般,
+          purchase_date: 2026-08-09
+        }
+      - {
+          customer: 张辽,
+          product: 扫地机器人,
+          rating: 1,
+          nps: 0,
+          issues: [物流慢, 安装复杂, 售后响应慢],
+          comment: 到货就是坏的，退换货拖了半个月,
+          purchase_date: 2026-08-12
+        }
+      - {
+          customer: 许褚,
+          product: 扫地机器人,
+          rating: 3,
+          nps: 6,
+          issues: [价格偏高],
+          comment: 噪音有点大,
+          purchase_date: 2026-08-16
+        }
+      - {
+          customer: 郭嘉,
+          product: 扫地机器人,
+          rating: 2,
+          nps: 2,
+          issues: [售后响应慢],
+          comment: App 经常掉线,
+          purchase_date: 2026-08-20
+        }
+      - {
+          customer: 司马懿,
+          product: 扫地机器人,
+          rating: 4,
+          nps: 8,
+          issues: [没有问题],
+          comment: 拖地效果不错,
+          purchase_date: 2026-08-24
+        }
+      - {
+          customer: 荀彧,
+          product: 扫地机器人,
+          rating: 3,
+          nps: 4,
+          issues: [物流慢],
+          comment: 等了一周才到,
+          purchase_date: 2026-08-29
+        }
+      - {
+          customer: 孙权,
+          product: 空气净化器,
+          rating: 4,
+          nps: 8,
+          issues: [没有问题],
+          comment: 静音模式很安静,
+          purchase_date: 2026-09-01
+        }
+      - {
+          customer: 周瑜,
+          product: 空气净化器,
+          rating: 5,
+          nps: 10,
+          issues: [没有问题],
+          comment: 滤芯更换方便,
+          purchase_date: 2026-09-06
+        }
+      - {
+          customer: 鲁肃,
+          product: 空气净化器,
+          rating: 3,
+          nps: 6,
+          issues: [价格偏高],
+          comment: 滤芯耗材偏贵,
+          purchase_date: 2026-09-11
+        }
+      - {
+          customer: 吕蒙,
+          product: 空气净化器,
+          rating: 4,
+          nps: 9,
+          issues: [没有问题],
+          comment: 数显准确,
+          purchase_date: 2026-09-15
+        }
+      - {
+          customer: 陆逊,
+          product: 空气净化器,
+          rating: 4,
+          nps: 7,
+          issues: [安装复杂],
+          comment: 滤芯塑料膜没提示要撕,
+          purchase_date: 2026-09-20
+        }
+      - {
+          customer: 太史慈,
+          product: 空气净化器,
+          rating: 2,
+          nps: 3,
+          issues: [物流慢, 售后响应慢],
+          comment: 外壳有划痕，售后没人理,
+          purchase_date: 2026-09-26
+        }
+    # 事实：20 条；平均满意度 3.5；分产品平均 智能门锁 4.29 / 扫地机器人 2.57（最低） / 空气净化器 3.67；
+    # NPS 推荐者（9-10）6 人、中立 5 人、贬损者（0-6）9 人；1-2 分客户 4 人（曹操、张辽、郭嘉、太史慈）；
+    # 勾选「物流慢」6 人；按购买月份 7 月 6 / 8 月 8 / 9 月 6
+
+  - alias: signup
+    name: 秋季技术沙龙报名表
+    description: 活动报名表，是「批量写入」类任务的一次性写入对象，每次运行前后重置。
+    fields:
+      - { key: name, type: NameField, label: 姓名, required: true }
+      - { key: mobile, type: MobileField, label: 手机, required: true }
+      - { key: email, type: EmailField, label: 邮箱 }
+      - { key: company, type: TextField, label: 公司 }
+      - { key: session, type: RadioButton, label: 参加场次, required: true, choices: [上午场, 下午场] }
+      - { key: lunch, type: RadioButton, label: 是否需要午餐, choices: [需要, 不需要] }
+      - { key: note, type: TextArea, label: 备注 }
+    entries:
+      - {
+          name: 王芳,
+          mobile: '13700000001',
+          email: wangfang@example.com,
+          company: 云启科技,
+          session: 上午场,
+          lunch: 不需要
+        }
+      - {
+          name: 李明,
+          mobile: '13700000002',
+          email: liming@example.com,
+          company: 远航软件,
+          session: 下午场,
+          lunch: 需要
+        }
+      - {
+          name: 测试账号,
+          mobile: '13700000003',
+          email: test@example.com,
+          company: 内部,
+          session: 上午场,
+          lunch: 不需要,
+          note: 测试
+        }
+
+  - alias: orders
+    name: 办公用品采购申请
+    description: 采购申请流水，用于评测「统计 / 汇总」与「导入」类任务。
+    fields:
+      - { key: applicant, type: TextField, label: 申请人, required: true }
+      - { key: department, type: RadioButton, label: 部门, choices: [研发部, 市场部, 销售部, 人事部] }
+      - { key: item, type: DropDown, label: 物品, choices: [显示器, 键盘, 办公椅, 打印纸, 笔记本电脑] }
+      - { key: quantity, type: NumberField, label: 数量 }
+      - { key: unit_price, type: NumberField, label: 单价 }
+      - { key: amount, type: NumberField, label: 金额 }
+      - { key: apply_date, type: DateTimeField, label: 申请日期, precision: day }
+      - { key: status, type: RadioButton, label: 状态, choices: [待审批, 已批准, 已驳回] }
+      - { key: purpose, type: TextArea, label: 用途说明 }
+    entries:
+      - {
+          applicant: 王强,
+          department: 研发部,
+          item: 显示器,
+          quantity: 2,
+          unit_price: 1500,
+          amount: 3000,
+          apply_date: 2026-09-02,
+          status: 已批准,
+          purpose: 新同事工位
+        }
+      - {
+          applicant: 李娜,
+          department: 研发部,
+          item: 键盘,
+          quantity: 5,
+          unit_price: 200,
+          amount: 1000,
+          apply_date: 2026-09-03,
+          status: 已批准,
+          purpose: 备用外设
+        }
+      - {
+          applicant: 陈静,
+          department: 市场部,
+          item: 笔记本电脑,
+          quantity: 1,
+          unit_price: 8000,
+          amount: 8000,
+          apply_date: 2026-09-05,
+          status: 待审批,
+          purpose: 外出路演
+        }
+      - {
+          applicant: 吴磊,
+          department: 销售部,
+          item: 打印纸,
+          quantity: 10,
+          unit_price: 30,
+          amount: 300,
+          apply_date: 2026-09-08,
+          status: 已批准,
+          purpose: 合同打印
+        }
+      - {
+          applicant: 孙丽,
+          department: 人事部,
+          item: 办公椅,
+          quantity: 4,
+          unit_price: 600,
+          amount: 2400,
+          apply_date: 2026-09-10,
+          status: 已批准,
+          purpose: 新增工位
+        }
+      - {
+          applicant: 张伟,
+          department: 研发部,
+          item: 显示器,
+          quantity: 1,
+          unit_price: 1500,
+          amount: 1500,
+          apply_date: 2026-09-12,
+          status: 已驳回,
+          purpose: 已有双屏
+        }
+      - {
+          applicant: 杨帆,
+          department: 市场部,
+          item: 显示器,
+          quantity: 3,
+          unit_price: 1600,
+          amount: 4800,
+          apply_date: 2026-09-15,
+          status: 已批准,
+          purpose: 设计评审
+        }
+      - {
+          applicant: 郑爽,
+          department: 销售部,
+          item: 笔记本电脑,
+          quantity: 2,
+          unit_price: 7500,
+          amount: 15000,
+          apply_date: 2026-09-18,
+          status: 待审批,
+          purpose: 新入职销售
+        }
+      - {
+          applicant: 刘洋,
+          department: 研发部,
+          item: 键盘,
+          quantity: 2,
+          unit_price: 250,
+          amount: 500,
+          apply_date: 2026-09-20,
+          status: 已批准,
+          purpose: 旧键盘损坏
+        }
+      - {
+          applicant: 周婷,
+          department: 市场部,
+          item: 办公椅,
+          quantity: 2,
+          unit_price: 800,
+          amount: 1600,
+          apply_date: 2026-09-22,
+          status: 已批准,
+          purpose: 会议室
+        }
+      - {
+          applicant: 马超,
+          department: 人事部,
+          item: 打印纸,
+          quantity: 20,
+          unit_price: 28,
+          amount: 560,
+          apply_date: 2026-09-25,
+          status: 待审批,
+          purpose: 季度备货
+        }
+      - {
+          applicant: 赵敏,
+          department: 研发部,
+          item: 显示器,
+          quantity: 1,
+          unit_price: 2000,
+          amount: 2000,
+          apply_date: 2026-09-28,
+          status: 已批准,
+          purpose: 4K 调试
+        }
+      - {
+          applicant: 王强,
+          department: 研发部,
+          item: 笔记本电脑,
+          quantity: 1,
+          unit_price: 9000,
+          amount: 9000,
+          apply_date: 2026-10-01,
+          status: 已驳回,
+          purpose: 预算不足
+        }
+      - {
+          applicant: 孙丽,
+          department: 人事部,
+          item: 显示器,
+          quantity: 2,
+          unit_price: 1500,
+          amount: 3000,
+          apply_date: 2026-10-03,
+          status: 待审批,
+          purpose: 面试间
+        }
+      - {
+          applicant: 吴磊,
+          department: 销售部,
+          item: 键盘,
+          quantity: 3,
+          unit_price: 180,
+          amount: 540,
+          apply_date: 2026-10-06,
+          status: 已批准,
+          purpose: 外设更换
+        }
+    # 事实：15 条；已批准 9 / 待审批 4 / 已驳回 2；已批准总金额 16140（研发 6500 / 市场 6400 / 销售 840 / 人事 2400）；
+    # 显示器被申请 5 次共 9 台（最多）；王强出现 2 次
+
+  - alias: training
+    name: 新员工入职培训签到表
+    description: 新员工请在培训当天完成签到
+    fields:
+      - { key: name, type: NameField, label: 姓名, required: true }
+      - { key: emp_no, type: TextField, label: 工号 }
+      - { key: department, type: RadioButton, label: 部门, choices: [研发部, 市场部, 销售部, 人事部] }
+      - { key: checkin_time, type: DateTimeField, label: 签到时间, precision: minute }
+      - { key: courses, type: CheckBox, label: 培训课程, choices: [公司文化, 制度与流程, 产品介绍] }
+    setting:
+      success_message: 提交成功
+      success_message_style: text
+      password_required: false
+    entries: []

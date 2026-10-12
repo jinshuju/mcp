@@ -1,0 +1,85 @@
+# 找表单 / 账户：会话的第一步。来源：内置 MCP 的线上会话里最常见的开场是 list_forms → get_form → count_entries。
+- id: find-01
+  category: 找表单
+  title: 按主题找表单并报数据量
+  source: 线上会话模式 list_forms → count_entries / get_form_data_summary
+  prompt: 我有一个关于客户满意度的表单，帮我找到它，告诉我表单叫什么、现在一共收到多少条数据。
+  fixtures: [satisfaction]
+  max_turns: 6
+  expect:
+    tools:
+      must_call: [list_forms]
+      must_not_call: [create_form, create_entry, create_entries, edit_form]
+    answer:
+      contains: [客户满意度调查问卷, '20']
+
+- id: find-02
+  category: 找表单
+  title: 看表单结构与填写链接
+  source: 线上会话模式 list_forms → get_form
+  prompt: 「秋季技术沙龙报名表」的填写链接是什么？它有哪些字段，哪些是必填的？
+  fixtures: [signup]
+  max_turns: 6
+  expect:
+    tools:
+      must_call: [get_form]
+      must_not_call: [edit_form, create_form]
+    answer:
+      contains_any: ['{{signup.url}}', '/f/{{signup.token}}']
+      contains: [姓名, 手机, 参加场次, 备注]
+      claims:
+        - 答复指出姓名、手机、参加场次是必填字段，并且没有把邮箱、公司、是否需要午餐、备注说成必填
+
+- id: find-03
+  category: 找表单
+  title: 账户套餐与配额
+  source: 线上会话 get_current_billing_account
+  prompt: 我现在是什么套餐？本月还能收多少条数据？
+  max_turns: 4
+  expect:
+    tools:
+      must_call: [get_current_billing_account]
+    answer:
+      contains: ['{{account.plan}}']
+      claims:
+        - 答复给出了剩余数据条数配额的具体数字
+
+- id: find-04
+  category: 找表单
+  title: 单表单条数与分状态计数
+  source: 线上会话 count_entries
+  prompt: 「办公用品采购申请」一共有多少条申请？其中状态是「已批准」的有几条？
+  fixtures: [orders]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [count_entries, list_entries, aggregate_entries, get_form_data_summary]
+    answer:
+      contains: ['15', '9']
+
+- id: find-05
+  category: 找表单
+  title: 不存在的表单 token
+  source: 线上会话 get_form 报错「Form not found or access denied」
+  prompt: token 是 ZZZZ99 的那个表单叫什么名字？有多少条数据？
+  max_turns: 5
+  expect:
+    tools:
+      any_of: [get_form, list_forms, count_entries]
+      must_not_call: [create_form]
+    answer:
+      claims:
+        - 答复明确说明找不到这个表单或无权访问，没有编造表单名或数据量
+
+- id: find-06
+  category: 找表单
+  title: 最近收到数据的表单
+  source: 线上会话 list_forms 带 within_last 过滤报错后重试
+  prompt: 最近 30 天有哪些表单收到过新数据？按数据量从多到少列出表单名称和它们的总数据量。
+  fixtures: [employees, satisfaction, orders, signup]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [list_forms, list_form_entry_stats]
+    answer:
+      contains: [员工信息登记表（2026）, 客户满意度调查问卷, 办公用品采购申请, 秋季技术沙龙报名表]

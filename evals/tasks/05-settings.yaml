@@ -1,0 +1,136 @@
+# 改设置 / 改结构：都作用在夹具 training 上，运行前后重置。来源：线上会话里 get_form → edit_form 的往返是第三高频模式。
+- id: edit-01
+  category: 改设置
+  title: 改表单名称与描述
+  source: 线上会话模式 get_form → edit_form
+  prompt: 把「新员工入职培训签到表」改名为「2026 新员工入职培训签到」，描述改成「请在培训开始前完成签到」。
+  fixtures: [training]
+  writes: true
+  max_turns: 6
+  expect:
+    tools:
+      must_call: [edit_form]
+    state:
+      - check: form_props
+        fixture: training
+        name: 2026 新员工入职培训签到
+        description_contains: 请在培训开始前完成签到
+
+- id: edit-02
+  category: 改设置
+  title: 在指定位置加下拉字段
+  source: 线上会话 edit_form 新增字段（「新字段不能带 api_code，用 cid」的报错模式）
+  prompt: 给「新员工入职培训签到表」加一个「所属团队」下拉字段，选项是平台组、业务组、数据组，放在「部门」字段后面。
+  fixtures: [training]
+  writes: true
+  max_turns: 8
+  expect:
+    tools:
+      must_call: [edit_form]
+    state:
+      - check: form_field
+        fixture: training
+        label: 所属团队
+        type: [drop_down]
+        choices_include: [平台组, 业务组, 数据组]
+        after_label: 部门
+
+- id: edit-03
+  category: 改设置
+  title: 给多选字段追加选项
+  prompt: 「新员工入职培训签到表」的「培训课程」多选题，再加两个选项：信息安全培训、财务报销流程。原来的选项保留。
+  fixtures: [training]
+  writes: true
+  max_turns: 8
+  expect:
+    tools:
+      must_call: [edit_form]
+    state:
+      - check: form_field
+        fixture: training
+        label: 培训课程
+        type: [multiple_choice]
+        choices: 5
+        choices_include: [公司文化, 制度与流程, 产品介绍, 信息安全培训, 财务报销流程]
+
+- id: edit-04
+  category: 改设置
+  title: 提交后提示语
+  prompt: 把「新员工入职培训签到表」提交成功后的提示语改成「签到成功，欢迎加入！」。
+  fixtures: [training]
+  writes: true
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [edit_form]
+    state:
+      - check: form_props
+        fixture: training
+        setting: { success_message: 签到成功，欢迎加入！ }
+
+- id: edit-05
+  category: 改设置
+  title: 开启填写密码
+  prompt: 「新员工入职培训签到表」设置成需要输入密码才能填写，密码是 train2026。
+  fixtures: [training]
+  writes: true
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [edit_form]
+    state:
+      - check: form_props
+        fixture: training
+        setting: { password_required: true, access_password: train2026 }
+
+- id: edit-06
+  category: 改设置
+  title: 字段改必填且唯一
+  prompt: 「新员工入职培训签到表」里的「工号」改成必填，而且不允许重复。
+  fixtures: [training]
+  writes: true
+  max_turns: 6
+  expect:
+    tools:
+      must_call: [edit_form]
+    state:
+      - check: form_field
+        fixture: training
+        label: 工号
+        required: true
+        unique: true
+
+- id: edit-07
+  category: 改设置
+  title: 删除字段
+  source: 线上会话模式 check_field_data → edit_form
+  prompt: 把「新员工入职培训签到表」里的「签到时间」字段删掉。
+  fixtures: [training]
+  writes: true
+  max_turns: 6
+  expect:
+    tools:
+      must_call: [edit_form]
+    state:
+      - check: form_field
+        fixture: training
+        label: 签到时间
+        absent: true
+      - check: form_props
+        fixture: training
+        field_count: 4
+
+- id: edit-08
+  category: 改设置
+  title: 修改主题主色
+  prompt: '把「新员工入职培训签到表」的主题主色改成 #1E80FF。'
+  fixtures: [training]
+  writes: true
+  max_turns: 6
+  expect:
+    tools:
+      must_call: [edit_theme]
+    state:
+      - check: form_props
+        fixture: training
+        theme: { primary_color: '#1E80FF' }
