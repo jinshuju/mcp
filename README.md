@@ -72,16 +72,16 @@ claude mcp add jinshuju -s user -e JINSHUJU_ACCESS_TOKEN=your_token -- npx -y @j
 
 ## 环境变量
 
-| 变量                              | 说明                                                                   |
-| --------------------------------- | ---------------------------------------------------------------------- |
-| `JINSHUJU_ACCESS_TOKEN`           | stdio 模式的凭证；设了就不读配置文件                                   |
-| `JINSHUJU_CONFIG`                 | 配置文件路径，缺省 `~/.jinshuju/config.json`                           |
-| `JINSHUJU_API_BASE_URL`           | API 地址，缺省 `https://jinshuju.net/api/v1`                           |
-| `JINSHUJU_AUTH_HOST`              | 授权服务器，缺省 `https://account.jinshuju.net`                        |
-| `JINSHUJU_MCP_PUBLIC_URL`         | HTTP 模式对外地址（OAuth 元数据里的 resource）；留空按请求的 Host 推断 |
-| `JINSHUJU_MCP_MAX_RESULT_CHARS`   | 单次结果最多字符数，缺省 120000，超过截断并提示分页                    |
-| `JINSHUJU_MCP_TOKEN_CACHE_TTL_MS` | HTTP 模式令牌校验缓存，缺省 5 分钟                                     |
-| `PORT` / `HOST`                   | Node 入口监听，缺省 8787 / 0.0.0.0                                     |
+| 变量                              | 说明                                                                                                 |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `JINSHUJU_ACCESS_TOKEN`           | stdio 模式的凭证；设了就不读配置文件                                                                 |
+| `JINSHUJU_CONFIG`                 | 配置文件路径，缺省 `~/.jinshuju/config.json`                                                         |
+| `JINSHUJU_API_BASE_URL`           | API 地址，缺省 `https://jinshuju.net/api/v1`                                                         |
+| `JINSHUJU_AUTH_HOST`              | 授权服务器，缺省 `https://account.jinshuju.net`                                                      |
+| `JINSHUJU_MCP_PUBLIC_URL`         | HTTP 模式对外地址（OAuth 元数据里的 resource）；逗号分隔可给多个，按请求的 Host 选用；留空按请求推断 |
+| `JINSHUJU_MCP_MAX_RESULT_CHARS`   | 单次结果最多字符数，缺省 120000，超过截断并提示分页                                                  |
+| `JINSHUJU_MCP_TOKEN_CACHE_TTL_MS` | HTTP 模式令牌校验缓存，缺省 5 分钟                                                                   |
+| `PORT` / `HOST`                   | Node 入口监听，缺省 8787 / 0.0.0.0                                                                   |
 
 ## 开发
 
@@ -101,11 +101,12 @@ npm run spec:update  # 拉最新的线上 openapi.yaml 并重新生成
 - **Docker（官方）**：`docker build -t jinshuju-mcp . && docker run -p 8787:8787 -e JINSHUJU_MCP_PUBLIC_URL=https://mcp.jinshuju.net jinshuju-mcp`
 - **Cloudflare Workers（可选）**：`npx wrangler login && npm run worker:deploy`
 - **WDL 等 Workers 兼容平台（可选）**：装好 [`@wdl-dev/cli`](https://github.com/wdl-dev/cli) 并配置好 token 后 `npm run wdl:deploy`。
-  `wrangler.jsonc` 的 `routes` 声明了自定义域名 `mcp.jinshuju.net`（需平台方先放行该域名），走这个域名时不用配任何变量：
-  服务按请求的 Host 推断对外地址，协议一律 https。只有挂在平台默认的路径前缀地址（`https://<ns>.<platform>/jinshuju-mcp/`）下才需要
-  把含前缀的地址设为 `JINSHUJU_MCP_PUBLIC_URL`（`wdl secret put --worker jinshuju-mcp JINSHUJU_MCP_PUBLIC_URL`），因为平台不传 `X-Forwarded-Prefix`。
+  平台在 TLS 终止后明文转发，`X-Forwarded-Proto` 是 http 且不传 `X-Forwarded-Prefix`，按请求推断会得到错误地址，所以必须把对外地址
+  设为 secret：`wdl secret put --worker jinshuju-mcp JINSHUJU_MCP_PUBLIC_URL`，值逗号分隔列出所有入口，例如
+  `https://mcp.jinshuju.net,https://<ns>.<platform>/jinshuju-mcp`，服务按请求的 Host 选用对应的一个，自定义域名和平台默认的带前缀地址都能用。
+  自定义域名由 `wrangler.jsonc` 的 `routes` 声明，需平台方先放行。
   发版或改 secret 会重启 worker，之后约一分钟内请求可能返回 503，而 `/healthz` 在此期间已经是 200，
-  请用 `GET /.well-known/oauth-protected-resource/mcp` 确认 `resource` 为 `https://mcp.jinshuju.net/mcp` 再认为上线完成。
+  请用 `GET /.well-known/oauth-protected-resource/mcp` 确认 `resource` 与访问域名一致再认为上线完成。
 
 服务无状态，不需要数据库、KV 或 Durable Objects。
 

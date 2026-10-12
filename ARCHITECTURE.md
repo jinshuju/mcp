@@ -95,12 +95,12 @@ openapi.yaml 与线上实现偶有出入时，一次成功的 API 调用不应�
 - **stdio。** `JINSHUJU_ACCESS_TOKEN` 优先，其次 `~/.jinshuju/config.json`（`jinshuju auth login` 写的）。
   OAuth 会话快过期或遇到 401 时用 refresh_token 续期并原子写回（mode 600）。cli 和 mcp 共用一次登录。
 - **Node（官方）。** `Dockerfile` 一个进程，`PORT` 监听，`/healthz` 探活。无状态，随便扩副本。
-  对外地址可配 `JINSHUJU_MCP_PUBLIC_URL`（可含路径前缀，如 `https://host/jinshuju-mcp`），否则信任反向代理的
-  `X-Forwarded-Host/Prefix`；协议一律 https，不看 `X-Forwarded-Proto`（服务总在 TLS 终止之后，平台内部那一跳是明文，这个头会说 http）。挂在前缀下时，401 质询里的 `resource_metadata` 指向本服务自己路径下的 well-known 文档，
+  对外地址可配 `JINSHUJU_MCP_PUBLIC_URL`（可含路径前缀，如 `https://host/jinshuju-mcp`；逗号分隔可给多个，按请求的 Host 选用，
+  没有匹配的用第一个），否则信任反向代理的 `X-Forwarded-Proto/Host/Prefix`。挂在前缀下时，401 质询里的 `resource_metadata` 指向本服务自己路径下的 well-known 文档，
   而不是域名根（根路径不归本服务管）；RFC 9728 允许客户端直接按质询给的 URL 取。
-- **Workers（可选）。** `wrangler.jsonc` 没有任何绑定；`worker.ts` 只是把 Hono app 导出。WDL 这类平台明文转发，
-  `X-Forwarded-Proto` 是 http 且不带 `X-Forwarded-Prefix`：协议靠上面的 https 规则，路径前缀推不出来，
-  挂在前缀下（WDL 默认地址）仍要配 `JINSHUJU_MCP_PUBLIC_URL`。
+- **Workers（可选）。** `wrangler.jsonc` 没有任何绑定；`worker.ts` 只是把 Hono app 导出。WDL 这类平台在 TLS 终止后明文转发，
+  `X-Forwarded-Proto` 是 http 且不带 `X-Forwarded-Prefix`，按请求推断会得到错误地址，所以必须配 `JINSHUJU_MCP_PUBLIC_URL`，
+  把自定义域名和平台默认的带前缀地址都列进去，服务按 Host 选用。
 
 ## 测试
 

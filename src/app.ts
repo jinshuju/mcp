@@ -8,9 +8,9 @@
  *   POST /mcp                                 MCP Streamable HTTP（2026-07-28 无状态；2025 旧握手按无状态兜底）
  *
  * 服务可能挂在一个路径前缀下（如 https://host/jinshuju-mcp/…，平台转发时剥掉前缀）：
- * 对外地址用 JINSHUJU_MCP_PUBLIC_URL 指定（含前缀），401 质询里的 resource_metadata 指向本服务自己路径下的
- * well-known 文档，而不是域名根；RFC 9728 允许客户端直接按质询里给的 URL 取。
- * 不指定时按请求推断，协议一律 https（平台在 TLS 终止后用明文转发，X-Forwarded-Proto 也会说 http）。
+ * 对外地址用 JINSHUJU_MCP_PUBLIC_URL 指定（含前缀；逗号分隔可给多个，按请求 Host 选用，自定义域名和平台默认地址
+ * 都能用），401 质询里的 resource_metadata 指向本服务自己路径下的 well-known 文档，而不是域名根；RFC 9728 允许
+ * 客户端直接按质询里给的 URL 取。不指定时按请求推断（信任反向代理的 X-Forwarded-*）。
  */
 import { Hono } from 'hono';
 import {
@@ -55,15 +55,22 @@ export function createApp(options: AppOptions = {}): Hono {
   });
 
   /**
-   * 对外基址（无尾部斜杠，可含路径前缀）：配置优先，否则按请求推断（信任反向代理的 X-Forwarded-Host/Prefix）。
-   * 协议一律 https：服务总在 TLS 终止之后，平台内部那一跳是明文，X-Forwarded-Proto 和请求自身的协议都会说 http。
+   * 对外基址（无尾部斜杠，可含路径前缀）。配了地址就按请求的 Host 选一个，没有匹配的用第一个；
+   * 没配则按请求推断（信任反向代理的 X-Forwarded-*）。
    */
+  const publicUrls = cfg.publicUrls.map((u) => ({ base: u.replace(/\/$/, ''), host: new URL(u).host.toLowerCase() }));
   function publicBase(request: Request): string {
-    if (cfg.publicUrl) return cfg.publicUrl.replace(/\/$/, '');
     const url = new URL(request.url);
-    const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? url.host;
+    const host = (request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? url.host)
+      .split(',')[0]
+      .trim();
+    if (publicUrls.length) {
+      const wanted = host.toLowerCase();
+      return (publicUrls.find((u) => u.host === wanted) ?? publicUrls[0]).base;
+    }
+    const proto = request.headers.get('x-forwarded-proto') ?? url.protocol.replace(':', '');
     const prefix = (request.headers.get('x-forwarded-prefix') ?? '').replace(/\/$/, '');
-    return `https://${host}${prefix}`;
+    return `${proto}://${host}${prefix}`;
   }
   const resourceUrl = (request: Request) => new URL(`${publicBase(request)}${MCP_PATH}`);
   const resourceMetadataUrl = (request: Request) =>
