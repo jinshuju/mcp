@@ -1,7 +1,7 @@
 {
   // Workers 风格部署（Cloudflare Workers，或任何兼容的自托管平台如 WDL）。服务器无状态：不需要 Durable Objects、KV 或 OAuth Provider。
   // 对外访问地址（含路径前缀，如 https://host/jinshuju-mcp）通过运行时变量 / secret JINSHUJU_MCP_PUBLIC_URL 提供，不写在这里；
-  // 不提供时按请求的 Host 与 X-Forwarded-* 推断。
+  // 不提供时按请求的 Host 与 X-Forwarded-* 推断（没有 X-Forwarded-Proto 时按 https）。
   "name": "jinshuju-mcp",
   "main": "src/worker.ts",
   "compatibility_date": "2026-06-17",

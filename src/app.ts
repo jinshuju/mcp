@@ -10,6 +10,7 @@
  * 服务可能挂在一个路径前缀下（如 https://host/jinshuju-mcp/…，平台转发时剥掉前缀）：
  * 对外地址用 JINSHUJU_MCP_PUBLIC_URL 指定（含前缀），401 质询里的 resource_metadata 指向本服务自己路径下的
  * well-known 文档，而不是域名根；RFC 9728 允许客户端直接按质询里给的 URL 取。
+ * 不指定时按请求推断，协议默认 https（平台在 TLS 终止后往往用明文转发且不带 X-Forwarded-Proto）。
  */
 import { Hono } from 'hono';
 import {
@@ -53,11 +54,14 @@ export function createApp(options: AppOptions = {}): Hono {
     return buildServer({ credential: new StaticCredential(token), config: cfg, fetch: fetchImpl });
   });
 
-  /** 对外基址（无尾部斜杠，可含路径前缀）：配置优先，否则按请求推断（信任反向代理的 X-Forwarded-*）。 */
+  /**
+   * 对外基址（无尾部斜杠，可含路径前缀）：配置优先，否则按请求推断（信任反向代理的 X-Forwarded-*）。
+   * 没有 X-Forwarded-Proto 一律按 https：服务总在 TLS 终止之后，平台明文转发时请求自身的协议不可信。
+   */
   function publicBase(request: Request): string {
     if (cfg.publicUrl) return cfg.publicUrl.replace(/\/$/, '');
     const url = new URL(request.url);
-    const proto = request.headers.get('x-forwarded-proto') ?? url.protocol.replace(':', '');
+    const proto = request.headers.get('x-forwarded-proto') ?? 'https';
     const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? url.host;
     const prefix = (request.headers.get('x-forwarded-prefix') ?? '').replace(/\/$/, '');
     return `${proto}://${host}${prefix}`;

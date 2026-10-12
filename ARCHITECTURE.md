@@ -96,9 +96,11 @@ openapi.yaml 与线上实现偶有出入时，一次成功的 API 调用不应�
   OAuth 会话快过期或遇到 401 时用 refresh_token 续期并原子写回（mode 600）。cli 和 mcp 共用一次登录。
 - **Node（官方）。** `Dockerfile` 一个进程，`PORT` 监听，`/healthz` 探活。无状态，随便扩副本。
   对外地址可配 `JINSHUJU_MCP_PUBLIC_URL`（可含路径前缀，如 `https://host/jinshuju-mcp`），否则信任反向代理的
-  `X-Forwarded-Proto/Host/Prefix`。挂在前缀下时，401 质询里的 `resource_metadata` 指向本服务自己路径下的 well-known 文档，
+  `X-Forwarded-Proto/Host/Prefix`，没有 `X-Forwarded-Proto` 一律按 https（服务总在 TLS 终止之后，明文转发时请求自身的协议不可信）。挂在前缀下时，401 质询里的 `resource_metadata` 指向本服务自己路径下的 well-known 文档，
   而不是域名根（根路径不归本服务管）；RFC 9728 允许客户端直接按质询给的 URL 取。
-- **Workers（可选）。** `wrangler.jsonc` 没有任何绑定；`worker.ts` 只是把 Hono app 导出。
+- **Workers（可选）。** `wrangler.jsonc` 没有任何绑定；`worker.ts` 只是把 Hono app 导出。WDL 这类平台明文转发，
+  既不带 `X-Forwarded-Proto` 也不带 `X-Forwarded-Prefix`：协议靠上面的 https 默认值，路径前缀推不出来，
+  挂在前缀下（WDL 默认地址）仍要配 `JINSHUJU_MCP_PUBLIC_URL`。
 
 ## 测试
 

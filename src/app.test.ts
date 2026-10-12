@@ -91,6 +91,33 @@ test('路径前缀部署：对外地址含前缀时，质询与 PRM 都按前缀
   assert.equal(home.mcp, 'https://host.test/jinshuju-mcp/mcp');
 });
 
+test('按请求推断：明文转发的请求按 https 声明，X-Forwarded-Proto 优先', async () => {
+  const a = createApp({
+    config: { apiBaseUrl: 'https://api.test/api/v1' },
+    fetch: async () => new Response('{}', { status: 404 }),
+    authServerMetadata: AS
+  });
+  const resourceOf = async (res: Response) => ((await res.json()) as { resource: string }).resource;
+  // 平台在 TLS 终止后用明文转发，服务看到的是 http://，没有 X-Forwarded-Proto
+  const prm = await a.request('http://mcp.test/.well-known/oauth-protected-resource/mcp');
+  assert.equal(await resourceOf(prm), 'https://mcp.test/mcp');
+  const res = await a.request('http://mcp.test/mcp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+    body: '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+  });
+  assert.equal(res.status, 401);
+  assert.match(
+    res.headers.get('www-authenticate') ?? '',
+    /resource_metadata="https:\/\/mcp\.test\/\.well-known\/oauth-protected-resource\/mcp"/
+  );
+  // 代理明确说了协议就以它为准
+  const explicit = await a.request('http://mcp.test/.well-known/oauth-protected-resource/mcp', {
+    headers: { 'x-forwarded-proto': 'http' }
+  });
+  assert.equal(await resourceOf(explicit), 'http://mcp.test/mcp');
+});
+
 test('PRM 与 AS 元数据：/mcp 路径与根路径都能取到', async () => {
   const a = app({ count: 0 });
   for (const path of ['/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-protected-resource']) {
