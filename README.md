@@ -100,8 +100,12 @@ npm run spec:update  # 拉最新的线上 openapi.yaml 并重新生成
 
 - **Docker（官方）**：`docker build -t jinshuju-mcp . && docker run -p 8787:8787 -e JINSHUJU_MCP_PUBLIC_URL=https://mcp.jinshuju.net jinshuju-mcp`
 - **Cloudflare Workers（可选）**：`npx wrangler login && npm run worker:deploy`
-- **WDL 等 Workers 兼容平台（可选）**：装好 [`@wdl-dev/cli`](https://github.com/wdl-dev/cli) 并配置好 token 后 `npm run wdl:deploy`；
-  平台把服务挂在 `https://<ns>.<platform>/jinshuju-mcp/` 这样的路径前缀下，请把含前缀的地址设为 `JINSHUJU_MCP_PUBLIC_URL`（如 `wdl secret put --worker jinshuju-mcp JINSHUJU_MCP_PUBLIC_URL`）。
+- **WDL 等 Workers 兼容平台（可选）**：装好 [`@wdl-dev/cli`](https://github.com/wdl-dev/cli) 并配置好 token 后 `npm run wdl:deploy`。
+  `wrangler.jsonc` 的 `routes` 声明了自定义域名 `mcp.jinshuju.net`（需平台方先放行该域名），走这个域名时不用配任何变量：
+  服务按请求的 Host 推断对外地址，协议一律 https。只有挂在平台默认的路径前缀地址（`https://<ns>.<platform>/jinshuju-mcp/`）下才需要
+  把含前缀的地址设为 `JINSHUJU_MCP_PUBLIC_URL`（`wdl secret put --worker jinshuju-mcp JINSHUJU_MCP_PUBLIC_URL`），因为平台不传 `X-Forwarded-Prefix`。
+  发版或改 secret 会重启 worker，之后约一分钟内请求可能返回 503，而 `/healthz` 在此期间已经是 200，
+  请用 `GET /.well-known/oauth-protected-resource/mcp` 确认 `resource` 为 `https://mcp.jinshuju.net/mcp` 再认为上线完成。
 
 服务无状态，不需要数据库、KV 或 Durable Objects。
 
