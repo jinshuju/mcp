@@ -1,0 +1,99 @@
+# 读数据：按条件取数据、找某一条、跨表单搜索。来源：线上会话里 list_entries 是调用最多的工具。
+- id: read-01
+  category: 读数据
+  title: 按部门筛人
+  source: 线上会话模式 get_form → list_entries 带 filters
+  prompt: 员工信息登记表里研发部都有谁？列出每个人的姓名和职级。
+  fixtures: [employees]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [list_entries, search_entries_in_forms]
+      must_not_call: [create_entry, update_entry, delete_entry]
+    answer:
+      contains: [张伟, 李娜, 王强, 赵敏, 刘洋, P7]
+      not_contains: [陈静, 吴磊, 孙丽]
+      claims:
+        - 列出的研发部员工恰好是 5 人，每人都给了职级
+
+- id: read-02
+  category: 读数据
+  title: 找最大值对应的记录
+  prompt: 员工信息登记表里月薪最高的是谁？说一下这个人的部门和月薪。
+  fixtures: [employees]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [list_entries, aggregate_entries]
+    answer:
+      contains: [王强, 研发部]
+      contains_any: ['32000', '32,000', '3.2 万', '3.2万']
+
+- id: read-03
+  category: 读数据
+  title: 按日期范围筛选
+  prompt: 员工信息登记表里 2026 年入职的有几个人？分别是谁、哪天入职的？
+  fixtures: [employees]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [list_entries, count_entries, aggregate_entries]
+    answer:
+      contains: ['3', 李娜, 刘洋, 马超]
+      not_contains: [赵敏, 杨帆]
+
+- id: read-04
+  category: 读数据
+  title: 低分客户及其反馈
+  prompt: 客户满意度调查问卷里，总体满意度只打了 1 分或 2 分的客户有哪些？他们买的是什么产品，各自提了什么意见？
+  fixtures: [satisfaction]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [list_entries]
+    answer:
+      contains: [曹操, 张辽, 郭嘉, 太史慈, 扫地机器人, 空气净化器]
+      not_contains: [刘备, 周瑜]
+      claims:
+        - 四位低分客户的意见都被转述出来（边刷损坏、到货损坏且退换慢、App 掉线、外壳划痕且售后不理）
+
+- id: read-05
+  category: 读数据
+  title: 筛选后取联系方式
+  prompt: 秋季技术沙龙报名表里报了上午场的都有谁？把他们的手机号给我。
+  fixtures: [signup]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [list_entries]
+    answer:
+      contains: [王芳, '13700000001', 测试账号, '13700000003']
+      not_contains: ['13700000002']
+
+- id: read-06
+  category: 读数据
+  title: 跨表单搜索关键字
+  source: 线上会话模式 count_entries 多表单带 keyword 报错 → search_entries_in_forms
+  prompt: 在我所有表单的数据里搜一下「王强」这个名字，告诉我他出现在哪些表单里、各出现几次。
+  fixtures: [employees, orders]
+  max_turns: 8
+  expect:
+    tools:
+      any_of: [search_entries_in_forms, list_entries, count_entries]
+    answer:
+      contains: [员工信息登记表（2026）, 办公用品采购申请]
+      claims:
+        - 答复说明王强在「办公用品采购申请」中出现 2 次、在「员工信息登记表（2026）」中出现 1 次
+
+- id: read-07
+  category: 读数据
+  title: 最近一段时间各表单提交量
+  source: 线上会话 list_form_entry_stats（from 日期格式报错后修正）
+  prompt: 过去 14 天我的表单一共收到多少次提交？按表单列出提交次数最多的前三个。
+  max_turns: 6
+  expect:
+    tools:
+      must_call: [list_form_entry_stats]
+    answer:
+      claims:
+        - 答复给出了一个总提交次数，并列出了最多三个表单及各自的提交次数

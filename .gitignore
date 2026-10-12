@@ -5,3 +5,7 @@ dist/
 *.log
 .DS_Store
 .deploy-dist/
+evals/state/
+evals/results/
+evals/reports/
+evals/.env.local

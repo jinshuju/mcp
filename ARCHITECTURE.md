@@ -109,6 +109,12 @@ openapi.yaml 与线上实现偶有出入时，一次成功的 API 调用不应�
 - `server.test.ts` 用 `InMemoryTransport` + `@modelcontextprotocol/client` 走完整的 tools/list、tools/call、组合工具的请求顺序与失败说明、resources；
 - `app.test.ts` 用 Hono 的 `app.request` 走 401 challenge、PRM、缓存、旧协议握手。
 
+## 评测（evals/）
+
+`evals/` 不参与发布，是针对「模型用起来顺不顺手」的回归测试：同一批任务、同一批模型，分别接本仓库的 MCP（进程内 `buildServer`）
+与内置 MCP（Streamable HTTP），按断言打分。裁判（夹具准备、状态核对、结果写入）直接走开放 API（复用 `src/api.ts` 与操作表），
+不经过任何被测 MCP。设计、任务格式与指标见 [evals/README.md](evals/README.md)；`evals.yml` 在发版、openapi.yaml 变更与每周一触发。
+
 ## 发布与同步
 
 - CI 检查 `npm run generate` 后 `src/generated` 没有 diff，保证产物不漂移。

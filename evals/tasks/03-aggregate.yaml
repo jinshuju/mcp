@@ -1,0 +1,98 @@
+# 统计 / 汇总：分组、求和、平均、分桶。来源：线上会话里 aggregate_entries / get_form_data_summary 紧跟 get_form 出现。
+- id: agg-01
+  category: 统计汇总
+  title: 分组计数与平均
+  source: 线上会话模式 get_form → aggregate_entries 分组
+  prompt: 员工信息登记表里各部门分别有多少人？每个部门的平均月薪是多少？
+  fixtures: [employees]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [aggregate_entries, get_form_data_summary, list_entries]
+    answer:
+      contains: [研发部, 市场部, 销售部, 人事部]
+      claims:
+        - 四个部门人数分别为 研发部 5、市场部 3、销售部 2、人事部 2
+        - 四个部门平均月薪分别约为 研发部 23200、市场部 21000、销售部 16500、人事部 19500（允许四舍五入）
+
+- id: agg-02
+  category: 统计汇总
+  title: 平均分与 NPS 分布
+  prompt: 客户满意度调查问卷的平均满意度是多少分？推荐意愿里 9-10 分的推荐者有几人、0-6 分的贬损者有几人？
+  fixtures: [satisfaction]
+  max_turns: 8
+  expect:
+    tools:
+      any_of: [aggregate_entries, get_form_data_summary, list_entries, count_entries]
+    answer:
+      contains: ['3.5']
+      claims:
+        - 推荐者（9-10 分）为 6 人
+        - 贬损者（0-6 分）为 9 人
+
+- id: agg-03
+  category: 统计汇总
+  title: 条件求和并按维度拆分
+  prompt: 办公用品采购申请里，已批准的申请总金额是多少？再按部门分别算一下已批准的金额。
+  fixtures: [orders]
+  max_turns: 8
+  expect:
+    tools:
+      any_of: [aggregate_entries, list_entries]
+    answer:
+      contains_any: ['16140', '16,140']
+      claims:
+        - 按部门的已批准金额为 研发部 6500、市场部 6400、销售部 840、人事部 2400
+
+- id: agg-04
+  category: 统计汇总
+  title: 分组平均找最低
+  prompt: 客户满意度调查问卷里，三种产品各自的平均满意度是多少？哪个产品最低？
+  fixtures: [satisfaction]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [aggregate_entries, list_entries, get_form_data_summary]
+    answer:
+      contains: [扫地机器人]
+      claims:
+        - 三种产品的平均满意度分别约为 智能门锁 4.3、扫地机器人 2.6、空气净化器 3.7（允许 ±0.05 的四舍五入差异）
+        - 明确指出扫地机器人最低
+
+- id: agg-05
+  category: 统计汇总
+  title: 众数与数量汇总
+  prompt: 办公用品采购申请里哪种物品被申请的次数最多？这种物品一共申请了多少件？
+  fixtures: [orders]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [aggregate_entries, get_form_data_summary, list_entries]
+    answer:
+      contains: [显示器, '5', '9']
+
+- id: agg-06
+  category: 统计汇总
+  title: 多选字段的占比
+  prompt: 员工信息登记表里会 Python 的有几个人？占全部员工的比例是多少？
+  fixtures: [employees]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [count_entries, aggregate_entries, get_form_data_summary, list_entries]
+    answer:
+      contains: ['5']
+      contains_any: ['41.7', '41.67', '42%', '5/12', '41.6']
+
+- id: agg-07
+  category: 统计汇总
+  title: 按月分桶
+  prompt: 客户满意度调查问卷按购买日期的月份统计一下，每个月各有多少份问卷？
+  fixtures: [satisfaction]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [aggregate_entries, get_form_data_summary, list_entries]
+    answer:
+      claims:
+        - 2026 年 7 月 6 份、8 月 8 份、9 月 6 份，且没有列出其它月份
