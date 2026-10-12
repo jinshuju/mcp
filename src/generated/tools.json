@@ -5168,7 +5168,8 @@
        "description": "套餐不支持显示成绩时会被强制写为 none"
       },
       "show_timeout": {
-       "type": "boolean"
+       "type": "boolean",
+       "description": "开启限时答题。与考试题目字段的 required 互斥：表单已有必填题目时传 true 返回 400；开启后题目字段不能再设必填（考生信息字段的必填不受影响）"
       },
       "limited_time": {
        "type": "integer",
@@ -5206,7 +5207,7 @@
        }
       }
      },
-     "description": "考试设置（updateExamSetting）：增量更新考试场景表单的设置；同时接受 PUT。仅考试场景表单可用，否则返回 400。\n\n- 套餐不支持\"提交后显示成绩\"时，`notice_after_filling_mode` 会被强制写为 none，且 `success_message_rich_text` 被忽略。\n- `interval_comments` 整体替换现有区间评语；仅在（本次传入或已保存的）`notice_after_filling_mode` 为 grade / explaination / answer 时生效；传空数组不会关闭区间评语。\n- 区间评语需满足 end_point ≥ start_point 且互不重叠，否则 400。\n- `notice_after_filling_mode` 不为 none 时，服务端会清空表单设置中的 success_redirect_url / success_redirect_fields。\n- 请求体不含任何可识别键时视为无操作，直接返回当前设置。"
+     "description": "考试设置（updateExamSetting）：增量更新考试场景表单的设置；同时接受 PUT。仅考试场景表单可用，否则返回 400。\n\n- 套餐不支持\"提交后显示成绩\"时，`notice_after_filling_mode` 会被强制写为 none，且 `success_message_rich_text` 被忽略。\n- `interval_comments` 整体替换现有区间评语；仅在（本次传入或已保存的）`notice_after_filling_mode` 为 grade / explaination / answer 时生效；传空数组不会关闭区间评语。\n- 区间评语需满足 end_point ≥ start_point 且互不重叠，否则 400。\n- 表单已有必填题目时传 `show_timeout: true` 返回 400；开启限时后题目字段不能再设必填（考生信息字段的必填不受影响），要开限时先取消题目必填。\n- `notice_after_filling_mode` 不为 none 时，服务端会清空表单设置中的 success_redirect_url / success_redirect_fields。\n- 请求体不含任何可识别键时视为无操作，直接返回当前设置。"
     }
    },
    "additionalProperties": false,
@@ -5556,7 +5557,8 @@
        "description": "套餐不支持显示成绩时会被强制写为 none"
       },
       "show_timeout": {
-       "type": "boolean"
+       "type": "boolean",
+       "description": "开启限时答题。与考试题目字段的 required 互斥：表单已有必填题目时传 true 返回 400；开启后题目字段不能再设必填（考生信息字段的必填不受影响）"
       },
       "limited_time": {
        "type": "integer",
@@ -5594,7 +5596,7 @@
        }
       }
      },
-     "description": "考试设置（updateExamSetting）：增量更新考试场景表单的设置；同时接受 PUT。仅考试场景表单可用，否则返回 400。\n\n- 套餐不支持\"提交后显示成绩\"时，`notice_after_filling_mode` 会被强制写为 none，且 `success_message_rich_text` 被忽略。\n- `interval_comments` 整体替换现有区间评语；仅在（本次传入或已保存的）`notice_after_filling_mode` 为 grade / explaination / answer 时生效；传空数组不会关闭区间评语。\n- 区间评语需满足 end_point ≥ start_point 且互不重叠，否则 400。\n- `notice_after_filling_mode` 不为 none 时，服务端会清空表单设置中的 success_redirect_url / success_redirect_fields。\n- 请求体不含任何可识别键时视为无操作，直接返回当前设置。"
+     "description": "考试设置（updateExamSetting）：增量更新考试场景表单的设置；同时接受 PUT。仅考试场景表单可用，否则返回 400。\n\n- 套餐不支持\"提交后显示成绩\"时，`notice_after_filling_mode` 会被强制写为 none，且 `success_message_rich_text` 被忽略。\n- `interval_comments` 整体替换现有区间评语；仅在（本次传入或已保存的）`notice_after_filling_mode` 为 grade / explaination / answer 时生效；传空数组不会关闭区间评语。\n- 区间评语需满足 end_point ≥ start_point 且互不重叠，否则 400。\n- 表单已有必填题目时传 `show_timeout: true` 返回 400；开启限时后题目字段不能再设必填（考生信息字段的必填不受影响），要开限时先取消题目必填。\n- `notice_after_filling_mode` 不为 none 时，服务端会清空表单设置中的 success_redirect_url / success_redirect_fields。\n- 请求体不含任何可识别键时视为无操作，直接返回当前设置。"
     }
    },
    "additionalProperties": false,

@@ -4895,7 +4895,8 @@
     "description": "套餐不支持显示成绩时会被强制写为 none"
    },
    "show_timeout": {
-    "type": "boolean"
+    "type": "boolean",
+    "description": "开启限时答题。与考试题目字段的 required 互斥：表单已有必填题目时传 true 返回 400；开启后题目字段不能再设必填（考生信息字段的必填不受影响）"
    },
    "limited_time": {
     "type": "integer",
@@ -13408,6 +13409,41 @@
   },
   "additionalProperties": true
  },
+ "FillEntryCreated": {
+  "type": "object",
+  "required": [
+   "serial_number"
+  ],
+  "properties": {
+   "serial_number": {
+    "type": "integer",
+    "description": "数据序号"
+   },
+   "entry_token": {
+    "type": "string"
+   },
+   "created_at": {
+    "type": "string",
+    "format": "date-time"
+   }
+  }
+ },
+ "FillEntryRequest": {
+  "type": "object",
+  "required": [
+   "entry"
+  ],
+  "properties": {
+   "entry": {
+    "type": "object",
+    "description": "字段 api_code 到值的映射，值的写法同新增数据；填写页上不可见的字段会被忽略"
+   },
+   "password": {
+    "type": "string",
+    "description": "填写页设置了访问密码时，由填写者提供的密码"
+   }
+  }
+ },
  "FillInBlankInput": {
   "type": "object",
   "title": "FillInBlankInput",
@@ -13702,6 +13738,149 @@
     }
    }
   ]
+ },
+ "FillPage": {
+  "type": "object",
+  "required": [
+   "kind",
+   "token",
+   "title",
+   "fill_url",
+   "status",
+   "blockers",
+   "fields"
+  ],
+  "properties": {
+   "kind": {
+    "type": "string",
+    "enum": [
+     "form",
+     "form_view"
+    ],
+    "description": "`form` 来自 `/f/` 链接，`form_view` 来自 `/v/` 链接（表格的表单视图）"
+   },
+   "token": {
+    "type": "string",
+    "description": "链接中的 token"
+   },
+   "title": {
+    "type": "string",
+    "description": "填写页标题；表单视图为视图标题"
+   },
+   "description": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "fill_url": {
+    "type": "string",
+    "description": "填写页地址"
+   },
+   "status": {
+    "type": "object",
+    "required": [
+     "key"
+    ],
+    "properties": {
+     "key": {
+      "type": "string",
+      "description": "`open` 表示当前用户可以提交"
+     },
+     "message": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "不能提交时给用户看的说明"
+     },
+     "open_info": {
+      "type": "array",
+      "description": "未开放或按时间关闭时的开放时间说明",
+      "items": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "blockers": {
+    "type": "array",
+    "description": "只有填写者本人在页面上才能完成的要求；不为空时只能在浏览器中填写",
+    "items": {
+     "type": "object",
+     "required": [
+      "key",
+      "message"
+     ],
+     "properties": {
+      "key": {
+       "type": "string",
+       "enum": [
+        "captcha",
+        "sms_verification",
+        "weixin",
+        "ip_or_device_limit",
+        "region_limit",
+        "payment",
+        "portal",
+        "exam",
+        "required_attachment"
+       ]
+      },
+      "message": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "fields": {
+    "type": "array",
+    "description": "填写页上的字段，按填写顺序",
+    "items": {
+     "type": "object",
+     "description": "单键对象：键为字段 api_code，值为字段定义",
+     "minProperties": 1,
+     "maxProperties": 1,
+     "additionalProperties": {
+      "type": "object",
+      "description": "结构见 schema「FieldDefinition」：调用 get_schema 工具（name=\"FieldDefinition\"）或读取资源 jinshuju://schemas/FieldDefinition。"
+     },
+     "examples": [
+      {
+       "field_1": {
+        "label": "姓名",
+        "api_code_alias": null,
+        "type": "single_line_text",
+        "notes": "",
+        "private": false,
+        "validation": {
+         "required": true
+        }
+       }
+      }
+     ]
+    }
+   },
+   "manageable": {
+    "type": "object",
+    "description": "仅当当前用户本来就能读取背后的表单或表格时返回",
+    "properties": {
+     "kind": {
+      "type": "string",
+      "enum": [
+       "form",
+       "table"
+      ]
+     },
+     "token": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    }
+   }
+  }
  },
  "Folder": {
   "type": "object",

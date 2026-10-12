@@ -43,9 +43,7 @@ info:
 
     ## 输入校验
     服务端按本文档校验每个请求的路径参数、查询参数和 JSON 请求体（上传接口的 multipart 请求体除外）。
-    - 默认为**报告模式**：不合法的请求照常处理，但响应带 `X-API-Input-Warnings` 头说明问题，便于接入方自查。
-    - 切到**强制模式**后（按企业账户逐步开启），不合法的请求直接返回 `400`，请求体为 `{ error_description, errors: [{ pointer, message, code }] }`；
-      非 `application/json` 的请求体返回 `415`。
+    - 不合法的请求直接返回 `400`，请求体为 `{ error_description, errors: [{ pointer, message, code }] }`；非 `application/json` 的请求体返回 `415`。
     - 请求体 schema 中未列出的键视为错误（数据写入的字段值除外，由表单字段定义决定）。
 servers:
 - url: https://jinshuju.net/api/v1
@@ -66,6 +64,8 @@ tags:
   description: 表单 / 表格视图（视图筛选、排序、列配置）及按视图读取数据。
 - name: Comments
   description: 数据评论。
+- name: Fill
+  description: 填写链接：以填写者身份读取填写页（`/f/`、`/v/`）并按它提交数据。
 - name: OpenSearch
   description: 对外查询。
 - name: Folders
@@ -1066,7 +1066,7 @@ paths:
       description: |
         增量更新表单设置，只写入请求中出现的键；同时接受 PUT。
         OAuth 令牌需要 scope：form_setting。
-        - `submission_region_limited` / `submission_regions` 为付费功能，在此接口只读，传入会被忽略。
+        - `submission_region_limited` / `submission_regions` 为付费功能，在此接口只读；写入请用「编辑表单」接口的 `setting`。
         - `manually_close_rule`、`by_time_range_close_rule`、`by_entries_close_rule`、`fill_frequency` 为嵌套对象，服务端以 nested attributes 方式创建或更新。
         - 保存成功返回 `{ "status": "ok" }`；模型校验失败返回 400，响应体为 `{ "errors": "...", "status": "failed" }`（与通用错误结构不同）。
       operationId: updateFormSetting
@@ -1086,11 +1086,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/FormSettingSaveOk'
         '400':
-          description: 模型校验失败，响应体为 errors/status 结构而非通用 error_description
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FormSettingSaveFailed'
+          $ref: '#/components/responses/FormSettingBadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '402':
@@ -1151,11 +1147,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ManuallyCloseRule'
         '400':
-          description: 缺少 open 参数，或保存失败（errors/status 结构）
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FormSettingSaveFailed'
+          $ref: '#/components/responses/FormSettingBadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '402':
@@ -1191,11 +1183,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/FormSettingSaveOk'
         '400':
-          description: 模型校验失败（errors/status 结构）
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FormSettingSaveFailed'
+          $ref: '#/components/responses/FormSettingBadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '402':
@@ -1348,6 +1336,7 @@ paths:
         - 套餐不支持"提交后显示成绩"时，`notice_after_filling_mode` 会被强制写为 none，且 `success_message_rich_text` 被忽略。
         - `interval_comments` 整体替换现有区间评语；仅在（本次传入或已保存的）`notice_after_filling_mode` 为 grade / explaination / answer 时生效；传空数组不会关闭区间评语。
         - 区间评语需满足 end_point ≥ start_point 且互不重叠，否则 400。
+        - 表单已有必填题目时传 `show_timeout: true` 返回 400；开启限时后题目字段不能再设必填（考生信息字段的必填不受影响），要开限时先取消题目必填。
         - `notice_after_filling_mode` 不为 none 时，服务端会清空表单设置中的 success_redirect_url / success_redirect_fields。
         - 请求体不含任何可识别键时视为无操作，直接返回当前设置。
       operationId: updateExamSetting
@@ -4698,6 +4687,226 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/TooManyRequests'
+  "/fill/f/{form_token}":
+    get:
+      tags:
+      - Fill
+      summary: 读取表单填写页
+      operationId: getFillFormPage
+      description: |
+        按填写链接（`/f/<token>`）读取填写页：标题、说明、要填的字段，以及当前用户此刻能不能提交。
+        调用者以拿到链接的填写者身份读取，不要求对表单或表格有任何权限；返回的只有填写页上看得到的内容。
+        - `fields` 按填写页顺序列出公开字段，形态同读取表单时的 `fields`；表单视图的列名、说明、必填已按视图设置生效。
+        - `status.key` 为 `open` 才能提交；其他取值（如 `not_opened`、`closed`、`password_required`、`unauthorized`、`submission_prevented`、
+          `fill_frequency_limited`：当前用户已填满填写页允许的次数）的说明在 `status.message`；未开放或按时间关闭时 `status.open_info` 给出开放时间。
+        - `blockers` 列出只有填写者本人在页面上才能完成的要求（验证码、短信验证、微信身份、付款等）；不为空时提交会被拒绝，需在浏览器中填写。
+        - `manageable` 只在当前用户本来就能读取背后的表单或表格时返回，给出它的 token 与名称。
+        - 企业 Access Token 没有「当前用户」，调用返回 400。
+
+        OAuth 令牌需要 scope：submit_entries
+      parameters:
+      - name: form_token
+        in: path
+        required: true
+        description: 填写链接 `/f/<token>` 中的 token。
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 填写页
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FillPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: 填写页不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error_description: Fill page not found — check the link.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/fill/f/{form_token}/entries":
+    post:
+      tags:
+      - Fill
+      summary: 按表单填写页提交数据
+      operationId: createFillFormEntry
+      description: |
+        以当前用户的身份，按填写页提交一条数据，与在页面上点「提交」一致：只接受填写页上可见的字段，按填写页的必填设置校验，
+        提交人记为当前用户（会出现在「我提交的」里），表单视图提交的数据记录来自哪个视图。
+        - 填写页未开放返回 403，`status` 为原因；`blockers` 不为空返回 422 并列出原因。
+        - 字段值不合法返回 422，`errors` 按字段 api_code 给出说明。
+        - 每个用户每小时最多提交 30 次，超出返回 429。
+        - 企业 Access Token 没有「当前用户」，调用返回 400。
+
+        OAuth 令牌需要 scope：submit_entries
+      parameters:
+      - name: form_token
+        in: path
+        required: true
+        description: 填写链接 `/f/<token>` 中的 token。
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FillEntryRequest'
+      responses:
+        '201':
+          description: 已提交
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FillEntryCreated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          description: 填写页未开放
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 填写页不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: 填写页有 API 代替不了的要求，或字段值不合法
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/fill/v/{view_token}":
+    get:
+      tags:
+      - Fill
+      summary: 读取表单视图填写页
+      operationId: getFillViewPage
+      description: |
+        按填写链接（`/v/<token>`）读取填写页：标题、说明、要填的字段，以及当前用户此刻能不能提交。
+        调用者以拿到链接的填写者身份读取，不要求对表单或表格有任何权限；返回的只有填写页上看得到的内容。
+        - `fields` 按填写页顺序列出公开字段，形态同读取表单时的 `fields`；表单视图的列名、说明、必填已按视图设置生效。
+        - `status.key` 为 `open` 才能提交；其他取值（如 `not_opened`、`closed`、`password_required`、`unauthorized`、`submission_prevented`、
+          `fill_frequency_limited`：当前用户已填满填写页允许的次数）的说明在 `status.message`；未开放或按时间关闭时 `status.open_info` 给出开放时间。
+        - `blockers` 列出只有填写者本人在页面上才能完成的要求（验证码、短信验证、微信身份、付款等）；不为空时提交会被拒绝，需在浏览器中填写。
+        - `manageable` 只在当前用户本来就能读取背后的表单或表格时返回，给出它的 token 与名称。
+        - 企业 Access Token 没有「当前用户」，调用返回 400。
+
+        OAuth 令牌需要 scope：submit_entries
+      parameters:
+      - name: view_token
+        in: path
+        required: true
+        description: 填写链接 `/v/<token>` 中的 token。
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 填写页
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FillPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: 填写页不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error_description: Fill page not found — check the link.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/fill/v/{view_token}/entries":
+    post:
+      tags:
+      - Fill
+      summary: 按表单视图填写页提交数据
+      operationId: createFillViewEntry
+      description: |
+        以当前用户的身份，按填写页提交一条数据，与在页面上点「提交」一致：只接受填写页上可见的字段，按填写页的必填设置校验，
+        提交人记为当前用户（会出现在「我提交的」里），表单视图提交的数据记录来自哪个视图。
+        - 填写页未开放返回 403，`status` 为原因；`blockers` 不为空返回 422 并列出原因。
+        - 字段值不合法返回 422，`errors` 按字段 api_code 给出说明。
+        - 每个用户每小时最多提交 30 次，超出返回 429。
+        - 企业 Access Token 没有「当前用户」，调用返回 400。
+
+        OAuth 令牌需要 scope：submit_entries
+      parameters:
+      - name: view_token
+        in: path
+        required: true
+        description: 填写链接 `/v/<token>` 中的 token。
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FillEntryRequest'
+      responses:
+        '201':
+          description: 已提交
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FillEntryCreated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          description: 填写页未开放
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 填写页不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: 填写页有 API 代替不了的要求，或字段值不合法
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   "/tables/{table_token}/folder":
     patch:
       tags:
@@ -5106,6 +5315,14 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    FormSettingBadRequest:
+      description: 请求不符合本文档时为通用 error_description 结构；模型校验失败时为 errors/status 结构
+      content:
+        application/json:
+          schema:
+            oneOf:
+            - $ref: '#/components/schemas/Error'
+            - $ref: '#/components/schemas/FormSettingSaveFailed'
     Unauthorized:
       description: 未认证：令牌无效或已撤销，或 Basic 凭据错误
       content:
@@ -7980,6 +8197,7 @@ components:
           description: 套餐不支持显示成绩时会被强制写为 none
         show_timeout:
           type: boolean
+          description: 开启限时答题。与考试题目字段的 required 互斥：表单已有必填题目时传 true 返回 400；开启后题目字段不能再设必填（考生信息字段的必填不受影响）
         limited_time:
           type: integer
           minimum: 1
@@ -14118,6 +14336,119 @@ components:
           - integer
           - 'null'
           description: 下一页的行偏移量；末页为 null
+    FillPage:
+      type: object
+      required:
+      - kind
+      - token
+      - title
+      - fill_url
+      - status
+      - blockers
+      - fields
+      properties:
+        kind:
+          type: string
+          enum:
+          - form
+          - form_view
+          description: "`form` 来自 `/f/` 链接，`form_view` 来自 `/v/` 链接（表格的表单视图）"
+        token:
+          type: string
+          description: 链接中的 token
+        title:
+          type: string
+          description: 填写页标题；表单视图为视图标题
+        description:
+          type:
+          - string
+          - 'null'
+        fill_url:
+          type: string
+          description: 填写页地址
+        status:
+          type: object
+          required:
+          - key
+          properties:
+            key:
+              type: string
+              description: "`open` 表示当前用户可以提交"
+            message:
+              type:
+              - string
+              - 'null'
+              description: 不能提交时给用户看的说明
+            open_info:
+              type: array
+              description: 未开放或按时间关闭时的开放时间说明
+              items:
+                type: string
+        blockers:
+          type: array
+          description: 只有填写者本人在页面上才能完成的要求；不为空时只能在浏览器中填写
+          items:
+            type: object
+            required:
+            - key
+            - message
+            properties:
+              key:
+                type: string
+                enum:
+                - captcha
+                - sms_verification
+                - weixin
+                - ip_or_device_limit
+                - region_limit
+                - payment
+                - portal
+                - exam
+                - required_attachment
+              message:
+                type: string
+        fields:
+          type: array
+          description: 填写页上的字段，按填写顺序
+          items:
+            $ref: '#/components/schemas/FieldMap'
+        manageable:
+          type: object
+          description: 仅当当前用户本来就能读取背后的表单或表格时返回
+          properties:
+            kind:
+              type: string
+              enum:
+              - form
+              - table
+            token:
+              type: string
+            name:
+              type: string
+    FillEntryRequest:
+      type: object
+      required:
+      - entry
+      properties:
+        entry:
+          type: object
+          description: 字段 api_code 到值的映射，值的写法同新增数据；填写页上不可见的字段会被忽略
+        password:
+          type: string
+          description: 填写页设置了访问密码时，由填写者提供的密码
+    FillEntryCreated:
+      type: object
+      required:
+      - serial_number
+      properties:
+        serial_number:
+          type: integer
+          description: 数据序号
+        entry_token:
+          type: string
+        created_at:
+          type: string
+          format: date-time
     MySearchFormResult:
       type: object
       required:

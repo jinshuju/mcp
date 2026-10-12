@@ -2,11 +2,11 @@
   "generatedFrom": {
     "title": "金数据 API v1",
     "version": "1.0",
-    "sha256": "5c6d4ce8a76f1776"
+    "sha256": "4258ef3a561657cc"
   },
   "baseUrl": "https://jinshuju.net/api/v1",
   "toolCount": 60,
-  "operationCount": 113,
+  "operationCount": 117,
   "tools": {
     "list_forms": "listForms",
     "get_form": "getForm",
@@ -99,6 +99,7 @@
     "Tables": "数据表格（kind=table）：结构与数据，字段类型限于表格支持的列类型。",
     "Views": "表单 / 表格视图（视图筛选、排序、列配置）及按视图读取数据。",
     "Comments": "数据评论。",
+    "Fill": "填写链接：以填写者身份读取填写页（`/f/`、`/v/`）并按它提交数据。",
     "OpenSearch": "对外查询。",
     "Folders": "文件夹。",
     "Predefined Choices Sets": "预置选项集。",
