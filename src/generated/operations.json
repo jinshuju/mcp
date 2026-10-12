@@ -871,7 +871,7 @@
  "updateFormSetting": {
   "operationId": "updateFormSetting",
   "summary": "更新表单设置",
-  "description": "增量更新表单设置，只写入请求中出现的键；同时接受 PUT。\n\n- `submission_region_limited` / `submission_regions` 为付费功能，在此接口只读，传入会被忽略。\n- `manually_close_rule`、`by_time_range_close_rule`、`by_entries_close_rule`、`fill_frequency` 为嵌套对象，服务端以 nested attributes 方式创建或更新。\n- 保存成功返回 `{ \"status\": \"ok\" }`；模型校验失败返回 400，响应体为 `{ \"errors\": \"...\", \"status\": \"failed\" }`（与通用错误结构不同）。",
+  "description": "增量更新表单设置，只写入请求中出现的键；同时接受 PUT。\n\n- `submission_region_limited` / `submission_regions` 为付费功能，在此接口只读；写入请用「编辑表单」接口的 `setting`。\n- `manually_close_rule`、`by_time_range_close_rule`、`by_entries_close_rule`、`fill_frequency` 为嵌套对象，服务端以 nested attributes 方式创建或更新。\n- 保存成功返回 `{ \"status\": \"ok\" }`；模型校验失败返回 400，响应体为 `{ \"errors\": \"...\", \"status\": \"failed\" }`（与通用错误结构不同）。",
   "tag": "Form Settings",
   "method": "patch",
   "path": "/forms/{form_token}/setting",
@@ -1081,7 +1081,7 @@
  "updateExamSetting": {
   "operationId": "updateExamSetting",
   "summary": "更新考试设置",
-  "description": "增量更新考试场景表单的设置；同时接受 PUT。仅考试场景表单可用，否则返回 400。\n\n- 套餐不支持\"提交后显示成绩\"时，`notice_after_filling_mode` 会被强制写为 none，且 `success_message_rich_text` 被忽略。\n- `interval_comments` 整体替换现有区间评语；仅在（本次传入或已保存的）`notice_after_filling_mode` 为 grade / explaination / answer 时生效；传空数组不会关闭区间评语。\n- 区间评语需满足 end_point ≥ start_point 且互不重叠，否则 400。\n- `notice_after_filling_mode` 不为 none 时，服务端会清空表单设置中的 success_redirect_url / success_redirect_fields。\n- 请求体不含任何可识别键时视为无操作，直接返回当前设置。",
+  "description": "增量更新考试场景表单的设置；同时接受 PUT。仅考试场景表单可用，否则返回 400。\n\n- 套餐不支持\"提交后显示成绩\"时，`notice_after_filling_mode` 会被强制写为 none，且 `success_message_rich_text` 被忽略。\n- `interval_comments` 整体替换现有区间评语；仅在（本次传入或已保存的）`notice_after_filling_mode` 为 grade / explaination / answer 时生效；传空数组不会关闭区间评语。\n- 区间评语需满足 end_point ≥ start_point 且互不重叠，否则 400。\n- 表单已有必填题目时传 `show_timeout: true` 返回 400；开启限时后题目字段不能再设必填（考生信息字段的必填不受影响），要开限时先取消题目必填。\n- `notice_after_filling_mode` 不为 none 时，服务端会清空表单设置中的 success_redirect_url / success_redirect_fields。\n- 请求体不含任何可识别键时视为无操作，直接返回当前设置。",
   "tag": "Form Settings",
   "method": "patch",
   "path": "/forms/{form_token}/exam_setting",
@@ -3510,6 +3510,108 @@
    "read_entries"
   ],
   "responseSchema": "MySearchResponse"
+ },
+ "getFillFormPage": {
+  "operationId": "getFillFormPage",
+  "summary": "读取表单填写页",
+  "description": "按填写链接（`/f/<token>`）读取填写页：标题、说明、要填的字段，以及当前用户此刻能不能提交。\n调用者以拿到链接的填写者身份读取，不要求对表单或表格有任何权限；返回的只有填写页上看得到的内容。\n- `fields` 按填写页顺序列出公开字段，形态同读取表单时的 `fields`；表单视图的列名、说明、必填已按视图设置生效。\n- `status.key` 为 `open` 才能提交；其他取值（如 `not_opened`、`closed`、`password_required`、`unauthorized`、`submission_prevented`、\n  `fill_frequency_limited`：当前用户已填满填写页允许的次数）的说明在 `status.message`；未开放或按时间关闭时 `status.open_info` 给出开放时间。\n- `blockers` 列出只有填写者本人在页面上才能完成的要求（验证码、短信验证、微信身份、付款等）；不为空时提交会被拒绝，需在浏览器中填写。\n- `manageable` 只在当前用户本来就能读取背后的表单或表格时返回，给出它的 token 与名称。\n- 企业 Access Token 没有「当前用户」，调用返回 400。",
+  "tag": "Fill",
+  "method": "get",
+  "path": "/fill/f/{form_token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "submit_entries"
+  ],
+  "responseSchema": "FillPage"
+ },
+ "createFillFormEntry": {
+  "operationId": "createFillFormEntry",
+  "summary": "按表单填写页提交数据",
+  "description": "以当前用户的身份，按填写页提交一条数据，与在页面上点「提交」一致：只接受填写页上可见的字段，按填写页的必填设置校验，\n提交人记为当前用户（会出现在「我提交的」里），表单视图提交的数据记录来自哪个视图。\n- 填写页未开放返回 403，`status` 为原因；`blockers` 不为空返回 422 并列出原因。\n- 字段值不合法返回 422，`errors` 按字段 api_code 给出说明。\n- 每个用户每小时最多提交 30 次，超出返回 429。\n- 企业 Access Token 没有「当前用户」，调用返回 400。",
+  "tag": "Fill",
+  "method": "post",
+  "path": "/fill/f/{form_token}/entries",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "submit_entries"
+  ],
+  "responseSchema": "FillEntryCreated"
+ },
+ "getFillViewPage": {
+  "operationId": "getFillViewPage",
+  "summary": "读取表单视图填写页",
+  "description": "按填写链接（`/v/<token>`）读取填写页：标题、说明、要填的字段，以及当前用户此刻能不能提交。\n调用者以拿到链接的填写者身份读取，不要求对表单或表格有任何权限；返回的只有填写页上看得到的内容。\n- `fields` 按填写页顺序列出公开字段，形态同读取表单时的 `fields`；表单视图的列名、说明、必填已按视图设置生效。\n- `status.key` 为 `open` 才能提交；其他取值（如 `not_opened`、`closed`、`password_required`、`unauthorized`、`submission_prevented`、\n  `fill_frequency_limited`：当前用户已填满填写页允许的次数）的说明在 `status.message`；未开放或按时间关闭时 `status.open_info` 给出开放时间。\n- `blockers` 列出只有填写者本人在页面上才能完成的要求（验证码、短信验证、微信身份、付款等）；不为空时提交会被拒绝，需在浏览器中填写。\n- `manageable` 只在当前用户本来就能读取背后的表单或表格时返回，给出它的 token 与名称。\n- 企业 Access Token 没有「当前用户」，调用返回 400。",
+  "tag": "Fill",
+  "method": "get",
+  "path": "/fill/v/{view_token}",
+  "params": [
+   {
+    "name": "view_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "view_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "submit_entries"
+  ],
+  "responseSchema": "FillPage"
+ },
+ "createFillViewEntry": {
+  "operationId": "createFillViewEntry",
+  "summary": "按表单视图填写页提交数据",
+  "description": "以当前用户的身份，按填写页提交一条数据，与在页面上点「提交」一致：只接受填写页上可见的字段，按填写页的必填设置校验，\n提交人记为当前用户（会出现在「我提交的」里），表单视图提交的数据记录来自哪个视图。\n- 填写页未开放返回 403，`status` 为原因；`blockers` 不为空返回 422 并列出原因。\n- 字段值不合法返回 422，`errors` 按字段 api_code 给出说明。\n- 每个用户每小时最多提交 30 次，超出返回 429。\n- 企业 Access Token 没有「当前用户」，调用返回 400。",
+  "tag": "Fill",
+  "method": "post",
+  "path": "/fill/v/{view_token}/entries",
+  "params": [
+   {
+    "name": "view_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "view_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "submit_entries"
+  ],
+  "responseSchema": "FillEntryCreated"
  },
  "moveTableToFolder": {
   "operationId": "moveTableToFolder",
