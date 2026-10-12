@@ -161,6 +161,38 @@ test('组合工具：create_exam_form 先建表单再写设置；edit_exam_form 
   await close();
 });
 
+test('组合工具：测评设置的请求体整体放在 JSON body 里（updateEvaluationSetting 不 flatten）', async () => {
+  // 评测里发现：测评设置操作的请求体是 EvaluationSettingInput 指针（body.param），按考试那样展开会发出空请求体（HTTP 415）。
+  const { calls, fetchImpl } = fakeApi((req) =>
+    req.method === 'POST' && req.url.endsWith('/forms')
+      ? new Response('{"token":"EvalTok"}', { status: 201, headers: { 'Content-Type': 'application/json' } })
+      : new Response('{"ok":true}', { headers: { 'Content-Type': 'application/json' } })
+  );
+  const { client, close } = await connect(fetchImpl);
+  const setting = {
+    notice_after_filling_mode: 'reports',
+    evaluation_comments: [{ start_point: 0, end_point: 8, comment: '低' }]
+  };
+  const created = await client.callTool({
+    name: 'create_evaluation_form',
+    arguments: { name: '压力自测', fields: [{ type: 'SingleSelect', label: 'Q1' }], evaluation_setting: setting }
+  });
+  assert.equal(created.isError, undefined);
+  assert.equal(calls[1].method, 'PATCH');
+  assert.equal(calls[1].url, 'https://api.test/api/v1/forms/EvalTok/evaluation_setting');
+  assert.deepEqual(JSON.parse(calls[1].body!), setting);
+
+  calls.length = 0;
+  await client.callTool({
+    name: 'edit_evaluation_form',
+    arguments: { form_token: 'T2', evaluation_setting: { show_report_score: true } }
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'https://api.test/api/v1/forms/T2/evaluation_setting');
+  assert.equal(calls[0].body, '{"show_report_score":true}');
+  await close();
+});
+
 test('组合工具：create_exam_form 的设置被拒绝时说明表单已创建', async () => {
   const { fetchImpl } = fakeApi((req) =>
     req.url.endsWith('/forms')
