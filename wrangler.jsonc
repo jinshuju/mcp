@@ -5,5 +5,9 @@
   "name": "jinshuju-mcp",
   "main": "src/worker.ts",
   "compatibility_date": "2026-06-17",
-  "compatibility_flags": ["nodejs_compat"]
+  "compatibility_flags": ["nodejs_compat"],
+  "routes": ["mcp.jinshuju.net/*"],
+  "wdl": {
+    "session_policy": "restart"
+  }
 }
