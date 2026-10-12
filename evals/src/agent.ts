@@ -60,6 +60,14 @@ function preview(text: string, n = 300): string {
   return text.length > n ? `${text.slice(0, n)}…` : text;
 }
 
+/** 建表单类工具（含组合工具「表单已创建但设置被拒绝」的说明）结果里的表单 token */
+const FORM_CREATING_TOOLS = new Set(['create_form', 'copy_form', 'create_exam_form', 'create_evaluation_form']);
+function createdFormToken(tool: string, text: string): string | undefined {
+  if (!FORM_CREATING_TOOLS.has(tool)) return undefined;
+  const m = /"token"\s*:\s*"([A-Za-z0-9]{4,12})"/.exec(text) ?? /token=([A-Za-z0-9]{4,12})/.exec(text);
+  return m?.[1];
+}
+
 export async function runAgent(options: AgentOptions): Promise<AgentTrace> {
   const { task, mcp, model, llm, log } = options;
   const today = options.today ?? new Date().toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
@@ -141,6 +149,7 @@ export async function runAgent(options: AgentOptions): Promise<AgentTrace> {
         text = `${text.slice(0, options.maxToolResultChars)}\n…（结果过长已截断，共 ${outcome.text.length} 字符；请缩小范围或分页）`;
         trace.truncated_results++;
       }
+      const formToken = createdFormToken(name, outcome.text);
       trace.calls.push({
         index: trace.calls.length + 1,
         turn,
@@ -150,7 +159,8 @@ export async function runAgent(options: AgentOptions): Promise<AgentTrace> {
         result_chars: outcome.text.length,
         result_preview: preview(outcome.text),
         duration_ms: outcome.duration_ms || Date.now() - started,
-        ...(outcome.is_error ? { error_message: preview(outcome.text, 500) } : {})
+        ...(outcome.is_error ? { error_message: preview(outcome.text, 500) } : {}),
+        ...(formToken ? { form_token: formToken } : {})
       });
       log?.(
         `  ${outcome.is_error ? '✗' : '✓'} ${name} ${preview(JSON.stringify(args), 120)} → ${outcome.text.length} 字符`

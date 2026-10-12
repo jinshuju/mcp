@@ -180,6 +180,8 @@ export interface ToolCallRecord {
   result_preview: string;
   duration_ms: number;
   error_message?: string;
+  /** 建表单类工具返回的表单 token，用于定位本次运行自己创建的表单 */
+  form_token?: string;
 }
 
 export interface TurnUsage {

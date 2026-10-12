@@ -161,7 +161,12 @@ function toApiFilters(ctx: AssertContext, alias: string, filters: TaskFilter[] |
   return filters.map((f) => ({ ...f, field: form.fields[f.field]?.api_code ?? f.field }));
 }
 
-async function runStateCheck(ctx: AssertContext, task: Task, check: StateCheck): Promise<AssertionResult[]> {
+async function runStateCheck(
+  ctx: AssertContext,
+  task: Task,
+  check: StateCheck,
+  trace: AgentTrace
+): Promise<AssertionResult[]> {
   const { api, state } = ctx;
   const name = `${check.check}${'fixture' in check ? `(${check.fixture})` : ''}`;
   switch (check.check) {
@@ -206,19 +211,38 @@ async function runStateCheck(ctx: AssertContext, task: Task, check: StateCheck):
     }
     case 'form_created': {
       const keyword = check.name ?? check.name_contains ?? '';
-      const rows = await api.listForms({
-        q: keyword || undefined,
-        sort: [{ field: 'created_at', order: 'desc' }],
-        limit: 30
-      });
-      const since = ctx.runStartedAt.getTime() - 120_000;
-      const hits = rows
-        .filter((r) => Date.parse(r.created_at) >= since)
-        .filter((r) => (check.name ? r.name.trim() === check.name : r.name.includes(keyword)));
-      if (!hits.length) {
-        return [{ kind: 'state', name, pass: false, detail: `运行期间没有创建名为「${keyword}」的表单` }];
+      const matches = (n: string) => (check.name ? n.trim() === check.name : n.includes(keyword));
+      // 先按本次运行自己的建表单工具返回的 token 定位（后建的优先）：
+      // 并发运行时同名表单可能是别的模型建的，按名字搜「运行期间最新的」会串。
+      const ownTokens = [...new Set(trace.calls.map((c) => c.form_token).filter((t): t is string => !!t))].toReversed();
+      let form: FormDetail | undefined;
+      const ownNames: string[] = [];
+      for (const token of ownTokens) {
+        const candidate = await api.getForm(token).catch(() => undefined);
+        if (!candidate) continue;
+        if (matches(candidate.name)) {
+          form = candidate;
+          break;
+        }
+        ownNames.push(candidate.name);
       }
-      const form = await api.getForm(hits[0]!.token);
+      if (!form && !ownTokens.length) {
+        // 没记录到 token（工具结果格式不认识）时才退回按名字搜运行期间最新的
+        const rows = await api.listForms({
+          q: keyword || undefined,
+          sort: [{ field: 'created_at', order: 'desc' }],
+          limit: 30
+        });
+        const since = ctx.runStartedAt.getTime() - 120_000;
+        const hit = rows.filter((r) => Date.parse(r.created_at) >= since).find((r) => matches(r.name));
+        if (hit) form = await api.getForm(hit.token);
+      }
+      if (!form) {
+        const detail = ownNames.length
+          ? `本次运行创建的表单叫「${ownNames.join('」「')}」，不是「${keyword}」`
+          : `运行期间没有创建名为「${keyword}」的表单`;
+        return [{ kind: 'state', name, pass: false, detail }];
+      }
       const results: AssertionResult[] = [
         { kind: 'state', name: `${name}：表单存在`, pass: true, detail: `${form.name} ${form.token}` }
       ];
@@ -448,7 +472,7 @@ export async function evaluateTask(task: Task, trace: AgentTrace, ctx: AssertCon
   // 状态
   for (const check of expect.state ?? []) {
     try {
-      results.push(...(await runStateCheck(ctx, task, check)));
+      results.push(...(await runStateCheck(ctx, task, check, trace)));
     } catch (error) {
       results.push({ kind: 'state', name: check.check, pass: false, detail: `检查出错：${(error as Error).message}` });
     }
