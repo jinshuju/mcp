@@ -5100,7 +5100,7 @@
  {
   "operationId": "createForm",
   "summary": "创建表单",
-  "description": "创建在线考试表单（scene=exam，自动判分）。题目必须用考试题型（SingleSelect / MultiSelect / TrueOrFalse / DropDownSelect / FillInBlank / ShortAnswer / FillInNumber），每题带 answers（正确答案与分值）。 先建表单，再用 exam_setting 更新考试设置；设置被拒绝时表单已创建，结果里会说明。\n用字段定义列表创建一个表单，返回完整的表单结构。`name` 与 `fields` 必填。\n- `scene` 决定表单场景；考试 / 测评题型（如 `SingleSelect`、`FillInBlank`）只能在支持的场景下使用。\n- `layout=card`（分页式）不支持 PageBreak、Matrix*、TableField、GoodsField、ESignatureField、FormAssociation、MultipleBlanksField 及各类 Widget 字段。\n- `folder_token` 指定的文件夹必须可管理且 kind 为 form，否则分别返回 404 / 400。\n- `setting` 只接受白名单内的键（见 `FormSettingWriteInput`），`setting.notification_rules` 会整体替换由 API 创建的通知规则。\n- 返回的表单结构带 `url`（对外填写地址）。",
+  "description": "创建在线考试表单（scene=exam，自动判分）。用户要的是考试 / 测验 / 考核 / quiz 时用它，不要用 create_form； 心理测试 / 能力评估 / 自测问卷 / 培训反馈这类「测评」用 create_evaluation_form。 题目必须用考试题型（SingleSelect / MultiSelect / TrueOrFalse / DropDownSelect / FillInBlank / ShortAnswer / FillInNumber）， 每题带 answers（正确答案与分值；缺省 absolute 模式只有一条正确答案，全对才得分）。 先建表单，再用 exam_setting 更新考试设置；设置被拒绝时表单已创建，结果里会说明。\n用字段定义列表创建一个表单，返回完整的表单结构。`name` 与 `fields` 必填。\n- `scene` 决定表单场景；考试 / 测评题型（如 `SingleSelect`、`FillInBlank`）只能在支持的场景下使用。\n- `layout=card`（分页式）不支持 PageBreak、Matrix*、TableField、GoodsField、ESignatureField、FormAssociation、MultipleBlanksField 及各类 Widget 字段。\n- `folder_token` 指定的文件夹必须可管理且 kind 为 form，否则分别返回 404 / 400。\n- `setting` 只接受白名单内的键（见 `FormSettingWriteInput`），`setting.notification_rules` 会整体替换由 API 创建的通知规则。\n- 返回的表单结构带 `url`（对外填写地址）。",
   "tag": "Forms",
   "method": "post",
   "path": "/forms",
@@ -5618,7 +5618,7 @@
  {
   "operationId": "createForm",
   "summary": "创建表单",
-  "description": "创建测评表单（scene=evaluation）。计分测评用 SingleSelect / MultiSelect / DropDownSelect / Rating / Nps 并带分值； 反馈问卷用普通字段。先建表单，再用 evaluation_setting 更新测评设置。\n用字段定义列表创建一个表单，返回完整的表单结构。`name` 与 `fields` 必填。\n- `scene` 决定表单场景；考试 / 测评题型（如 `SingleSelect`、`FillInBlank`）只能在支持的场景下使用。\n- `layout=card`（分页式）不支持 PageBreak、Matrix*、TableField、GoodsField、ESignatureField、FormAssociation、MultipleBlanksField 及各类 Widget 字段。\n- `folder_token` 指定的文件夹必须可管理且 kind 为 form，否则分别返回 404 / 400。\n- `setting` 只接受白名单内的键（见 `FormSettingWriteInput`），`setting.notification_rules` 会整体替换由 API 创建的通知规则。\n- 返回的表单结构带 `url`（对外填写地址）。",
+  "description": "创建测评表单（scene=evaluation）。用户要的是测评 / 心理测试 / 能力评估 / 自测问卷 / 培训反馈时用它， 不要用 create_form，也不要用 create_exam_form（那是有标准答案的考试）。 计分测评用 SingleSelect / MultiSelect / DropDownSelect / Rating / Nps：每题在 answers 里列出每个选项及其分值， 并设 answer_setting_mode=relative（每个选项都计分、没有对错；缺省的 absolute 只认一条正确答案，选其它选项得 0 分）， 不要用普通单选的 calculable / operand_value 来计分。反馈问卷用普通字段（RatingField / MatrixScaleField / TextArea 等），不带分值。 先建表单，再用 evaluation_setting 更新测评设置（提交后的报告、总分区间评语、维度）。\n用字段定义列表创建一个表单，返回完整的表单结构。`name` 与 `fields` 必填。\n- `scene` 决定表单场景；考试 / 测评题型（如 `SingleSelect`、`FillInBlank`）只能在支持的场景下使用。\n- `layout=card`（分页式）不支持 PageBreak、Matrix*、TableField、GoodsField、ESignatureField、FormAssociation、MultipleBlanksField 及各类 Widget 字段。\n- `folder_token` 指定的文件夹必须可管理且 kind 为 form，否则分别返回 404 / 400。\n- `setting` 只接受白名单内的键（见 `FormSettingWriteInput`），`setting.notification_rules` 会整体替换由 API 创建的通知规则。\n- 返回的表单结构带 `url`（对外填写地址）。",
   "tag": "Forms",
   "method": "post",
   "path": "/forms",
@@ -5698,7 +5698,7 @@
  {
   "operationId": "updateForm",
   "summary": "编辑表单",
-  "description": "编辑测评场景表单：名称 / 描述 / 题目增删改 / 通用设置，以及 evaluation_setting 测评设置。先更新测评设置，再更新表单本身。\n增量编辑表单，也接受 `PUT`。请求体至少包含 `name` / `description` / `fields` / `setting` / `field_rules` 之一，否则返回 400。\n- `fields` 按 `add` / `remove` / `update` / `update_choices` 四类操作增量修改，未提及的字段、选项与 api_code 全部保留；\n  `update[].type` 可原地切换字段类型，会清空数据的切换必须带 `confirm_data_loss: true`。\n- `field_rules` 以 `GET /forms/{form_token}/field_rules` 返回的 `index` 定位规则做 `add` / `remove` / `update`。\n- `setting` 与创建时相同，只接受白名单内的键。\n返回更新后的完整表单结构。",
+  "description": "编辑测评场景表单：名称 / 描述 / 题目增删改 / 通用设置，以及 evaluation_setting 测评设置。先更新测评设置，再更新表单本身。 计分题的 answers / answer_setting_mode 写法同 create_evaluation_form（每个选项一条答案并设 relative）。\n增量编辑表单，也接受 `PUT`。请求体至少包含 `name` / `description` / `fields` / `setting` / `field_rules` 之一，否则返回 400。\n- `fields` 按 `add` / `remove` / `update` / `update_choices` 四类操作增量修改，未提及的字段、选项与 api_code 全部保留；\n  `update[].type` 可原地切换字段类型，会清空数据的切换必须带 `confirm_data_loss: true`。\n- `field_rules` 以 `GET /forms/{form_token}/field_rules` 返回的 `index` 定位规则做 `add` / `remove` / `update`。\n- `setting` 与创建时相同，只接受白名单内的键。\n返回更新后的完整表单结构。",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",

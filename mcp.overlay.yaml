@@ -87,8 +87,10 @@ composites:
     settingKey: exam_setting
     title: 创建考试表单
     description: >-
-      创建在线考试表单（scene=exam，自动判分）。题目必须用考试题型（SingleSelect / MultiSelect / TrueOrFalse /
-      DropDownSelect / FillInBlank / ShortAnswer / FillInNumber），每题带 answers（正确答案与分值）。
+      创建在线考试表单（scene=exam，自动判分）。用户要的是考试 / 测验 / 考核 / quiz 时用它，不要用 create_form；
+      心理测试 / 能力评估 / 自测问卷 / 培训反馈这类「测评」用 create_evaluation_form。
+      题目必须用考试题型（SingleSelect / MultiSelect / TrueOrFalse / DropDownSelect / FillInBlank / ShortAnswer / FillInNumber），
+      每题带 answers（正确答案与分值；缺省 absolute 模式只有一条正确答案，全对才得分）。
       先建表单，再用 exam_setting 更新考试设置；设置被拒绝时表单已创建，结果里会说明。
   edit_exam_form:
     kind: scene_form_update
@@ -106,8 +108,12 @@ composites:
     settingKey: evaluation_setting
     title: 创建测评表单
     description: >-
-      创建测评表单（scene=evaluation）。计分测评用 SingleSelect / MultiSelect / DropDownSelect / Rating / Nps 并带分值；
-      反馈问卷用普通字段。先建表单，再用 evaluation_setting 更新测评设置。
+      创建测评表单（scene=evaluation）。用户要的是测评 / 心理测试 / 能力评估 / 自测问卷 / 培训反馈时用它，
+      不要用 create_form，也不要用 create_exam_form（那是有标准答案的考试）。
+      计分测评用 SingleSelect / MultiSelect / DropDownSelect / Rating / Nps：每题在 answers 里列出每个选项及其分值，
+      并设 answer_setting_mode=relative（每个选项都计分、没有对错；缺省的 absolute 只认一条正确答案，选其它选项得 0 分），
+      不要用普通单选的 calculable / operand_value 来计分。反馈问卷用普通字段（RatingField / MatrixScaleField / TextArea 等），不带分值。
+      先建表单，再用 evaluation_setting 更新测评设置（提交后的报告、总分区间评语、维度）。
   edit_evaluation_form:
     kind: scene_form_update
     scene: evaluation
@@ -116,6 +122,7 @@ composites:
     title: 编辑测评表单
     description: >-
       编辑测评场景表单：名称 / 描述 / 题目增删改 / 通用设置，以及 evaluation_setting 测评设置。先更新测评设置，再更新表单本身。
+      计分题的 answers / answer_setting_mode 写法同 create_evaluation_form（每个选项一条答案并设 relative）。
   count_entries:
     kind: count_entries
     title: 统计数据条数
