@@ -1,10 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "unicorn",
-    "oxc"
-  ],
+  "plugins": ["typescript", "unicorn", "oxc"],
   "categories": {
     "correctness": "error",
     "suspicious": "error"
@@ -15,11 +11,7 @@
     "unicorn/consistent-function-scoping": "off",
     "unicorn/no-array-sort": "off"
   },
-  "ignorePatterns": [
-    "dist",
-    "src/generated",
-    ".deploy-dist"
-  ],
+  "ignorePatterns": ["dist", "src/generated", ".deploy-dist"],
   "env": {
     "builtin": true
   }
