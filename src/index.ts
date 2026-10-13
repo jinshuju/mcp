@@ -1,4 +1,11 @@
 export { createApp, MCP_PATH, type AppOptions } from './app.js';
+export {
+  McpAnalytics,
+  analyticsFromConfig,
+  CONTEXT_DESCRIPTION,
+  CONTEXT_INSTRUCTIONS,
+  type AnalyticsOptions
+} from './analytics.js';
 export { buildServer, INSTRUCTIONS, META, type BuildServerOptions } from './server.js';
 export { TOOLS, SCHEMAS, toToolResult } from './tools.js';
 export { OPERATIONS, runComposite } from './composites.js';
@@ -6,6 +13,6 @@ export { JinshujuApi, buildUrl, buildBody, bodyPayload, TransportError, type Api
 export { configFromEnv, DEFAULTS, type Config } from './config.js';
 export { StaticCredential, MissingCredentialError, type Credential } from './credential.js';
 export { CliSessionCredential, resolveCredential, DEFAULT_CONFIG_PATH } from './cli-credential.js';
-export { TokenVerifier, bearerToken, challenge, loadAuthServerMetadata } from './auth.js';
+export { TokenVerifier, bearerToken, challenge, loadAuthServerMetadata, sha256 } from './auth.js';
 export type { ToolSpec, OperationSpec, ParamSpec, BodySpec, GeneratedMeta, JsonSchema } from './types.js';
 export { VERSION, SERVER_NAME, SERVER_TITLE } from './version.js';

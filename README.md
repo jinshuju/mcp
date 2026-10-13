@@ -81,7 +81,22 @@ claude mcp add jinshuju -s user -e JINSHUJU_ACCESS_TOKEN=your_token -- npx -y @j
 | `JINSHUJU_MCP_PUBLIC_URL`         | HTTP 模式对外地址（OAuth 元数据里的 resource）；逗号分隔可给多个，按请求的 Host 选用；留空按请求推断 |
 | `JINSHUJU_MCP_MAX_RESULT_CHARS`   | 单次结果最多字符数，缺省 120000，超过截断并提示分页                                                  |
 | `JINSHUJU_MCP_TOKEN_CACHE_TTL_MS` | HTTP 模式令牌校验缓存，缺省 5 分钟                                                                   |
+| `POSTHOG_API_KEY`                 | PostHog 项目 token（`phc_…`）；配了就在 HTTP 模式上报 MCP analytics，见下文                          |
+| `POSTHOG_HOST`                    | PostHog 上报地址，缺省 `https://us.i.posthog.com`                                                    |
+| `JINSHUJU_MCP_COLLECT_INTENT`     | 是否让模型在每次调用里写用户意图（`context` 参数 → `$mcp_intent`），缺省 `true`                      |
 | `PORT` / `HOST`                   | Node 入口监听，缺省 8787 / 0.0.0.0                                                                   |
+
+## 使用统计（PostHog MCP analytics）
+
+HTTP 部署配了 `POSTHOG_API_KEY` 后，用 [@posthog/mcp](https://posthog.com/docs/mcp-analytics) 上报工具使用情况，口径与 jinshuju.net/mcp 内置 MCP 的一致：
+
+- 只报 `$mcp_initialize`（旧握手）与 `$mcp_tool_call`；`tools/list`、resources、`$identify`、`$exception` 都不报；
+- 工具调用记工具名、参数名（`$mcp_input_keys`）、耗时、是否出错与截断后的报错，**不记参数值，也不记返回内容**；
+- 每个工具多一个 `context` 参数，让模型写用户想做什么（`$mcp_intent`），发出前抹掉其中的邮箱 / 手机号 / IP / 卡号；
+  `JINSHUJU_MCP_COLLECT_INTENT=false` 关掉后参数不再下发，客户端照旧发来的也不会出错；
+- `distinct_id` 是金数据用户 id，`$session_id` 由令牌哈希派生（同一个令牌一个会话），客户端名字 / 版本来自握手或每个请求的 `_meta`。
+
+stdio（本地）模式不上报。
 
 ## 开发
 
@@ -102,7 +117,8 @@ npm run spec:update  # 拉最新的线上 openapi.yaml 并重新生成
 - **Cloudflare Workers（可选）**：`npx wrangler login && npm run worker:deploy`
 - **WDL 等 Workers 兼容平台（可选）**：装好 [`@wdl-dev/cli`](https://github.com/wdl-dev/cli) 并配置好 token 后 `npm run wdl:deploy`；
   对外地址设为 secret `JINSHUJU_MCP_PUBLIC_URL`（`wdl secret put --worker jinshuju-mcp JINSHUJU_MCP_PUBLIC_URL`），
-  多个入口用逗号分隔，如 `https://mcp.jinshuju.net,https://<ns>.<platform>/jinshuju-mcp`。
+  多个入口用逗号分隔，如 `https://mcp.jinshuju.net,https://<ns>.<platform>/jinshuju-mcp`；
+  要上报 PostHog 再加 secret `POSTHOG_API_KEY`（需要时还有 `POSTHOG_HOST`）。
 
 服务无状态，不需要数据库、KV 或 Durable Objects。
 

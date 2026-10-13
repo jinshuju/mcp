@@ -11,20 +11,27 @@
  * 对外地址用 JINSHUJU_MCP_PUBLIC_URL 指定（含前缀；逗号分隔可给多个，按请求 Host 选用，自定义域名和平台默认地址
  * 都能用），401 质询里的 resource_metadata 指向本服务自己路径下的 well-known 文档，而不是域名根；RFC 9728 允许
  * 客户端直接按质询里给的 URL 取。不指定时按请求推断（信任反向代理的 X-Forwarded-*）。
+ *
+ * 配了 POSTHOG_API_KEY 时每个请求的 McpServer 都装上 PostHog MCP analytics（analytics.ts）。
  */
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import {
   buildOAuthProtectedResourceMetadata,
   createMcpHandler,
+  isLegacyRequest,
+  WebStandardStreamableHTTPServerTransport,
+  type AuthInfo,
   type McpHttpHandler,
+  type McpRequestContext,
   type OAuthMetadata
 } from '@modelcontextprotocol/server';
+import { analyticsFromConfig, CONTEXT_INSTRUCTIONS, type McpAnalytics } from './analytics.js';
 import { JinshujuApi } from './api.js';
 import { TokenVerifier, bearerToken, challenge, loadAuthServerMetadata } from './auth.js';
 import type { Config } from './config.js';
 import { DEFAULTS } from './config.js';
 import { StaticCredential } from './credential.js';
-import { buildServer, META } from './server.js';
+import { buildServer, INSTRUCTIONS, META } from './server.js';
 import { TOOLS } from './tools.js';
 import { SERVER_TITLE, VERSION } from './version.js';
 
@@ -33,6 +40,8 @@ export interface AppOptions {
   fetch?: typeof fetch;
   /** 测试用：跳过真实的授权服务器元数据拉取 */
   authServerMetadata?: OAuthMetadata;
+  /** 埋点。不传则按 config 决定（有 posthogApiKey 才开）；传 null 强制关；node.ts / 测试传自己的实例 */
+  analytics?: McpAnalytics | null;
 }
 
 export const MCP_PATH = '/mcp';
@@ -42,17 +51,54 @@ export function createApp(options: AppOptions = {}): Hono {
   const fetchImpl: typeof fetch = options.fetch ?? ((input, init) => fetch(input, init));
   const api = new JinshujuApi({ baseUrl: cfg.apiBaseUrl, fetch: fetchImpl, timeoutMs: cfg.timeoutMs });
   const verifier = new TokenVerifier({ api, cacheTtlMs: cfg.tokenCacheTtlMs });
+  const analytics =
+    options.analytics === undefined ? analyticsFromConfig(cfg, fetchImpl) : (options.analytics ?? undefined);
+  const instructions = analytics?.collectIntent ? `${INSTRUCTIONS}\n${CONTEXT_INSTRUCTIONS}` : INSTRUCTIONS;
   let metadata: Promise<OAuthMetadata> | undefined;
   const authServerMetadata = () =>
     (metadata ??= options.authServerMetadata
       ? Promise.resolve(options.authServerMetadata)
       : loadAuthServerMetadata(cfg.authServer, fetchImpl));
 
-  const handler: McpHttpHandler = createMcpHandler((ctx) => {
+  // 一个请求一个 McpServer，令牌闭包进每个工具的 handler；埋点也按请求装，用户与会话跟着请求走。
+  const factory = async (ctx: McpRequestContext) => {
     const token = ctx.authInfo?.token;
     if (!token) throw new Error('unauthenticated request reached the MCP handler');
-    return buildServer({ credential: new StaticCredential(token), config: cfg, fetch: fetchImpl });
-  });
+    const server = buildServer({
+      credential: new StaticCredential(token),
+      config: cfg,
+      fetch: fetchImpl,
+      instructions
+    });
+    if (analytics) await analytics.instrument(server, ctx.authInfo);
+    return server;
+  };
+  // 工具不发中途通知，响应就是一个 JSON（缺省的 auto 模式）：在 handler 跑完后才组装，本次请求的埋点在返回前已收齐。
+  const handler: McpHttpHandler = createMcpHandler(factory, { legacy: 'reject' });
+
+  /**
+   * 2025 旧握手（initialize + Mcp-Session-Id）的无状态服务。不用 SDK 自带的兜底而自己接一遍，只为用 JSON 响应
+   * 代替 SSE：SSE 在 handler 跑之前就把响应头发出去了，PostHog SDK 在 initialize 时铸的 Mcp-Session-Id（带客户端
+   * 名字和版本，客户端之后每个请求都会带回来）落不到响应头上，工具调用的埋点也会落在响应之后、flush 之前。
+   */
+  async function serveLegacy(request: Request, authInfo: AuthInfo): Promise<Response> {
+    if (request.method.toUpperCase() !== 'POST') return jsonRpcError(405, -32000, 'Method not allowed.');
+    const server = await factory({ era: 'legacy', authInfo, requestInfo: request });
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true
+    });
+    try {
+      await server.connect(transport);
+      return await transport.handleRequest(request, { authInfo });
+    } catch (error) {
+      console.error('legacy MCP request failed:', error);
+      return jsonRpcError(500, -32603, 'Internal server error.');
+    } finally {
+      transport.close().catch(() => {});
+      server.close().catch(() => {});
+    }
+  }
 
   /**
    * 对外基址（无尾部斜杠，可含路径前缀）。配了地址就按请求的 Host 选一个，没有匹配的用第一个；
@@ -139,11 +185,32 @@ export function createApp(options: AppOptions = {}): Hono {
       );
     }
     if (!authInfo) return challenge(prm, 'Missing or invalid access token');
-    const response = await handler.fetch(request, { authInfo });
+    const response = (await isLegacyRequest(request))
+      ? await serveLegacy(request, authInfo)
+      : await handler.fetch(request, { authInfo });
     // 工具调用中 API 回了 401（令牌中途失效）：让下一次请求重新校验。
     if (response.status === 401) await verifier.forget(token);
+    if (analytics) flushInBackground(c, analytics);
     return response;
   });
 
   return app;
+}
+
+function jsonRpcError(status: number, code: number, message: string): Response {
+  return new Response(JSON.stringify({ jsonrpc: '2.0', error: { code, message }, id: null }), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
+/** Workers 上把上报放进 waitUntil，响应不等它；Node 没有 executionCtx，由 posthog-node 定时批量发送。 */
+function flushInBackground(c: Context, analytics: McpAnalytics): void {
+  let waitUntil: ((promise: Promise<unknown>) => void) | undefined;
+  try {
+    waitUntil = c.executionCtx.waitUntil.bind(c.executionCtx);
+  } catch {
+    return;
+  }
+  waitUntil(analytics.flush().catch((error) => console.error('posthog flush failed:', error)));
 }

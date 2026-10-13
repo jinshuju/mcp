@@ -31,6 +31,7 @@ src/
   credential.ts   凭证接口 + Bearer 字符串凭证（无 Node 依赖，Worker 包只带这个）
   cli-credential.ts  stdio 的本地凭证：~/.jinshuju/config.json（与 @jinshuju/cli 共用，含 refresh）
   auth.ts         HTTP 鉴权：Bearer 提取、按令牌哈希缓存的校验（GET /me）、401 challenge、AS 元数据
+  analytics.ts    PostHog MCP analytics（@posthog/mcp）：按请求给 McpServer 装埋点，决定报什么、不报什么
   app.ts          Hono 应用：/、/healthz、/.well-known/*、/mcp
   node.ts         Node 入口（官方部署：Docker）
   worker.ts       Cloudflare Workers 入口（可选）
@@ -41,6 +42,7 @@ src/
 ```
 
 依赖方向：`app` / `stdio` → `server` → `tools` → `composites` → `result` → `api` → `credential`；`types`、`config`、`version` 不依赖任何人。
+`analytics` 只被 `app` / `node` 用（stdio 不上报），依赖 `auth`（令牌哈希）、`tools`（参数名全集）与 `validation`（`context` 参数名）。
 
 工具集与 open.jinshuju.net/mcp 文档中的 60 个工具一一对应（overlay 的 `include` 就是对应表）：54 个一对一映射到操作，
 `edit_field_rules` 是 `updateForm` 请求体里 `field_rules` 的投影，考试 / 测评的 4 个建改工具和 `count_entries` 是组合工具。
@@ -53,6 +55,10 @@ src/
 2. `TokenVerifier` 按令牌的 SHA-256 查缓存；未命中就 `GET /me`。只有 `401` 才算无效（`403` 是 scope 不够，令牌本身有效）。
    结果缓存 5 分钟：每个工具调用不多花一次 API 配额。
 3. `createMcpHandler` 用工厂为这个请求建一个 `McpServer`（`buildServer`），令牌闭包进每个工具的 handler。
+   配了 `POSTHOG_API_KEY` 时工厂顺手 `analytics.instrument(server, authInfo)`：用户 id、按令牌派生的会话 id 都闭包在这一个请求里。
+   2025 旧握手的请求（`isLegacyRequest`）不走 SDK 自带的无状态兜底，而是自己起一个 `enableJsonResponse` 的 transport：
+   SSE 会在 handler 跑之前就发出响应头，PostHog SDK 在 `initialize` 时铸的 `Mcp-Session-Id`（带客户端名字和版本，客户端
+   之后每个请求都回放）落不到响应头上，工具调用的事件也会落在响应之后、flush 之前。
 4. SDK 按 `inputSchema` 校验参数（`fromJsonSchema`，Node 上 AJV，workerd 上 @cfworker/json-schema）。
    不合法直接回 `isError`，不发请求：参数问题在到达 API 之前就被拦下。
 5. `JinshujuApi.call` 拼 URL：路径参数 `encodeURIComponent`，query 省略空值，数组 `name[]=`（服务端按数组读取的写法）；
@@ -65,6 +71,22 @@ src/
 
 `outputSchema` 只告诉模型会返回什么，不拒绝响应（绑定了一个永远通过的 validator）：
 openapi.yaml 与线上实现偶有出入时，一次成功的 API 调用不应变成工具错误。
+
+## 使用统计（analytics.ts）
+
+采集口径照着 goldendata 内置 MCP 的 `TrackMCPEventService`，两边的数据在 PostHog 里能放在一起看：
+
+- 只留 `$mcp_initialize` 与 `$mcp_tool_call`，其余事件（`$mcp_tools_list`、`$mcp_resources_*`、`$identify`、`$exception`）在 `beforeSend` 里丢掉；
+  SDK 缺省带的 `$mcp_parameters` / `$mcp_response` / `$mcp_tool_description` 也去掉——只记参数名（`$mcp_input_keys`），不记值和返回内容。
+  SDK 读不懂 `fromJsonSchema` 产物里的声明，参数名全集由 `tools.json` 提供，模型编出来的键名记成 `[redacted]`。
+- 意图：SDK 给每个工具的 inputSchema 注入 `context`（问法与 goldendata 相同），`tools/call` 到达 handler 前先剥掉再校验；
+  关掉采集或客户端用着缓存的工具列表时 `context` 仍会发来，所以 `validation.ts` 无论如何都接受并丢弃它，不让它流到 API。
+  SDK 的其它注入（`llm_model`、`conversation_id`、`get_more_tools`、`send_feedback`）一律不开。
+- 身份与会话：`identify` 用 `GET /me` 的用户 id；`$session_id` 不用 SDK 每个请求新开的那个，换成令牌 SHA-256 派生的
+  `ses_…`（同一个令牌一个会话，与 goldendata 的 md5(token) 同一思路），2026-07-28 没有握手的客户端也能把多次调用归到一起。
+  同一会话的 `initialize` 一天只报一次（进程内去重，Workers 多实例时尽力而为）。
+- 发送：posthog-node 攒批。Workers 上每个请求结束时把 `flush()` 放进 `executionCtx.waitUntil`；Node 上靠定时器，SIGTERM 时 `shutdown()`。
+  工具不发中途通知，两条腿的响应都在 handler 跑完后才组装，事件一定在 flush 之前进队列。
 
 ## 生成规则（scripts/generate.ts）
 
@@ -109,7 +131,8 @@ openapi.yaml 与线上实现偶有出入时，一次成功的 API 调用不应�
 - `generated.test.ts` 守生成产物的不变量：与文档中的 60 个工具一一对应、无 `$ref`、路径参数必填、flatten / 嵌套、投影与组合的入参形状、指针化、注解；
 - `api.test.ts` 守 URL / body / multipart / 401 续期 / 传输错误；
 - `server.test.ts` 用 `InMemoryTransport` + `@modelcontextprotocol/client` 走完整的 tools/list、tools/call、组合工具的请求顺序与失败说明、resources；
-- `app.test.ts` 用 Hono 的 `app.request` 走 401 challenge、PRM、缓存、旧协议握手。
+- `app.test.ts` 用 Hono 的 `app.request` 走 401 challenge、PRM、缓存、旧协议握手；
+- `analytics.test.ts` 注入假的 PostHog ingest，守采集口径：报哪些事件、参数名不带值、`context` 不流到 API、两个协议版本同一会话、关掉与不配时的行为。
 
 ## 评测（evals/）
 
