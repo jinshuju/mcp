@@ -182,7 +182,8 @@ parameters:
     descriptionAppend: |-
       - 多选字段按「含某个选项」筛选用 `any_in`（排除用 `none_in`）；`eq` 不是「包含」，只匹配整组选项完全相同的数据。
 
-# ---- 6. 按操作覆盖：descriptionAppend（追加说明）、annotations（覆盖推断）、outputSchema（true / false 强制） ----
+# ---- 6. 按操作覆盖：descriptionAppend（追加说明）、description（整段替换 openapi 的描述，只在原文对模型是噪音时用）、
+#         annotations（覆盖推断）、outputSchema（true / false 强制） ----
 tools:
   listForms:
     descriptionAppend: 通常是会话的第一步：先拿到表单 token，再调用 get_form / list_entries。
@@ -198,3 +199,12 @@ tools:
     descriptionAppend: 只更新传入的键（PATCH）；整体覆盖的 PUT 不提供。
   deleteEntry:
     annotations: { destructiveHint: true }
+  createEntryImport:
+    descriptionAppend: >-
+      只用于客户端真实持有、已用 upload_import_file 上传的文件。对话里贴的表格 / CSV 文本直接用 create_entries 写入（每批 ≤ 200 条），不要先转成文件再导入。
+  uploadImportFile:
+    # openapi 原文讲的是 HTTP 鉴权与 multipart，对 MCP 调用方是噪音，整段替换。
+    description: >-
+      把客户端真实持有的表格文件（xlsx / xls / csv）上传到指定表单，返回导入附件 id；随后把它作为 attachment_id 交给 import_entries_from_file 发起导入。
+      对话里贴的表格 / CSV 文本不要走这里（不要自行编成 base64 当文件上传），直接用 create_entries 写入（每批 ≤ 200 条）。
+      文件大小受账号套餐的 Excel 导入上限限制，扩展名须为 xls / xlsx / csv；不满足时返回 422，error_description 为具体原因。

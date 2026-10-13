@@ -19,6 +19,8 @@ const root = new URL('..', import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), 'utf8');
 
 interface ToolOverride {
+  /** 整段替换 openapi 的操作描述（summary 保留）；只在原文对模型是噪音时用 */
+  description?: string;
   descriptionAppend?: string;
   annotations?: Json;
   outputSchema?: boolean;
@@ -393,12 +395,13 @@ function multipartSchema(raw: Json): Json {
   return schema;
 }
 
-function describe(built: Built, extra: string[] = [], outputSchema = built.outputSchema): string {
-  const parts = [built.summary, built.operation.description];
+function describe(built: Built, override: ToolOverride = {}, outputSchema = built.outputSchema): string {
+  const parts = [built.summary, override.description?.trim() ?? built.operation.description];
   if (!outputSchema && built.operation.responseSchema) {
     parts.push(`返回结构见 schema「${built.operation.responseSchema}」（get_schema 可查看）。`);
   }
-  return [...parts, ...extra].filter(Boolean).join('\n');
+  if (override.descriptionAppend) parts.push(override.descriptionAppend.trim());
+  return parts.filter(Boolean).join('\n');
 }
 
 // 运行时操作表：全部操作，一律 flatten（组合工具在代码里直接按请求体键传参）
@@ -417,7 +420,7 @@ for (const [operationId, name] of Object.entries(overlay.include)) {
     ...built.operation,
     name,
     title: override.title ?? (built.summary || operationId),
-    description: describe(built, override.descriptionAppend ? [override.descriptionAppend.trim()] : [], outputSchema),
+    description: describe(built, override, outputSchema),
     inputSchema: built.inputSchema,
     outputSchema,
     annotations: { ...inferAnnotations(built.operation.method), ...override.annotations }
