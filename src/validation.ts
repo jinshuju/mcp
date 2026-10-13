@@ -10,6 +10,12 @@ import { CfWorkerJsonSchemaValidator } from '@modelcontextprotocol/server/valida
 
 const engine = new CfWorkerJsonSchemaValidator({ shortcircuit: false });
 
+/**
+ * PostHog MCP analytics（analytics.ts）给每个工具加的意图参数。模型照着工具列表填，而列表可能是它缓存的：
+ * 埋点关掉之后客户端还会继续发，所以不管开没开，到了校验这里一律接受并去掉，不让它流到 API。
+ */
+export const CONTEXT_ARGUMENT = 'context';
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
@@ -36,7 +42,13 @@ export const toolInputValidator: jsonSchemaValidator = {
     const validate = engine.getValidator<T>(schema);
     const known = Object.keys((schema.properties as Record<string, unknown> | undefined) ?? {});
     const strict = schema.additionalProperties === false;
-    return (input) => {
+    const stripContext = !known.includes(CONTEXT_ARGUMENT);
+    return (raw) => {
+      let input = raw;
+      if (stripContext && isRecord(raw) && CONTEXT_ARGUMENT in raw) {
+        const { [CONTEXT_ARGUMENT]: _context, ...rest } = raw;
+        input = rest;
+      }
       if (strict && isRecord(input)) {
         const extra = Object.keys(input).filter((key) => !known.includes(key));
         if (extra.length > 0) {

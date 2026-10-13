@@ -27,9 +27,11 @@ export interface BuildServerOptions {
   credential: Credential;
   config?: Partial<Config>;
   fetch?: typeof fetch;
+  /** 服务器说明，缺省 INSTRUCTIONS；HTTP 模式开了意图采集时在后面追加 context 参数的说明 */
+  instructions?: string;
 }
 
-export function buildServer({ credential, config, fetch: fetchImpl }: BuildServerOptions): McpServer {
+export function buildServer({ credential, config, fetch: fetchImpl, instructions }: BuildServerOptions): McpServer {
   const cfg: Config = { ...DEFAULTS, ...config };
   const api = new JinshujuApi({
     baseUrl: cfg.apiBaseUrl,
@@ -39,7 +41,7 @@ export function buildServer({ credential, config, fetch: fetchImpl }: BuildServe
   });
   const server = new McpServer(
     { name: SERVER_NAME, title: SERVER_TITLE, version: VERSION, websiteUrl: 'https://open.jinshuju.net/mcp' },
-    { instructions: INSTRUCTIONS }
+    { instructions: instructions ?? INSTRUCTIONS }
   );
 
   registerGeneratedTools(server, { api, credential, maxResultChars: cfg.maxResultChars });
