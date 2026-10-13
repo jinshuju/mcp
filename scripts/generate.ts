@@ -43,6 +43,7 @@ interface Overlay {
   collapseVariantsMinBranches?: number;
   outputSchemaMaxChars?: number;
   bodyParam?: Record<string, string>;
+  parameters?: Record<string, { descriptionAppend?: string }>;
   tools?: Record<string, ToolOverride>;
 }
 
@@ -56,6 +57,7 @@ const omit = new Set(overlay.omitSchemas ?? []);
 let collapseMin = overlay.collapseVariantsMinBranches ?? 3;
 const bodyParam = overlay.bodyParam ?? {};
 const toolOverrides = overlay.tools ?? {};
+const parameterOverrides = overlay.parameters ?? {};
 const outputSchemaMaxChars = overlay.outputSchemaMaxChars ?? 700;
 
 // ---------- $ref 解析 ----------
@@ -262,7 +264,13 @@ function buildOperation(operationId: string, bodyMode: 'flatten' | string): Buil
     if (where !== 'path' && where !== 'query') continue; // header / cookie 参数不暴露
     const name = p.name as string;
     const schema = { ...((p.schema as Json) ?? { type: 'string' }) };
-    if (p.description) schema.description = p.description;
+    // 按 components.parameters 的名字追加说明（同一个共享参数在所有引用它的操作里都生效）
+    const append =
+      typeof rawParam.$ref === 'string' ? parameterOverrides[refName(rawParam.$ref)]?.descriptionAppend : undefined;
+    const description = append
+      ? `${((p.description as string | undefined) ?? '').trimEnd()}\n${append.trim()}`.trim()
+      : (p.description as string | undefined);
+    if (description) schema.description = description;
     if (p.example !== undefined && !('examples' in schema)) schema.examples = [p.example];
     properties[name] = schema;
     const isRequired = where === 'path' || p.required === true;
