@@ -32,13 +32,13 @@ evals/
 #    模型走 OpenAI 兼容网关，写在 evals/.env.local（不进仓库）：
 #    LLM_BASE_URL=https://<gateway>/v1
 #    LLM_API_KEY=sk-...
-#    EVAL_MODELS=anthropic-claude-sonnet-5,anthropic-claude-45-haiku,qwen3.8-max,deepseek-v4.1-flash
-#    EVAL_JUDGE_MODEL=anthropic-claude-sonnet-5
+#    EVAL_MODELS=anthropic-claude-sonnet-5-5,anthropic-claude-haiku-5-5,qwen3.7-plus,deepseek-v4.1-flash
+#    EVAL_JUDGE_MODEL=anthropic-claude-haiku-5-5
 
 npm run eval -- seed            # 在测评账户里建夹具表单并灌数据（幂等；--reset 强制重灌）
 npm run eval -- catalog         # 看两个 MCP 的版本、工具数、tools/list 大小
 npm run eval -- run             # 全部任务 × EVAL_MODELS × new,builtin；结束后生成报告并写入结果表单
-npm run eval -- run --tasks read-01,agg-03 --models qwen3.8-max --mcp new --verbose --no-upload
+npm run eval -- run --tasks read-01,agg-03 --models deepseek-v4.1-flash --mcp new --verbose --no-upload
 npm run eval -- report <run_id> # 重新生成 report.md / summary.json
 npm run eval -- upload <run_id> # 把结果写进金数据表单（幂等）
 ```

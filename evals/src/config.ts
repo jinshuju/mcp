@@ -65,12 +65,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     llmBaseUrl,
     llmApiKey: env.LLM_API_KEY ?? '',
     models: list(env.EVAL_MODELS, [
-      'anthropic-claude-sonnet-5',
-      'anthropic-claude-45-haiku',
-      'qwen3.8-max',
+      'openai-gpt-5.6-luna',
+      'anthropic-claude-haiku-5-5',
+      'qwen3.7-plus',
       'deepseek-v4.1-flash'
     ]),
-    judgeModel: env.EVAL_JUDGE_MODEL ?? 'anthropic-claude-sonnet-5',
+    judgeModel: env.EVAL_JUDGE_MODEL ?? 'anthropic-claude-haiku-5-5',
     builtinMcpUrl: env.EVAL_BUILTIN_MCP_URL ?? 'https://jinshuju.net/mcp',
     newMcpUrl: env.EVAL_NEW_MCP_URL || undefined,
     stateDir: env.EVAL_STATE_DIR ?? resolve(EVALS_DIR, 'state'),
