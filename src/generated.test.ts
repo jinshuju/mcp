@@ -190,3 +190,14 @@ test('注解按 HTTP 方法推断，overlay 可覆盖；scope 行抽到 scopes',
   assert.deepEqual(byName.list_entries.scopes, ['read_entries']);
   assert.ok(!byName.list_entries.description.includes('OAuth 令牌需要 scope'));
 });
+
+test('导入工具把对话里贴的数据引导到 create_entries；upload_import_file 不讲 HTTP 鉴权与 multipart', () => {
+  const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
+  for (const name of ['upload_import_file', 'import_entries_from_file']) {
+    assert.match(byName[name].description, /create_entries/, name);
+  }
+  const upload = byName.upload_import_file.description;
+  assert.ok(upload.startsWith('上传导入文件\n'), 'summary 保留在第一行');
+  assert.doesNotMatch(upload, /multipart|鉴权|401/);
+  assert.match(upload, /xls \/ xlsx \/ csv/);
+});

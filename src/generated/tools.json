@@ -2542,7 +2542,7 @@
  {
   "operationId": "createEntryImport",
   "summary": "从已上传的表格文件导入数据",
-  "description": "从已上传的表格文件导入数据\n把「上传导入文件」得到的表格文件逐行追加为该表单的数据。先上传文件拿到导入附件 ID（`attachment_id`），再在这里说明哪一列写入哪个字段。\n文件、套餐导入上限、表头行、列映射等能预先判断的问题都在创建任务之前校验，被拒绝的导入不会写入任何数据；错误信息会带上这份表格的实际布局（行列范围与表头内容），便于据此修正后重试。\n校验通过后返回 `201`，数据在后台写入：`201` 表示任务已开始而非已完成，用「获取数据导入任务」轮询结果。\n- `attachment_id` 必须是当前用户为该表单上传的导入文件，否则返回 400（找不到该文件，需重新上传）；文件不是 xls / xlsx / csv 或无法读取时返回 400。\n- `columns` 不能为空；每项用 `field_api_code` 指定目标字段，并用 `column_label`（表头文字，需与表头单元格去掉首尾空格后完全一致）或 `sheet_column_index`（列号）指定来源列，两者都给时以 `sheet_column_index` 为准。\n- 字段必须是该表单可导入的字段；同一字段不能对应多列；表头中有多列同名时必须改用 `sheet_column_index`；列号必须在表格的列范围内。\n- `header_row_index` 缺省为表格的第一行，且其下方必须还有数据行。\n- 表单的必填字段都必须有对应的列，否则返回 400 并列出缺少的字段。\n- `unique_field_code` 指定一个字段做去重：文件中该字段的值已存在于表单数据时，这一行会被跳过（计入 `skip_count`）。\n- 表单不存在或当前身份无权访问时返回 404 `form cannot be found`。",
+  "description": "从已上传的表格文件导入数据\n把「上传导入文件」得到的表格文件逐行追加为该表单的数据。先上传文件拿到导入附件 ID（`attachment_id`），再在这里说明哪一列写入哪个字段。\n文件、套餐导入上限、表头行、列映射等能预先判断的问题都在创建任务之前校验，被拒绝的导入不会写入任何数据；错误信息会带上这份表格的实际布局（行列范围与表头内容），便于据此修正后重试。\n校验通过后返回 `201`，数据在后台写入：`201` 表示任务已开始而非已完成，用「获取数据导入任务」轮询结果。\n- `attachment_id` 必须是当前用户为该表单上传的导入文件，否则返回 400（找不到该文件，需重新上传）；文件不是 xls / xlsx / csv 或无法读取时返回 400。\n- `columns` 不能为空；每项用 `field_api_code` 指定目标字段，并用 `column_label`（表头文字，需与表头单元格去掉首尾空格后完全一致）或 `sheet_column_index`（列号）指定来源列，两者都给时以 `sheet_column_index` 为准。\n- 字段必须是该表单可导入的字段；同一字段不能对应多列；表头中有多列同名时必须改用 `sheet_column_index`；列号必须在表格的列范围内。\n- `header_row_index` 缺省为表格的第一行，且其下方必须还有数据行。\n- 表单的必填字段都必须有对应的列，否则返回 400 并列出缺少的字段。\n- `unique_field_code` 指定一个字段做去重：文件中该字段的值已存在于表单数据时，这一行会被跳过（计入 `skip_count`）。\n- 表单不存在或当前身份无权访问时返回 404 `form cannot be found`。\n只用于客户端真实持有、已用 upload_import_file 上传的文件。对话里贴的表格 / CSV 文本直接用 create_entries 写入（每批 ≤ 200 条），不要先转成文件再导入。",
   "tag": "Entries",
   "method": "post",
   "path": "/forms/{form_token}/entry_imports",
@@ -4836,7 +4836,7 @@
  {
   "operationId": "uploadImportFile",
   "summary": "上传导入文件",
-  "description": "上传导入文件\n上传一个用于批量导入数据的表格文件（`.xlsx` / `.xls` / `.csv`）到指定表单，返回导入附件 ID；随后把它作为 `attachment_id` 交给「从已上传的表格文件导入数据」（`POST /forms/{form_token}/entry_imports`）发起导入。\n鉴权方式二选一：\n1. 常规 API 凭证（HTTP Basic 的 api_key / api_secret，或 Bearer 令牌）。\n2. 一次性上传令牌 `import_file_token`（代替常规凭证）：令牌以 `import_file_tok_` 开头，30 分钟内有效、只能使用一次，并绑定到表单与文件元数据。请求中带有 `import_file_token` 时不再校验常规凭证，以令牌所属用户的身份访问；上传文件的原始文件名、Content-Type、字节数必须与令牌记录的一致，否则返回 400。令牌不存在、已过期、已使用，或所属用户已被删除时返回 400 `import_file_token is invalid or expired; prepare upload again`；令牌属于另一个表单时返回 400 `import_file_token was issued for another form; prepare upload again`。\n没有凭证也没有 `import_file_token` 时返回 401。\n请求必须为 `multipart/form-data`，字段 `file` 携带文件；缺少文件返回 400 `file is required`。\n文件大小受账号套餐的 Excel 导入上限（单位 MB）限制，扩展名须为 xls / xlsx / csv；不满足时返回 422，`error_description` 为具体校验信息（使用上传令牌时令牌保持可用，可重新上传）。\n表单不存在或当前身份无权访问时返回 404 `form cannot be found`。",
+  "description": "上传导入文件\n把客户端真实持有的表格文件（xlsx / xls / csv）上传到指定表单，返回导入附件 id；随后把它作为 attachment_id 交给 import_entries_from_file 发起导入。 对话里贴的表格 / CSV 文本不要走这里（不要自行编成 base64 当文件上传），直接用 create_entries 写入（每批 ≤ 200 条）。 文件大小受账号套餐的 Excel 导入上限限制，扩展名须为 xls / xlsx / csv；不满足时返回 422，error_description 为具体原因。",
   "tag": "Uploads",
   "method": "post",
   "path": "/forms/{form_token}/import_files",
