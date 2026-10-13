@@ -121,11 +121,10 @@ test('共享参数的 descriptionAppend 只追加到引用它的操作', () => {
     (TOOLS.find((t) => t.name === name)!.inputSchema.properties as Record<string, { description?: string }>).filters
       ?.description ?? '';
   for (const name of ['list_entries', 'count_entries', 'aggregate_entries', 'get_form_data_summary']) {
-    assert.match(filtersOf(name), /NpsField.*between/, name);
-    assert.match(filtersOf(name), /any_in/, name);
+    assert.match(filtersOf(name), /整组选项完全相同/, name);
   }
   for (const name of ['list_forms', 'search_entries_in_forms']) {
-    assert.doesNotMatch(filtersOf(name), /NpsField/, `${name} 的 filters 是按表单属性筛选的另一个参数`);
+    assert.doesNotMatch(filtersOf(name), /整组选项完全相同/, `${name} 的 filters 是按表单属性筛选的另一个参数`);
   }
 });
 

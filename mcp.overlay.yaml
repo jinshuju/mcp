@@ -180,7 +180,6 @@ bodyParam:
 parameters:
   EntriesFilters:
     descriptionAppend: |-
-      - NPS 字段（NpsField）不支持 `between` / `not_between`，筛分数区间用两个条件 `gte` + `lte`（如推荐者 9-10 分：`gte 9` 与 `lte 10`）。
       - 多选字段按「含某个选项」筛选用 `any_in`（排除用 `none_in`）；`eq` 不是「包含」，只匹配整组选项完全相同的数据。
 
 # ---- 6. 按操作覆盖：descriptionAppend（追加说明）、annotations（覆盖推断）、outputSchema（true / false 强制） ----
