@@ -8266,11 +8266,18 @@
             "available_days_of_week": {
              "type": "array",
              "items": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 6
+              "type": "string",
+              "enum": [
+               "sunday",
+               "monday",
+               "tuesday",
+               "wednesday",
+               "thursday",
+               "friday",
+               "saturday"
+              ]
              },
-             "description": "可预约的星期，0 为周日"
+             "description": "可预约的星期，小写英文星期名"
             },
             "show_left_quota": {
              "type": "boolean",
@@ -8319,10 +8326,17 @@
               "additionalProperties": false,
               "properties": {
                "for_wday": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 6,
-                "description": "星期，0 为周日"
+                "type": "string",
+                "enum": [
+                 "sunday",
+                 "monday",
+                 "tuesday",
+                 "wednesday",
+                 "thursday",
+                 "friday",
+                 "saturday"
+                ],
+                "description": "星期，小写英文星期名"
                },
                "quota": {
                 "type": "integer",
@@ -8377,11 +8391,18 @@
             "available_days_of_week": {
              "type": "array",
              "items": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 6
+              "type": "string",
+              "enum": [
+               "sunday",
+               "monday",
+               "tuesday",
+               "wednesday",
+               "thursday",
+               "friday",
+               "saturday"
+              ]
              },
-             "description": "可预约的星期，0 为周日"
+             "description": "可预约的星期，小写英文星期名"
             },
             "show_left_quota": {
              "type": "boolean",
@@ -8434,10 +8455,17 @@
               ],
               "properties": {
                "for_wday": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 6,
-                "description": "星期，0 为周日"
+                "type": "string",
+                "enum": [
+                 "sunday",
+                 "monday",
+                 "tuesday",
+                 "wednesday",
+                 "thursday",
+                 "friday",
+                 "saturday"
+                ],
+                "description": "星期，小写英文星期名"
                },
                "quota": {
                 "type": "integer",
@@ -12547,11 +12575,18 @@
           "available_days_of_week": {
            "type": "array",
            "items": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 6
+            "type": "string",
+            "enum": [
+             "sunday",
+             "monday",
+             "tuesday",
+             "wednesday",
+             "thursday",
+             "friday",
+             "saturday"
+            ]
            },
-           "description": "可预约的星期，0 为周日"
+           "description": "可预约的星期，小写英文星期名"
           },
           "show_left_quota": {
            "type": "boolean",
@@ -12600,10 +12635,17 @@
             "additionalProperties": false,
             "properties": {
              "for_wday": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 6,
-              "description": "星期，0 为周日"
+              "type": "string",
+              "enum": [
+               "sunday",
+               "monday",
+               "tuesday",
+               "wednesday",
+               "thursday",
+               "friday",
+               "saturday"
+              ],
+              "description": "星期，小写英文星期名"
              },
              "quota": {
               "type": "integer",
@@ -12658,11 +12700,18 @@
           "available_days_of_week": {
            "type": "array",
            "items": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 6
+            "type": "string",
+            "enum": [
+             "sunday",
+             "monday",
+             "tuesday",
+             "wednesday",
+             "thursday",
+             "friday",
+             "saturday"
+            ]
            },
-           "description": "可预约的星期，0 为周日"
+           "description": "可预约的星期，小写英文星期名"
           },
           "show_left_quota": {
            "type": "boolean",
@@ -12715,10 +12764,17 @@
             ],
             "properties": {
              "for_wday": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 6,
-              "description": "星期，0 为周日"
+              "type": "string",
+              "enum": [
+               "sunday",
+               "monday",
+               "tuesday",
+               "wednesday",
+               "thursday",
+               "friday",
+               "saturday"
+              ],
+              "description": "星期，小写英文星期名"
              },
              "quota": {
               "type": "integer",
@@ -21532,11 +21588,18 @@
    "available_days_of_week": {
     "type": "array",
     "items": {
-     "type": "integer",
-     "minimum": 0,
-     "maximum": 6
+     "type": "string",
+     "enum": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday"
+     ]
     },
-    "description": "可预约的星期，0 为周日"
+    "description": "可预约的星期，小写英文星期名"
    },
    "show_left_quota": {
     "type": "boolean",
@@ -21585,10 +21648,17 @@
      "additionalProperties": false,
      "properties": {
       "for_wday": {
-       "type": "integer",
-       "minimum": 0,
-       "maximum": 6,
-       "description": "星期，0 为周日"
+       "type": "string",
+       "enum": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+       ],
+       "description": "星期，小写英文星期名"
       },
       "quota": {
        "type": "integer",
@@ -21643,11 +21713,18 @@
    "available_days_of_week": {
     "type": "array",
     "items": {
-     "type": "integer",
-     "minimum": 0,
-     "maximum": 6
+     "type": "string",
+     "enum": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday"
+     ]
     },
-    "description": "可预约的星期，0 为周日"
+    "description": "可预约的星期，小写英文星期名"
    },
    "show_left_quota": {
     "type": "boolean",
@@ -21700,10 +21777,17 @@
      ],
      "properties": {
       "for_wday": {
-       "type": "integer",
-       "minimum": 0,
-       "maximum": 6,
-       "description": "星期，0 为周日"
+       "type": "string",
+       "enum": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+       ],
+       "description": "星期，小写英文星期名"
       },
       "quota": {
        "type": "integer",
@@ -21919,11 +22003,18 @@
           "available_days_of_week": {
            "type": "array",
            "items": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 6
+            "type": "string",
+            "enum": [
+             "sunday",
+             "monday",
+             "tuesday",
+             "wednesday",
+             "thursday",
+             "friday",
+             "saturday"
+            ]
            },
-           "description": "可预约的星期，0 为周日"
+           "description": "可预约的星期，小写英文星期名"
           },
           "show_left_quota": {
            "type": "boolean",
@@ -21972,10 +22063,17 @@
             "additionalProperties": false,
             "properties": {
              "for_wday": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 6,
-              "description": "星期，0 为周日"
+              "type": "string",
+              "enum": [
+               "sunday",
+               "monday",
+               "tuesday",
+               "wednesday",
+               "thursday",
+               "friday",
+               "saturday"
+              ],
+              "description": "星期，小写英文星期名"
              },
              "quota": {
               "type": "integer",
@@ -22030,11 +22128,18 @@
           "available_days_of_week": {
            "type": "array",
            "items": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 6
+            "type": "string",
+            "enum": [
+             "sunday",
+             "monday",
+             "tuesday",
+             "wednesday",
+             "thursday",
+             "friday",
+             "saturday"
+            ]
            },
-           "description": "可预约的星期，0 为周日"
+           "description": "可预约的星期，小写英文星期名"
           },
           "show_left_quota": {
            "type": "boolean",
@@ -22087,10 +22192,17 @@
             ],
             "properties": {
              "for_wday": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 6,
-              "description": "星期，0 为周日"
+              "type": "string",
+              "enum": [
+               "sunday",
+               "monday",
+               "tuesday",
+               "wednesday",
+               "thursday",
+               "friday",
+               "saturday"
+              ],
+              "description": "星期，小写英文星期名"
              },
              "quota": {
               "type": "integer",
@@ -22309,11 +22421,18 @@
        "available_days_of_week": {
         "type": "array",
         "items": {
-         "type": "integer",
-         "minimum": 0,
-         "maximum": 6
+         "type": "string",
+         "enum": [
+          "sunday",
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday"
+         ]
         },
-        "description": "可预约的星期，0 为周日"
+        "description": "可预约的星期，小写英文星期名"
        },
        "show_left_quota": {
         "type": "boolean",
@@ -22362,10 +22481,17 @@
          "additionalProperties": false,
          "properties": {
           "for_wday": {
-           "type": "integer",
-           "minimum": 0,
-           "maximum": 6,
-           "description": "星期，0 为周日"
+           "type": "string",
+           "enum": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+           ],
+           "description": "星期，小写英文星期名"
           },
           "quota": {
            "type": "integer",
@@ -22420,11 +22546,18 @@
        "available_days_of_week": {
         "type": "array",
         "items": {
-         "type": "integer",
-         "minimum": 0,
-         "maximum": 6
+         "type": "string",
+         "enum": [
+          "sunday",
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday"
+         ]
         },
-        "description": "可预约的星期，0 为周日"
+        "description": "可预约的星期，小写英文星期名"
        },
        "show_left_quota": {
         "type": "boolean",
@@ -22477,10 +22610,17 @@
          ],
          "properties": {
           "for_wday": {
-           "type": "integer",
-           "minimum": 0,
-           "maximum": 6,
-           "description": "星期，0 为周日"
+           "type": "string",
+           "enum": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+           ],
+           "description": "星期，小写英文星期名"
           },
           "quota": {
            "type": "integer",
