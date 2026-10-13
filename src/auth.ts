@@ -65,6 +65,12 @@ export class TokenVerifier {
   }
 }
 
+/** AuthInfo 里的金数据用户 id（GET /me 的 id），没认出用户时 undefined；analytics 与 Sentry 都用它标识用户。 */
+export function userIdOf(authInfo: AuthInfo | undefined): string | undefined {
+  const id = authInfo?.extra?.userId;
+  return id === undefined || id === null || id === '' ? undefined : String(id);
+}
+
 export function bearerToken(request: Request): string | undefined {
   const header = request.headers.get('authorization');
   const match = header && /^Bearer\s+(.+)$/i.exec(header.trim());

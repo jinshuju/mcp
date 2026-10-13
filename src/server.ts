@@ -6,7 +6,7 @@ import { JinshujuApi } from './api.js';
 import type { Config } from './config.js';
 import { DEFAULTS } from './config.js';
 import type { Credential } from './credential.js';
-import { registerGeneratedTools, registerSchemaTools, SCHEMAS } from './tools.js';
+import { registerGeneratedTools, registerSchemaTools, SCHEMAS, type ToolRuntime } from './tools.js';
 import type { GeneratedMeta } from './types.js';
 import { SERVER_NAME, SERVER_TITLE, VERSION } from './version.js';
 import metaJson from './generated/meta.json' with { type: 'json' };
@@ -29,9 +29,17 @@ export interface BuildServerOptions {
   fetch?: typeof fetch;
   /** 服务器说明，缺省 INSTRUCTIONS；HTTP 模式开了意图采集时在后面追加 context 参数的说明 */
   instructions?: string;
+  /** 工具抛异常时的回调（HTTP 部署报 Sentry）；报错照常转给模型 */
+  onToolError?: ToolRuntime['onError'];
 }
 
-export function buildServer({ credential, config, fetch: fetchImpl, instructions }: BuildServerOptions): McpServer {
+export function buildServer({
+  credential,
+  config,
+  fetch: fetchImpl,
+  instructions,
+  onToolError
+}: BuildServerOptions): McpServer {
   const cfg: Config = { ...DEFAULTS, ...config };
   const api = new JinshujuApi({
     baseUrl: cfg.apiBaseUrl,
@@ -44,7 +52,7 @@ export function buildServer({ credential, config, fetch: fetchImpl, instructions
     { instructions: instructions ?? INSTRUCTIONS }
   );
 
-  registerGeneratedTools(server, { api, credential, maxResultChars: cfg.maxResultChars });
+  registerGeneratedTools(server, { api, credential, maxResultChars: cfg.maxResultChars, onError: onToolError });
   registerSchemaTools(server, META.pointerSchemas);
 
   // 同一份 schema 目录也作为资源暴露，给偏好 resources 的客户端用。

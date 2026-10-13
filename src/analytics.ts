@@ -14,7 +14,7 @@
 import type { AuthInfo, McpServer } from '@modelcontextprotocol/server';
 import { deriveSessionIdFromMCPSession, instrument, type BeforeSendFn } from '@posthog/mcp';
 import { PostHog, type PostHogOptions } from 'posthog-node';
-import { sha256 } from './auth.js';
+import { sha256, userIdOf } from './auth.js';
 import type { Config } from './config.js';
 import { TOOLS } from './tools.js';
 import { CONTEXT_ARGUMENT } from './validation.js';
@@ -78,8 +78,7 @@ export class McpAnalytics {
   /** 给本次请求的 McpServer 装上埋点：用户、会话都闭包在这一个请求里。 */
   async instrument(server: McpServer, authInfo?: AuthInfo): Promise<void> {
     const sessionId = authInfo ? deriveSessionIdFromMCPSession(await sha256(authInfo.token)) : undefined;
-    const userId = authInfo?.extra?.userId;
-    const distinctId = userId === undefined || userId === null || userId === '' ? undefined : String(userId);
+    const distinctId = userIdOf(authInfo);
     instrument(server, this.posthog, {
       context: this.collectIntent ? { description: CONTEXT_DESCRIPTION } : false,
       captureModel: false,

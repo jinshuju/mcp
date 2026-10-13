@@ -25,6 +25,8 @@ export interface ToolRuntime {
   api: JinshujuApi;
   credential: Credential;
   maxResultChars: number;
+  /** 工具抛了异常先告诉它（HTTP 部署报 Sentry），报错照常转给模型；stdio 不传 */
+  onError?: (error: unknown, tool: string) => void;
 }
 
 /**
@@ -54,6 +56,7 @@ export function registerGeneratedTools(server: McpServer, runtime: ToolRuntime):
           const res = await runtime.api.call(tool, args ?? {}, runtime.credential);
           return toToolResult(tool, res, runtime.maxResultChars);
         } catch (error) {
+          runtime.onError?.(error, tool.name);
           if (error instanceof TransportError) {
             return { isError: true, content: [{ type: 'text', text: `${error.message}，请稍后重试。` }] };
           }

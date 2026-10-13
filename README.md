@@ -84,6 +84,8 @@ claude mcp add jinshuju -s user -e JINSHUJU_ACCESS_TOKEN=your_token -- npx -y @j
 | `POSTHOG_API_KEY`                 | PostHog 项目 token（`phc_…`）；配了就在 HTTP 模式上报 MCP analytics，见下文                          |
 | `POSTHOG_HOST`                    | PostHog 上报地址，缺省 `https://us.i.posthog.com`                                                    |
 | `JINSHUJU_MCP_COLLECT_INTENT`     | 是否让模型在每次调用里写用户意图（`context` 参数 → `$mcp_intent`），缺省 `true`                      |
+| `SENTRY_DSN`                      | Sentry 项目 DSN；配了就在 Workers 入口上报异常，见下文                                               |
+| `SENTRY_ENVIRONMENT`              | Sentry 环境名，可选                                                                                  |
 | `PORT` / `HOST`                   | Node 入口监听，缺省 8787 / 0.0.0.0                                                                   |
 
 ## 使用统计（PostHog MCP analytics）
@@ -97,6 +99,15 @@ HTTP 部署配了 `POSTHOG_API_KEY` 后，用 [@posthog/mcp](https://posthog.com
 - `distinct_id` 是金数据用户 id，`$session_id` 由令牌哈希派生（同一个令牌一个会话），客户端名字 / 版本来自握手或每个请求的 `_meta`。
 
 stdio（本地）模式不上报。
+
+## 错误监控（Sentry）
+
+Workers 入口（`src/worker.ts`）用 [@sentry/cloudflare](https://docs.sentry.io/platforms/javascript/guides/cloudflare/) 包了一层，配了 `SENTRY_DSN` 就上报：
+
+- 报的是意外：工具 handler 抛出的异常（API 连不上 / 超时记 warning）、令牌校验时 API 不可达、路由里没接住的错误；API 返回的 4xx / 5xx 是正常的工具结果，不报；
+- 不采集请求体、IP、cookie，不开 tracing；`Authorization` 等敏感请求头由 SDK 抹成 `[Filtered]`；用户只记金数据用户 id。
+
+Node 入口（Docker）和 stdio 不上报。
 
 ## 开发
 
@@ -118,7 +129,7 @@ npm run spec:update  # 拉最新的线上 openapi.yaml 并重新生成
 - **WDL 等 Workers 兼容平台（可选）**：装好 [`@wdl-dev/cli`](https://github.com/wdl-dev/cli) 并配置好 token 后 `npm run wdl:deploy`；
   对外地址设为 secret `JINSHUJU_MCP_PUBLIC_URL`（`wdl secret put --worker jinshuju-mcp JINSHUJU_MCP_PUBLIC_URL`），
   多个入口用逗号分隔，如 `https://mcp.jinshuju.net,https://<ns>.<platform>/jinshuju-mcp`；
-  要上报 PostHog 再加 secret `POSTHOG_API_KEY`（需要时还有 `POSTHOG_HOST`）。
+  要上报 PostHog 再加 secret `POSTHOG_API_KEY`（需要时还有 `POSTHOG_HOST`），要报 Sentry 再加 `SENTRY_DSN`。
 
 服务无状态，不需要数据库、KV 或 Durable Objects。
 

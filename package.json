@@ -56,6 +56,7 @@
     "@hono/node-server": "^2.1.4",
     "@modelcontextprotocol/server": "^2.3.1",
     "@posthog/mcp": "^0.22.3",
+    "@sentry/cloudflare": "^11.7.0",
     "hono": "^4.13.13",
     "posthog-node": "^5.55.3"
   },

@@ -13,6 +13,8 @@
  * 客户端直接按质询里给的 URL 取。不指定时按请求推断（信任反向代理的 X-Forwarded-*）。
  *
  * 配了 POSTHOG_API_KEY 时每个请求的 McpServer 都装上 PostHog MCP analytics（analytics.ts）。
+ * 意外的异常报 Sentry（worker.ts 用 withSentry 初始化；没配 SENTRY_DSN 时 SDK 什么都不发，Node 入口没接）：
+ * 工具 handler 抛出的、令牌校验时 API 不可达的、路由里没接住的。API 回的 4xx / 5xx 是正常的工具结果，不报。
  */
 import { Hono, type Context } from 'hono';
 import {
@@ -25,9 +27,10 @@ import {
   type McpRequestContext,
   type OAuthMetadata
 } from '@modelcontextprotocol/server';
+import { captureException, setUser } from '@sentry/cloudflare';
 import { analyticsFromConfig, CONTEXT_INSTRUCTIONS, type McpAnalytics } from './analytics.js';
-import { JinshujuApi } from './api.js';
-import { TokenVerifier, bearerToken, challenge, loadAuthServerMetadata } from './auth.js';
+import { JinshujuApi, TransportError } from './api.js';
+import { TokenVerifier, bearerToken, challenge, loadAuthServerMetadata, userIdOf } from './auth.js';
 import type { Config } from './config.js';
 import { DEFAULTS } from './config.js';
 import { StaticCredential } from './credential.js';
@@ -68,7 +71,8 @@ export function createApp(options: AppOptions = {}): Hono {
       credential: new StaticCredential(token),
       config: cfg,
       fetch: fetchImpl,
-      instructions
+      instructions,
+      onToolError: reportToolError
     });
     if (analytics) await analytics.instrument(server, ctx.authInfo);
     return server;
@@ -93,6 +97,7 @@ export function createApp(options: AppOptions = {}): Hono {
       return await transport.handleRequest(request, { authInfo });
     } catch (error) {
       console.error('legacy MCP request failed:', error);
+      captureException(error);
       return jsonRpcError(500, -32603, 'Internal server error.');
     } finally {
       transport.close().catch(() => {});
@@ -135,6 +140,13 @@ export function createApp(options: AppOptions = {}): Hono {
 
   const app = new Hono();
 
+  // 路由里没接住的异常：Hono 缺省只打 console 并回 500，这里顺带报 Sentry。
+  app.onError((error, c) => {
+    console.error('unhandled error:', error);
+    captureException(error);
+    return c.text('Internal Server Error', 500);
+  });
+
   app.get('/', (c) =>
     c.json({
       name: SERVER_TITLE,
@@ -176,6 +188,7 @@ export function createApp(options: AppOptions = {}): Hono {
       authInfo = await verifier.verify(token);
     } catch (error) {
       console.error('token verification failed:', error);
+      captureException(error);
       return new Response(
         JSON.stringify({ error: 'server_error', error_description: '无法校验令牌：金数据 API 暂时不可达' }),
         {
@@ -185,6 +198,8 @@ export function createApp(options: AppOptions = {}): Hono {
       );
     }
     if (!authInfo) return challenge(prm, 'Missing or invalid access token');
+    const userId = userIdOf(authInfo);
+    if (userId) setUser({ id: userId });
     const response = (await isLegacyRequest(request))
       ? await serveLegacy(request, authInfo)
       : await handler.fetch(request, { authInfo });
@@ -195,6 +210,11 @@ export function createApp(options: AppOptions = {}): Hono {
   });
 
   return app;
+}
+
+/** 工具抛出的异常：API 连不上 / 超时是环境问题，记 warning；其它都是我们的 bug。 */
+function reportToolError(error: unknown, tool: string): void {
+  captureException(error, { tags: { tool }, level: error instanceof TransportError ? 'warning' : 'error' });
 }
 
 function jsonRpcError(status: number, code: number, message: string): Response {
@@ -212,5 +232,10 @@ function flushInBackground(c: Context, analytics: McpAnalytics): void {
   } catch {
     return;
   }
-  waitUntil(analytics.flush().catch((error) => console.error('posthog flush failed:', error)));
+  waitUntil(
+    analytics.flush().catch((error) => {
+      console.error('posthog flush failed:', error);
+      captureException(error, { level: 'warning' });
+    })
+  );
 }
