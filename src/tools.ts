@@ -13,6 +13,7 @@ import { runComposite } from './composites.js';
 import type { Credential } from './credential.js';
 import { toToolResult } from './result.js';
 import type { ToolSpec, JsonSchema } from './types.js';
+import { toolInputValidator } from './validation.js';
 import toolsJson from './generated/tools.json' with { type: 'json' };
 import schemasJson from './generated/schemas.json' with { type: 'json' };
 
@@ -43,7 +44,7 @@ export function registerGeneratedTools(server: McpServer, runtime: ToolRuntime):
       {
         title: tool.title,
         description: tool.description,
-        inputSchema: fromJsonSchema<Record<string, unknown>>(tool.inputSchema),
+        inputSchema: fromJsonSchema<Record<string, unknown>>(tool.inputSchema, toolInputValidator),
         outputSchema: tool.outputSchema ? fromJsonSchema(tool.outputSchema, permissiveValidator) : undefined,
         annotations: tool.annotations
       },
@@ -78,14 +79,17 @@ export function registerSchemaTools(server: McpServer, pointerSchemas: string[])
         `用它查 X 的定义；按 type 分支的 schema（如 FieldInput）会带 x-variants，列出每个分支对应的 schema 名。常用：${pointerSchemas
           .slice(0, 6)
           .join('、')}。`,
-      inputSchema: fromJsonSchema<{ name: string }>({
-        type: 'object',
-        properties: {
-          name: { type: 'string', description: 'schema 名，如 FieldInput、TextFieldInput、FormSettingWriteInput' }
+      inputSchema: fromJsonSchema<{ name: string }>(
+        {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'schema 名，如 FieldInput、TextFieldInput、FormSettingWriteInput' }
+          },
+          required: ['name'],
+          additionalProperties: false
         },
-        required: ['name'],
-        additionalProperties: false
-      }),
+        toolInputValidator
+      ),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
     },
     async ({ name }) => {

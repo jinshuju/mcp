@@ -116,6 +116,19 @@ test('inputSchema 里没有 $ref，也没有 OpenAPI 专有关键字', () => {
   }
 });
 
+test('共享参数的 descriptionAppend 只追加到引用它的操作', () => {
+  const filtersOf = (name: string) =>
+    (TOOLS.find((t) => t.name === name)!.inputSchema.properties as Record<string, { description?: string }>).filters
+      ?.description ?? '';
+  for (const name of ['list_entries', 'count_entries', 'aggregate_entries', 'get_form_data_summary']) {
+    assert.match(filtersOf(name), /NpsField.*between/, name);
+    assert.match(filtersOf(name), /any_in/, name);
+  }
+  for (const name of ['list_forms', 'search_entries_in_forms']) {
+    assert.doesNotMatch(filtersOf(name), /NpsField/, `${name} 的 filters 是按表单属性筛选的另一个参数`);
+  }
+});
+
 test('路径参数都在 inputSchema.required 里，flatten 的请求体属性在顶层', () => {
   const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
   for (const t of TOOLS) {

@@ -68,6 +68,26 @@ test('tools/call：参数经 JSON Schema 校验，不合法时不发请求', asy
   await close();
 });
 
+test('tools/call：多传了键时点名多余的参数并列出可用参数', async () => {
+  const { calls, fetchImpl } = fakeApi(() => new Response('{}'));
+  const { client, close } = await connect(fetchImpl);
+  const result = await client.callTool({
+    name: 'create_evaluation_form',
+    arguments: { name: '职场压力自测', scene: 'evaluation', report: { enabled: true }, fields: [] }
+  });
+  assert.equal(result.isError, true);
+  assert.equal(calls.length, 0);
+  const text = (result.content[0] as { text: string }).text;
+  assert.match(text, /不存在的参数：scene、report/);
+  assert.match(text, /只接受：.*name.*fields.*evaluation_setting/);
+  assert.doesNotMatch(text, /additional properties/);
+
+  const typed = await client.callTool({ name: 'list_entries', arguments: { form_token: 'AbCdEf', limit: 'ten' } });
+  assert.equal(typed.isError, true);
+  assert.match((typed.content[0] as { text: string }).text, /: limit：Instance type "string" is invalid/);
+  await close();
+});
+
 test('tools/call：成功时返回文本（有 outputSchema 的再给 structuredContent），并带 Bearer', async () => {
   const payload = { total: 1, count: 1, data: [{ name: '报名表', token: 'AbCdEf' }], next: null };
   const { calls, fetchImpl } = fakeApi(
