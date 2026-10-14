@@ -487,6 +487,159 @@
   ],
   "responseSchema": "EntrySummaryResponse"
  },
+ "countFormViewEntries": {
+  "operationId": "countFormViewEntries",
+  "summary": "统计视图数据条数",
+  "description": "与 `GET /forms/{form_token}/entries/count` 相同，只统计该视图筛选出的数据：先套用视图的筛选条件，`filters` / `keyword` 在此基础上进一步缩小范围。视图的列和排序不影响结果；视图没有筛选条件时等同于整张表单。\n只能访问调用者可见的视图，否则 404（View cannot be found）。",
+  "tag": "Views",
+  "method": "get",
+  "path": "/forms/{form_token}/views/{view_token}/entries/count",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "view_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "view_token",
+   "filters",
+   "keyword"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntryCountResponse"
+ },
+ "aggregateFormViewEntries": {
+  "operationId": "aggregateFormViewEntries",
+  "summary": "聚合统计视图数据",
+  "description": "与 `GET /forms/{form_token}/entries/aggregate` 相同，只统计该视图筛选出的数据：先套用视图的筛选条件，`filters` / `keyword` 在此基础上进一步缩小范围。视图的列和排序不影响结果；视图没有筛选条件时等同于整张表单。\n只能访问调用者可见的视图，否则 404（View cannot be found）。",
+  "tag": "Views",
+  "method": "get",
+  "path": "/forms/{form_token}/views/{view_token}/entries/aggregate",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "view_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "metrics",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "dimensions",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "view_token",
+   "metrics",
+   "dimensions",
+   "limit",
+   "filters",
+   "keyword"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntryAggregateResponse"
+ },
+ "summarizeFormViewEntries": {
+  "operationId": "summarizeFormViewEntries",
+  "summary": "视图数据概况",
+  "description": "与 `GET /forms/{form_token}/entries/summary` 相同，只统计该视图筛选出的数据：先套用视图的筛选条件，`filters` / `keyword` 在此基础上进一步缩小范围。视图的列和排序不影响结果；视图没有筛选条件时等同于整张表单。\n只能访问调用者可见的视图，否则 404（View cannot be found）。",
+  "tag": "Views",
+  "method": "get",
+  "path": "/forms/{form_token}/views/{view_token}/entries/summary",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "view_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "fields",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "include_overview",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "view_token",
+   "fields",
+   "include_overview",
+   "filters",
+   "keyword"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntrySummaryResponse"
+ },
  "createEntriesBatch": {
   "operationId": "createEntriesBatch",
   "summary": "批量新增数据",
@@ -2058,6 +2211,159 @@
   ],
   "paramNames": [
    "table_token",
+   "fields",
+   "include_overview",
+   "filters",
+   "keyword"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntrySummaryResponse"
+ },
+ "countTableViewEntries": {
+  "operationId": "countTableViewEntries",
+  "summary": "统计视图数据条数",
+  "description": "与 `GET /forms/{form_token}/views/{view_token}/entries/count` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。",
+  "tag": "Tables",
+  "method": "get",
+  "path": "/tables/{table_token}/views/{view_token}/entries/count",
+  "params": [
+   {
+    "name": "table_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "view_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "table_token",
+   "view_token",
+   "filters",
+   "keyword"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntryCountResponse"
+ },
+ "aggregateTableViewEntries": {
+  "operationId": "aggregateTableViewEntries",
+  "summary": "聚合统计视图数据",
+  "description": "与 `GET /forms/{form_token}/views/{view_token}/entries/aggregate` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。",
+  "tag": "Tables",
+  "method": "get",
+  "path": "/tables/{table_token}/views/{view_token}/entries/aggregate",
+  "params": [
+   {
+    "name": "table_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "view_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "metrics",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "dimensions",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "table_token",
+   "view_token",
+   "metrics",
+   "dimensions",
+   "limit",
+   "filters",
+   "keyword"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntryAggregateResponse"
+ },
+ "summarizeTableViewEntries": {
+  "operationId": "summarizeTableViewEntries",
+  "summary": "视图数据概况",
+  "description": "与 `GET /forms/{form_token}/views/{view_token}/entries/summary` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。",
+  "tag": "Tables",
+  "method": "get",
+  "path": "/tables/{table_token}/views/{view_token}/entries/summary",
+  "params": [
+   {
+    "name": "table_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "view_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "fields",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "include_overview",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "table_token",
+   "view_token",
    "fields",
    "include_overview",
    "filters",
