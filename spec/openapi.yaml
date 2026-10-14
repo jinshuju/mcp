@@ -591,6 +591,119 @@ paths:
           $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/views/{view_token}/entries/count":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - $ref: '#/components/parameters/ViewToken'
+    get:
+      tags:
+      - Views
+      summary: 统计视图数据条数
+      operationId: countFormViewEntries
+      description: |
+        与 `GET /forms/{form_token}/entries/count` 相同，只统计该视图筛选出的数据：先套用视图的筛选条件，`filters` / `keyword` 在此基础上进一步缩小范围。视图的列和排序不影响结果；视图没有筛选条件时等同于整张表单。
+        只能访问调用者可见的视图，否则 404（View cannot be found）。
+
+        OAuth 令牌需要 scope：read_entries
+      parameters:
+      - $ref: '#/components/parameters/EntriesFilters'
+      - $ref: '#/components/parameters/EntriesKeyword'
+      responses:
+        '200':
+          description: 数据条数
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryCountResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/views/{view_token}/entries/aggregate":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - $ref: '#/components/parameters/ViewToken'
+    get:
+      tags:
+      - Views
+      summary: 聚合统计视图数据
+      operationId: aggregateFormViewEntries
+      description: |
+        与 `GET /forms/{form_token}/entries/aggregate` 相同，只统计该视图筛选出的数据：先套用视图的筛选条件，`filters` / `keyword` 在此基础上进一步缩小范围。视图的列和排序不影响结果；视图没有筛选条件时等同于整张表单。
+        只能访问调用者可见的视图，否则 404（View cannot be found）。
+
+        OAuth 令牌需要 scope：read_entries
+      parameters:
+      - $ref: '#/components/parameters/AggregateMetrics'
+      - $ref: '#/components/parameters/AggregateDimensions'
+      - $ref: '#/components/parameters/AggregateLimit'
+      - $ref: '#/components/parameters/EntriesFilters'
+      - $ref: '#/components/parameters/EntriesKeyword'
+      responses:
+        '200':
+          description: 聚合结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryAggregateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/views/{view_token}/entries/summary":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - $ref: '#/components/parameters/ViewToken'
+    get:
+      tags:
+      - Views
+      summary: 视图数据概况
+      operationId: summarizeFormViewEntries
+      description: |
+        与 `GET /forms/{form_token}/entries/summary` 相同，只统计该视图筛选出的数据：先套用视图的筛选条件，`filters` / `keyword` 在此基础上进一步缩小范围。视图的列和排序不影响结果；视图没有筛选条件时等同于整张表单。
+        只能访问调用者可见的视图，否则 404（View cannot be found）。
+
+        OAuth 令牌需要 scope：read_entries
+      parameters:
+      - $ref: '#/components/parameters/SummaryFields'
+      - $ref: '#/components/parameters/SummaryIncludeOverview'
+      - $ref: '#/components/parameters/EntriesFilters'
+      - $ref: '#/components/parameters/EntriesKeyword'
+      responses:
+        '200':
+          description: 数据概况
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntrySummaryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   "/forms/{form_token}/entries/batch":
     parameters:
     - $ref: '#/components/parameters/FormToken'
@@ -2594,6 +2707,116 @@ paths:
       operationId: summarizeTableEntries
       description: |
         与 `GET /forms/{form_token}/entries/summary` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。
+
+        OAuth 令牌需要 scope：read_entries
+      parameters:
+      - $ref: '#/components/parameters/SummaryFields'
+      - $ref: '#/components/parameters/SummaryIncludeOverview'
+      - $ref: '#/components/parameters/EntriesFilters'
+      - $ref: '#/components/parameters/EntriesKeyword'
+      responses:
+        '200':
+          description: 数据概况
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntrySummaryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/tables/{table_token}/views/{view_token}/entries/count":
+    parameters:
+    - $ref: '#/components/parameters/TableToken'
+    - $ref: '#/components/parameters/ViewToken'
+    get:
+      tags:
+      - Tables
+      summary: 统计视图数据条数
+      operationId: countTableViewEntries
+      description: |
+        与 `GET /forms/{form_token}/views/{view_token}/entries/count` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。
+
+        OAuth 令牌需要 scope：read_entries
+      parameters:
+      - $ref: '#/components/parameters/EntriesFilters'
+      - $ref: '#/components/parameters/EntriesKeyword'
+      responses:
+        '200':
+          description: 数据条数
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryCountResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/tables/{table_token}/views/{view_token}/entries/aggregate":
+    parameters:
+    - $ref: '#/components/parameters/TableToken'
+    - $ref: '#/components/parameters/ViewToken'
+    get:
+      tags:
+      - Tables
+      summary: 聚合统计视图数据
+      operationId: aggregateTableViewEntries
+      description: |
+        与 `GET /forms/{form_token}/views/{view_token}/entries/aggregate` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。
+
+        OAuth 令牌需要 scope：read_entries
+      parameters:
+      - $ref: '#/components/parameters/AggregateMetrics'
+      - $ref: '#/components/parameters/AggregateDimensions'
+      - $ref: '#/components/parameters/AggregateLimit'
+      - $ref: '#/components/parameters/EntriesFilters'
+      - $ref: '#/components/parameters/EntriesKeyword'
+      responses:
+        '200':
+          description: 聚合结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryAggregateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/tables/{table_token}/views/{view_token}/entries/summary":
+    parameters:
+    - $ref: '#/components/parameters/TableToken'
+    - $ref: '#/components/parameters/ViewToken'
+    get:
+      tags:
+      - Tables
+      summary: 视图数据概况
+      operationId: summarizeTableViewEntries
+      description: |
+        与 `GET /forms/{form_token}/views/{view_token}/entries/summary` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。
 
         OAuth 令牌需要 scope：read_entries
       parameters:
@@ -4971,6 +5194,13 @@ components:
       in: path
       required: true
       description: 表格 token（`GET /tables` 返回的 `token`），也接受 24 位十六进制的表格 id。
+      schema:
+        type: string
+    ViewToken:
+      name: view_token
+      in: path
+      required: true
+      description: 视图 token（`GET /forms/{form_token}/views` 返回的 `token`）
       schema:
         type: string
     SerialNumber:
