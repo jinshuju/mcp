@@ -522,7 +522,7 @@ paths:
         - `metrics` 必填，1～20 项；每个字段可用的函数见 `GET /forms/{form_token}?include_analytics=true` 返回的 `analytics.agg_funcs`。
         - `dimensions` 可选，最多 2 项；只有 `analytics.groupable` 为 true 的字段（单值的选项类字段和日期字段）可以分组，日期字段必须指定 `bucket`。
         - 不传 `dimensions` 时 `rows` 只有一行；分组时每组一行，最多 `limit` 组，`row_count` 为分组总数，超出时 `truncated` 为 true。
-        - `filters` / `keyword` 与数据列表相同，但不支持 `creator_id` 条件（返回 400）。
+        - `filters` / `keyword` 与数据列表相同，但不支持 `creator_id`、`serial_number` 与关联字段条件（返回 400）。
         - 字段不存在、无权读取、函数或分组方式不适用于该字段时返回 400，并说明可用的字段 / 函数 / 分组方式。
 
         OAuth 令牌需要 scope：read_entries
@@ -564,7 +564,7 @@ paths:
         - 每个字段按 `kind` 返回统一结构：选项类给出各选项计数与占比，矩阵类按题目分组，数字给出最小 / 最大 / 求和 / 平均，日期给出最早 / 最晚，文本给出去重数。
         - 默认包含全部可分析字段（`analytics.summarisable` 为 true 的字段，另含 `created_at`），最多 60 个；超出的字段列在 `omitted_fields` 中，`truncated` 为 true。
         - `fields` 指定的字段不可分析或无权读取时返回 400。
-        - `filters` / `keyword` 与数据列表相同，但不支持 `creator_id` 条件（返回 400）。
+        - `filters` / `keyword` 与数据列表相同，但不支持 `creator_id`、`serial_number` 与关联字段条件（返回 400）。
 
         OAuth 令牌需要 scope：read_entries
       parameters:
@@ -2254,13 +2254,13 @@ paths:
       - bearerAuth: []
       - basicAuth: []
       description: |
-        上传一张属于表单本身的图片（图片选项图、表头图、背景图、表头轮播图的一帧，或表单的对外查询页头图），返回图片附件 ID。图片此时尚未绑定到任何表单，之后在表单或主题中引用它时才生效。
+        上传一张属于表单本身的图片（图片选项图、表头图、背景图、表头轮播图的一帧、表单的对外查询页头图，或表单描述 / 字段描述里的插图），返回图片附件 ID。图片此时尚未绑定到任何表单，之后在表单或主题中引用它时才生效。
         鉴权方式二选一：
-        1. 常规 API 凭证（HTTP Basic 的 api_key / api_secret，或 Bearer 令牌），此时必须用 `image_type` 说明图片用途，且只能是 `header`（表头图）、`wallpaper`（背景图）或 `opensearch_header`（对外查询页头图）：返回的 `attachment_id` 交给「更新表单主题」的 `header.header_image_attachment_id` / `wallpaper.background_image_attachment_id`，或「更新对外查询」的 `header.background_image.attachment_id`。`image_type` 缺失或不在 `field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header` 之内时返回 400 `image_type must be one of: field_choice, header, wallpaper, carousel, opensearch_header.`；`field_choice` / `carousel` 没有接受附件 ID 的地方，只能配合上传令牌上传，否则返回 400。
-        2. 一次性上传令牌 `form_image_token`（代替常规凭证）：令牌以 `form_img_tok_` 开头，30 分钟内有效、只能使用一次，已记录图片用途（`field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header`，此时忽略 `image_type`）与文件元数据；上传文件的原始文件名、Content-Type、字节数必须与令牌记录的一致，否则返回 400。上传成功后不要直接使用返回的 `attachment_id`，而是在「创建表单」/「编辑表单」的选项 `image_upload_token`，或「更新表单主题」的 `header.header_image_upload_token` / `wallpaper.background_image_upload_token` / `header.carousel_images[].image_upload_token`，或「更新对外查询」的 `header.background_image.image_upload_token` 中引用同一个令牌。令牌不存在、已过期、已使用，或所属用户已被删除时返回 400 `form_image_token is invalid or expired; prepare upload again`。
+        1. 常规 API 凭证（HTTP Basic 的 api_key / api_secret，或 Bearer 令牌），此时必须用 `image_type` 说明图片用途，且只能是 `header`（表头图）、`wallpaper`（背景图）、`opensearch_header`（对外查询页头图）或 `description`（描述插图）：返回的 `attachment_id` 交给「更新表单主题」的 `header.header_image_attachment_id` / `wallpaper.background_image_attachment_id`，或「更新对外查询」的 `header.background_image.attachment_id`；`description` 另外返回图片地址 `url`，写进表单 `description` 或字段 `notes` 的 `<img src>`，保存表单时图片即归属该表单（每张表单最多 30 张），7 天内没被任何表单用上的会被清理。`image_type` 缺失或不在 `field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header` / `description` 之内时返回 400 `image_type must be one of: field_choice, header, wallpaper, carousel, opensearch_header, description.`；`field_choice` / `carousel` 没有接受附件 ID 的地方，只能配合上传令牌上传，否则返回 400。
+        2. 一次性上传令牌 `form_image_token`（代替常规凭证）：令牌以 `form_img_tok_` 开头，30 分钟内有效、只能使用一次，已记录图片用途（`field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header` / `description`，此时忽略 `image_type`）与文件元数据；上传文件的原始文件名、Content-Type、字节数必须与令牌记录的一致，否则返回 400。上传成功后不要直接使用返回的 `attachment_id`，而是在「创建表单」/「编辑表单」的选项 `image_upload_token`，或「更新表单主题」的 `header.header_image_upload_token` / `wallpaper.background_image_upload_token` / `header.carousel_images[].image_upload_token`，或「更新对外查询」的 `header.background_image.image_upload_token` 中引用同一个令牌；用途为 `description` 时没有引用令牌的地方，直接用返回的 `url`。令牌不存在、已过期、已使用，或所属用户已被删除时返回 400 `form_image_token is invalid or expired; prepare upload again`。
         没有凭证也没有 `form_image_token` 时返回 401。请求必须为 `multipart/form-data`，字段 `file` 携带图片二进制；缺少文件返回 400 `file is required`。
 
-        OAuth 令牌需要 scope：`image_type`（或令牌记录的用途）为 field_choice、opensearch_header 时需要 forms，其余需要 form_setting
+        OAuth 令牌需要 scope：`image_type`（或令牌记录的用途）为 field_choice、opensearch_header、description 时需要 forms，其余需要 form_setting
       requestBody:
         required: true
         content:
@@ -2278,7 +2278,8 @@ paths:
                   - wallpaper
                   - carousel
                   - opensearch_header
-                  description: 图片用途；不带上传令牌时必填且只能为 header / wallpaper / opensearch_header，带上传令牌时忽略
+                  - description
+                  description: 图片用途；不带上传令牌时必填且只能为 header / wallpaper / opensearch_header / description，带上传令牌时忽略
                 form_image_token:
                   type: string
                   description: 一次性上传令牌，以 `form_img_tok_` 开头；传入时代替常规凭证
@@ -2345,7 +2346,7 @@ paths:
       operationId: createTable
       description: |
         创建一个数据表格。与创建表单相同，但：
-        - 字段类型只能是表格支持的列类型：`TextArea`、`RadioButton`、`CheckBox`、`BooleanField`、`MobileField`、`NumberField`、`DateTimeField`、`EmailField`、`LinkField`、`AttachmentField`、`FormulaField`；
+        - 字段类型只能是表格支持的列类型：`TextArea`、`RadioButton`、`CheckBox`、`BooleanField`、`MobileField`、`NumberField`、`DateTimeField`、`EmailField`、`LinkField`、`AttachmentField`、`FormulaField`、`RelationField`；
         - 附件列不接受数量 / 大小上限等限制属性，数字 / 计算列的精度受限，违反时返回 400 并列出问题列；
         - 选项列不会生成「其他」选项；`folder_token` 必须是 table 文件夹；不支持 `layout`。
         - `with_default_entries: true` 时创建后预置 3 条空白数据（与产品内新建表格一致），缺省不预置。
@@ -5271,6 +5272,8 @@ components:
         - `between` / `not_between` 的 `value` 为二元数组 `[min, max]`；矩阵 / 表格字段需写成 `{"<列 api_code>": [min, max]}`。
         - `within_last` 仅日期字段可用，`value` 形如 `{"unit":"day","n":30}`（unit 可为 minute / day / week / month）。
         - `creator_id` 可作为特殊字段用 `eq` 筛选提交人（值为用户 id），且只能出现一次。
+        - `serial_number` 可作为特殊字段用 `eq` / `any_in` 按序号筛选，多个条件取交集。
+        - 关联字段（RelationField）的 `any_in` / `none_in` 的 `value` 为关联表格中的数据序号；序号不存在时返回 400。
         - 含 `created_at` 条件时结果改为按创建时间排序。
       schema:
         type: string
@@ -6144,7 +6147,7 @@ components:
         `token`、`serial_number`、`created_at`、`updated_at`、`creator_name`（提交人姓名）、`color_mark`（颜色标记）、
         `info_filling_duration`（填写时长，秒）、`info_platform`、`info_os`、`info_browser`、`info_region`（`{country, province, city}`）、`info_remote_ip`，
         以及按表单能力出现的 `gen_code`（确认码）、`total_price` / `preferential_price`（有商品时）、`x_field_weixin_*`（微信信息）、`referral_link` 等。
-        考试 / 测评题目还会多出 `<api_code>_extra_value: { correct_answer, score }`；反向关联字段多出 `<api_code>_entries`。
+        考试 / 测评题目还会多出 `<api_code>_extra_value: { correct_answer, score }`；反向关联字段多出 `<api_code>_entries`，关联字段多出 `<api_code>_related_entries`。
 
         各类型字段值的形态：
         | 字段 | 值 |
@@ -6170,6 +6173,7 @@ components:
         | 排序 | `[{"rank": 1, "choice": "选项"}]` |
         | 预约 | `[{"item_name","scheduled_label","number", ...}]` |
         | 表单关联 | 关联数据的显示值字符串 |
+        | 关联（表格） | 关联表格中被关联数据的序号数组，如 `[1, 3]`；另附 `<api_code>_related_entries`：`[{"serial_number": 1, "value": "..."}]`，value 为该数据第一列的值 |
         请求带 `include_labels=true` 时，表单字段的值包装为 `{label, value}`。
       required:
       - token
@@ -7193,7 +7197,9 @@ components:
               type: array
               description: 新增字段；可带 `position`（0 起）指定插入位置，缺省追加到末尾
               items:
-                $ref: '#/components/schemas/FieldInput'
+                anyOf:
+                - $ref: '#/components/schemas/FieldInput'
+                - $ref: '#/components/schemas/TableColumnInput'
             remove:
               type: array
               description: 要删除的字段 api_code；不存在时返回 400
@@ -7556,6 +7562,15 @@ components:
           items:
             type: string
           description: 反向关联展示的字段 api_code
+        related_form_token:
+          type: string
+          description: 关联的表格 token；只能是另一张表格，且需要它的管理权限
+        paired:
+          type: boolean
+          description: 双向关联，缺省开启；开启时在关联的表格中自动创建反向列
+        related_label:
+          type: string
+          description: 反向列名称，只在创建反向列时使用，缺省取本表格名称
         show_split_line:
           type: boolean
           description: 显示分割线
@@ -9038,6 +9053,9 @@ components:
         attachment_id:
           type: string
           description: 图片附件 ID（见「上传表单图片」）
+        url:
+          type: string
+          description: 图片地址，仅 `image_type=description` 时返回；写进表单描述或字段描述的 `<img src>`
     UploadedEntryAttachment:
       type: object
       required:
@@ -13305,6 +13323,7 @@ components:
           - LinkField
           - AttachmentField
           - FormulaField
+          - RelationField
         label:
           type: string
           description: 字段标题
@@ -13322,6 +13341,7 @@ components:
           LinkField: "#/components/schemas/LinkFieldInput"
           AttachmentField: "#/components/schemas/AttachmentFieldInput"
           FormulaField: "#/components/schemas/FormulaFieldInput"
+          RelationField: "#/components/schemas/RelationFieldInput"
       oneOf:
       - $ref: '#/components/schemas/TextAreaInput'
       - $ref: '#/components/schemas/RadioButtonInput'
@@ -13334,6 +13354,7 @@ components:
       - $ref: '#/components/schemas/LinkFieldInput'
       - $ref: '#/components/schemas/AttachmentFieldInput'
       - $ref: '#/components/schemas/FormulaFieldInput'
+      - $ref: '#/components/schemas/RelationFieldInput'
       title: TableColumnInput
     ImageChoiceInput:
       type: object
@@ -16366,3 +16387,42 @@ components:
         statistics:
           $ref: '#/components/schemas/BillingAccountPaymentStatistics'
           description: 只在本次有返回记录时出现
+    RelationFieldInput:
+      type: object
+      title: RelationFieldInput
+      description: RelationField 字段
+      additionalProperties: false
+      required:
+      - type
+      - label
+      properties:
+        type:
+          const: RelationField
+        label:
+          type: string
+          description: 字段标题
+        cid:
+          type: string
+          description: 本次请求内的临时标识，供公式等引用
+        notes:
+          type: string
+          description: 字段说明
+        private:
+          type: boolean
+          description: 隐藏字段；隐藏字段不加必填校验
+        required:
+          type: boolean
+          description: 必填
+        position:
+          type: integer
+          minimum: 0
+          description: 字段在表单中的目标位置（0 起）；缺省追加到末尾
+        related_form_token:
+          type: string
+          description: 关联的表格 token；只能是另一张表格，且需要它的管理权限
+        paired:
+          type: boolean
+          description: 双向关联，缺省开启；开启时在关联的表格中自动创建反向列
+        related_label:
+          type: string
+          description: 反向列名称，只在创建反向列时使用，缺省取本表格名称

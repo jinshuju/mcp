@@ -3255,7 +3255,7 @@
  },
  "EntryData": {
   "type": "object",
-  "description": "一条数据。键为字段 api_code（配置了 api_code_alias 的字段以别名为键），另有以下系统键：\n`token`、`serial_number`、`created_at`、`updated_at`、`creator_name`（提交人姓名）、`color_mark`（颜色标记）、\n`info_filling_duration`（填写时长，秒）、`info_platform`、`info_os`、`info_browser`、`info_region`（`{country, province, city}`）、`info_remote_ip`，\n以及按表单能力出现的 `gen_code`（确认码）、`total_price` / `preferential_price`（有商品时）、`x_field_weixin_*`（微信信息）、`referral_link` 等。\n考试 / 测评题目还会多出 `<api_code>_extra_value: { correct_answer, score }`；反向关联字段多出 `<api_code>_entries`。\n\n各类型字段值的形态：\n| 字段 | 值 |\n|---|---|\n| 单行 / 多行文字、姓名、手机、邮箱、电话、网址、身份证 | 字符串 |\n| 单选、下拉、图片单选 | 选项显示值（字符串） |\n| 多选、图片多选 | 选项显示值数组 |\n| 多级下拉 | `{\"level_1\": \"...\", \"level_2\": \"...\"}` |\n| 数字、评分、NPS、计算 | 数字（评分可能为字符串） |\n| 是否 | 布尔 |\n| 日期 | 按精度格式化的北京时间字符串，如 `2021-09-23` |\n| 时间 | `HH:MM` 或 `HH:MM:SS` |\n| 上传文件 | 下载地址数组（带签名，10 年有效） |\n| 电子签名 | 下载地址字符串 |\n| 语音 | `{\"url\": \"...\", \"audio_text\": \"...\"}` |\n| 地址 | `{\"province\",\"city\",\"district\",\"street\"}` |\n| 地理位置 | `{\"longitude\",\"latitude\",\"address\"}` |\n| 商品 | `[{\"name\",\"number\",\"price\",\"original_price\",\"inventory\",\"layout\",\"spec\"?}]` |\n| 矩阵填空 / 矩阵量表 | `[{\"statement\": \"题目\", \"dimensions\": {\"列名\": 值}}]` |\n| 矩阵单选 | `[{\"statement\": \"题目\", \"choice\": \"选项\"}]`（多选样式为 `choices` 数组） |\n| 表格 | `[{\"列名\": 值}]`（每行一个对象，空值省略） |\n| 横向填空 | `{\"<子字段 api_code>\": \"...\"}` |\n| 排序 | `[{\"rank\": 1, \"choice\": \"选项\"}]` |\n| 预约 | `[{\"item_name\",\"scheduled_label\",\"number\", ...}]` |\n| 表单关联 | 关联数据的显示值字符串 |\n请求带 `include_labels=true` 时，表单字段的值包装为 `{label, value}`。\n",
+  "description": "一条数据。键为字段 api_code（配置了 api_code_alias 的字段以别名为键），另有以下系统键：\n`token`、`serial_number`、`created_at`、`updated_at`、`creator_name`（提交人姓名）、`color_mark`（颜色标记）、\n`info_filling_duration`（填写时长，秒）、`info_platform`、`info_os`、`info_browser`、`info_region`（`{country, province, city}`）、`info_remote_ip`，\n以及按表单能力出现的 `gen_code`（确认码）、`total_price` / `preferential_price`（有商品时）、`x_field_weixin_*`（微信信息）、`referral_link` 等。\n考试 / 测评题目还会多出 `<api_code>_extra_value: { correct_answer, score }`；反向关联字段多出 `<api_code>_entries`，关联字段多出 `<api_code>_related_entries`。\n\n各类型字段值的形态：\n| 字段 | 值 |\n|---|---|\n| 单行 / 多行文字、姓名、手机、邮箱、电话、网址、身份证 | 字符串 |\n| 单选、下拉、图片单选 | 选项显示值（字符串） |\n| 多选、图片多选 | 选项显示值数组 |\n| 多级下拉 | `{\"level_1\": \"...\", \"level_2\": \"...\"}` |\n| 数字、评分、NPS、计算 | 数字（评分可能为字符串） |\n| 是否 | 布尔 |\n| 日期 | 按精度格式化的北京时间字符串，如 `2021-09-23` |\n| 时间 | `HH:MM` 或 `HH:MM:SS` |\n| 上传文件 | 下载地址数组（带签名，10 年有效） |\n| 电子签名 | 下载地址字符串 |\n| 语音 | `{\"url\": \"...\", \"audio_text\": \"...\"}` |\n| 地址 | `{\"province\",\"city\",\"district\",\"street\"}` |\n| 地理位置 | `{\"longitude\",\"latitude\",\"address\"}` |\n| 商品 | `[{\"name\",\"number\",\"price\",\"original_price\",\"inventory\",\"layout\",\"spec\"?}]` |\n| 矩阵填空 / 矩阵量表 | `[{\"statement\": \"题目\", \"dimensions\": {\"列名\": 值}}]` |\n| 矩阵单选 | `[{\"statement\": \"题目\", \"choice\": \"选项\"}]`（多选样式为 `choices` 数组） |\n| 表格 | `[{\"列名\": 值}]`（每行一个对象，空值省略） |\n| 横向填空 | `{\"<子字段 api_code>\": \"...\"}` |\n| 排序 | `[{\"rank\": 1, \"choice\": \"选项\"}]` |\n| 预约 | `[{\"item_name\",\"scheduled_label\",\"number\", ...}]` |\n| 表单关联 | 关联数据的显示值字符串 |\n| 关联（表格） | 关联表格中被关联数据的序号数组，如 `[1, 3]`；另附 `<api_code>_related_entries`：`[{\"serial_number\": 1, \"value\": \"...\"}]`，value 为该数据第一列的值 |\n请求带 `include_labels=true` 时，表单字段的值包装为 `{label, value}`。\n",
   "required": [
    "token",
    "serial_number"
@@ -13215,6 +13215,18 @@
     },
     "description": "反向关联展示的字段 api_code"
    },
+   "related_form_token": {
+    "type": "string",
+    "description": "关联的表格 token；只能是另一张表格，且需要它的管理权限"
+   },
+   "paired": {
+    "type": "boolean",
+    "description": "双向关联，缺省开启；开启时在关联的表格中自动创建反向列"
+   },
+   "related_label": {
+    "type": "string",
+    "description": "反向列名称，只在创建反向列时使用，缺省取本表格名称"
+   },
    "show_split_line": {
     "type": "boolean",
     "description": "显示分割线"
@@ -16295,8 +16307,1000 @@
       "type": "array",
       "description": "新增字段；可带 `position`（0 起）指定插入位置，缺省追加到末尾",
       "items": {
-       "type": "object",
-       "description": "结构见 schema「FieldInput」：调用 get_schema 工具（name=\"FieldInput\"）或读取资源 jinshuju://schemas/FieldInput。"
+       "anyOf": [
+        {
+         "type": "object",
+         "description": "结构见 schema「FieldInput」：调用 get_schema 工具（name=\"FieldInput\"）或读取资源 jinshuju://schemas/FieldInput。"
+        },
+        {
+         "type": "object",
+         "description": "表格列定义，type 限于表格支持的列类型",
+         "required": [
+          "type",
+          "label"
+         ],
+         "properties": {
+          "type": {
+           "type": "string",
+           "enum": [
+            "TextArea",
+            "RadioButton",
+            "CheckBox",
+            "BooleanField",
+            "MobileField",
+            "NumberField",
+            "DateTimeField",
+            "EmailField",
+            "LinkField",
+            "AttachmentField",
+            "FormulaField",
+            "RelationField"
+           ]
+          },
+          "label": {
+           "type": "string",
+           "description": "字段标题"
+          }
+         },
+         "oneOf": [
+          {
+           "type": "object",
+           "title": "TextAreaInput",
+           "description": "TextArea 字段",
+           "additionalProperties": false,
+           "required": [
+            "type",
+            "label"
+           ],
+           "properties": {
+            "type": {
+             "const": "TextArea"
+            },
+            "label": {
+             "type": "string",
+             "description": "字段标题"
+            },
+            "cid": {
+             "type": "string",
+             "description": "本次请求内的临时标识，供公式等引用"
+            },
+            "notes": {
+             "type": "string",
+             "description": "字段说明"
+            },
+            "private": {
+             "type": "boolean",
+             "description": "隐藏字段；隐藏字段不加必填校验"
+            },
+            "required": {
+             "type": "boolean",
+             "description": "必填"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+            },
+            "unique": {
+             "type": "boolean",
+             "description": "不允许与已有数据重复"
+            },
+            "predefined_value": {
+             "type": "string",
+             "description": "默认值"
+            },
+            "placeholder": {
+             "type": "string",
+             "description": "占位提示文字"
+            }
+           }
+          },
+          {
+           "type": "object",
+           "title": "RadioButtonInput",
+           "description": "RadioButton 字段",
+           "additionalProperties": false,
+           "required": [
+            "type",
+            "label"
+           ],
+           "properties": {
+            "type": {
+             "const": "RadioButton"
+            },
+            "label": {
+             "type": "string",
+             "description": "字段标题"
+            },
+            "cid": {
+             "type": "string",
+             "description": "本次请求内的临时标识，供公式等引用"
+            },
+            "notes": {
+             "type": "string",
+             "description": "字段说明"
+            },
+            "private": {
+             "type": "boolean",
+             "description": "隐藏字段；隐藏字段不加必填校验"
+            },
+            "required": {
+             "type": "boolean",
+             "description": "必填"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+            },
+            "other_choice_required": {
+             "type": "boolean",
+             "description": "选了「其他」必须填写补充文本"
+            },
+            "choices": {
+             "type": "array",
+             "minItems": 1,
+             "items": {
+              "type": "object",
+              "title": "ChoiceInput",
+              "additionalProperties": false,
+              "description": "选项；value 与 name 等价，任填其一",
+              "anyOf": [
+               {
+                "required": [
+                 "value"
+                ]
+               },
+               {
+                "required": [
+                 "name"
+                ]
+               }
+              ],
+              "properties": {
+               "value": {
+                "type": "string",
+                "description": "选项显示值"
+               },
+               "name": {
+                "type": "string",
+                "description": "与 value 等价"
+               },
+               "api_code": {
+                "type": "string",
+                "description": "指定选项 api_code；缺省由服务端生成，编辑时用于保留身份"
+               },
+               "quota": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "名额上限；不限名额时省略"
+               },
+               "operand_value": {
+                "type": "number",
+                "description": "选项赋值"
+               },
+               "selected": {
+                "type": "boolean",
+                "description": "默认选中"
+               },
+               "is_other": {
+                "type": "boolean",
+                "description": "设为其他选项（选中后出现填写框），文字照原样保留；文字正好是「其他」「其它」的不用设。只用于单选 / 多选 / 下拉"
+               }
+              }
+             },
+             "description": "选项"
+            },
+            "calculable": {
+             "type": "boolean",
+             "description": "选项赋值开关；开启后每个（叶子）选项必须带 operand_value"
+            },
+            "choices_layout": {
+             "type": "string",
+             "description": "选项排列方式"
+            }
+           },
+           "allOf": [
+            {
+             "description": "calculable=true 时每个选项都要有 operand_value",
+             "if": {
+              "properties": {
+               "calculable": {
+                "const": true
+               }
+              },
+              "required": [
+               "calculable"
+              ]
+             },
+             "then": {
+              "properties": {
+               "choices": {
+                "items": {
+                 "required": [
+                  "operand_value"
+                 ]
+                }
+               }
+              }
+             }
+            }
+           ]
+          },
+          {
+           "type": "object",
+           "title": "CheckBoxInput",
+           "description": "CheckBox 字段",
+           "additionalProperties": false,
+           "required": [
+            "type",
+            "label"
+           ],
+           "properties": {
+            "type": {
+             "const": "CheckBox"
+            },
+            "label": {
+             "type": "string",
+             "description": "字段标题"
+            },
+            "cid": {
+             "type": "string",
+             "description": "本次请求内的临时标识，供公式等引用"
+            },
+            "notes": {
+             "type": "string",
+             "description": "字段说明"
+            },
+            "private": {
+             "type": "boolean",
+             "description": "隐藏字段；隐藏字段不加必填校验"
+            },
+            "required": {
+             "type": "boolean",
+             "description": "必填"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+            },
+            "other_choice_required": {
+             "type": "boolean",
+             "description": "选了「其他」必须填写补充文本"
+            },
+            "choices": {
+             "type": "array",
+             "minItems": 1,
+             "items": {
+              "type": "object",
+              "title": "ChoiceInput",
+              "additionalProperties": false,
+              "description": "选项；value 与 name 等价，任填其一",
+              "anyOf": [
+               {
+                "required": [
+                 "value"
+                ]
+               },
+               {
+                "required": [
+                 "name"
+                ]
+               }
+              ],
+              "properties": {
+               "value": {
+                "type": "string",
+                "description": "选项显示值"
+               },
+               "name": {
+                "type": "string",
+                "description": "与 value 等价"
+               },
+               "api_code": {
+                "type": "string",
+                "description": "指定选项 api_code；缺省由服务端生成，编辑时用于保留身份"
+               },
+               "quota": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "名额上限；不限名额时省略"
+               },
+               "operand_value": {
+                "type": "number",
+                "description": "选项赋值"
+               },
+               "selected": {
+                "type": "boolean",
+                "description": "默认选中"
+               },
+               "is_other": {
+                "type": "boolean",
+                "description": "设为其他选项（选中后出现填写框），文字照原样保留；文字正好是「其他」「其它」的不用设。只用于单选 / 多选 / 下拉"
+               }
+              }
+             },
+             "description": "选项"
+            },
+            "calculable": {
+             "type": "boolean",
+             "description": "选项赋值开关；开启后每个（叶子）选项必须带 operand_value"
+            },
+            "choices_layout": {
+             "type": "string",
+             "description": "选项排列方式"
+            }
+           },
+           "allOf": [
+            {
+             "description": "calculable=true 时每个选项都要有 operand_value",
+             "if": {
+              "properties": {
+               "calculable": {
+                "const": true
+               }
+              },
+              "required": [
+               "calculable"
+              ]
+             },
+             "then": {
+              "properties": {
+               "choices": {
+                "items": {
+                 "required": [
+                  "operand_value"
+                 ]
+                }
+               }
+              }
+             }
+            }
+           ]
+          },
+          {
+           "type": "object",
+           "title": "BooleanFieldInput",
+           "description": "BooleanField 字段",
+           "additionalProperties": false,
+           "required": [
+            "type",
+            "label"
+           ],
+           "properties": {
+            "type": {
+             "const": "BooleanField"
+            },
+            "label": {
+             "type": "string",
+             "description": "字段标题"
+            },
+            "cid": {
+             "type": "string",
+             "description": "本次请求内的临时标识，供公式等引用"
+            },
+            "notes": {
+             "type": "string",
+             "description": "字段说明"
+            },
+            "private": {
+             "type": "boolean",
+             "description": "隐藏字段；隐藏字段不加必填校验"
+            },
+            "required": {
+             "type": "boolean",
+             "description": "必填"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+            }
+           }
+          },
+          {
+           "type": "object",
+           "title": "MobileFieldInput",
+           "description": "MobileField 字段",
+           "additionalProperties": false,
+           "required": [
+            "type",
+            "label"
+           ],
+           "properties": {
+            "type": {
+             "const": "MobileField"
+            },
+            "label": {
+             "type": "string",
+             "description": "字段标题"
+            },
+            "cid": {
+             "type": "string",
+             "description": "本次请求内的临时标识，供公式等引用"
+            },
+            "notes": {
+             "type": "string",
+             "description": "字段说明"
+            },
+            "private": {
+             "type": "boolean",
+             "description": "隐藏字段；隐藏字段不加必填校验"
+            },
+            "required": {
+             "type": "boolean",
+             "description": "必填"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+            },
+            "unique": {
+             "type": "boolean",
+             "description": "不允许与已有数据重复"
+            },
+            "predefined_value": {
+             "type": "string",
+             "description": "默认值"
+            },
+            "placeholder": {
+             "type": "string",
+             "description": "占位提示文字"
+            },
+            "sms_verification": {
+             "type": "boolean",
+             "description": "开启短信验证（同时自动开启图形验证码）"
+            }
+           }
+          },
+          {
+           "type": "object",
+           "title": "NumberFieldInput",
+           "description": "NumberField 字段",
+           "additionalProperties": false,
+           "required": [
+            "type",
+            "label"
+           ],
+           "properties": {
+            "type": {
+             "const": "NumberField"
+            },
+            "label": {
+             "type": "string",
+             "description": "字段标题"
+            },
+            "cid": {
+             "type": "string",
+             "description": "本次请求内的临时标识，供公式等引用"
+            },
+            "notes": {
+             "type": "string",
+             "description": "字段说明"
+            },
+            "private": {
+             "type": "boolean",
+             "description": "隐藏字段；隐藏字段不加必填校验"
+            },
+            "required": {
+             "type": "boolean",
+             "description": "必填"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+            },
+            "unique": {
+             "type": "boolean",
+             "description": "不允许与已有数据重复"
+            },
+            "predefined_value": {
+             "type": [
+              "number",
+              "string"
+             ],
+             "description": "默认值"
+            },
+            "placeholder": {
+             "type": "string",
+             "description": "占位提示文字"
+            },
+            "range_min": {
+             "type": "number",
+             "description": "最小值（含）"
+            },
+            "range_max": {
+             "type": "number",
+             "description": "最大值（含）"
+            },
+            "precision": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 14,
+             "description": "小数位数"
+            },
+            "display_precision": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "显示用小数位数"
+            },
+            "display_as_percentage": {
+             "type": "boolean",
+             "description": "按百分比显示；与 thousands_separator 互斥"
+            },
+            "thousands_separator": {
+             "type": "boolean",
+             "description": "显示千分位分隔符；与 display_as_percentage 互斥"
+            },
+            "currency_symbol": {
+             "type": "string",
+             "description": "货币符号"
+            },
+            "currency_symbol_position": {
+             "type": "string",
+             "enum": [
+              "prefix",
+              "suffix"
+             ],
+             "description": "货币符号位置"
+            }
+           },
+           "allOf": [
+            {
+             "description": "display_as_percentage 与 thousands_separator 不能同时为 true",
+             "not": {
+              "properties": {
+               "display_as_percentage": {
+                "const": true
+               },
+               "thousands_separator": {
+                "const": true
+               }
+              },
+              "required": [
+               "display_as_percentage",
+               "thousands_separator"
+              ]
+             }
+            }
+           ]
+          },
+          {
+           "type": "object",
+           "title": "DateTimeFieldInput",
+           "description": "DateTimeField 字段",
+           "additionalProperties": false,
+           "required": [
+            "type",
+            "label"
+           ],
+           "properties": {
+            "type": {
+             "const": "DateTimeField"
+            },
+            "label": {
+             "type": "string",
+             "description": "字段标题"
+            },
+            "cid": {
+             "type": "string",
+             "description": "本次请求内的临时标识，供公式等引用"
+            },
+            "notes": {
+             "type": "string",
+             "description": "字段说明"
+            },
+            "private": {
+             "type": "boolean",
+             "description": "隐藏字段；隐藏字段不加必填校验"
+            },
+            "required": {
+             "type": "boolean",
+             "description": "必填"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+            },
+            "predefined_value": {
+             "type": "string",
+             "description": "默认值"
+            },
+            "precision": {
+             "type": "string",
+             "enum": [
+              "month",
+              "day",
+              "minute",
+              "second"
+             ],
+             "description": "日期精度，缺省 day"
+            }
+           }
+          },
+          {
+           "type": "object",
+           "title": "EmailFieldInput",
+           "description": "EmailField 字段",
+           "additionalProperties": false,
+           "required": [
+            "type",
+            "label"
+           ],
+           "properties": {
+            "type": {
+             "const": "EmailField"
+            },
+            "label": {
+             "type": "string",
+             "description": "字段标题"
+            },
+            "cid": {
+             "type": "string",
+             "description": "本次请求内的临时标识，供公式等引用"
+            },
+            "notes": {
+             "type": "string",
+             "description": "字段说明"
+            },
+            "private": {
+             "type": "boolean",
+             "description": "隐藏字段；隐藏字段不加必填校验"
+            },
+            "required": {
+             "type": "boolean",
+             "description": "必填"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+            },
+            "unique": {
+             "type": "boolean",
+             "description": "不允许与已有数据重复"
+            },
+            "placeholder": {
+             "type": "string",
+             "description": "占位提示文字"
+            }
+           }
+          },
+          {
+           "type": "object",
+           "title": "LinkFieldInput",
+           "description": "LinkField 字段",
+           "additionalProperties": false,
+           "required": [
+            "type",
+            "label"
+           ],
+           "properties": {
+            "type": {
+             "const": "LinkField"
+            },
+            "label": {
+             "type": "string",
+             "description": "字段标题"
+            },
+            "cid": {
+             "type": "string",
+             "description": "本次请求内的临时标识，供公式等引用"
+            },
+            "notes": {
+             "type": "string",
+             "description": "字段说明"
+            },
+            "private": {
+             "type": "boolean",
+             "description": "隐藏字段；隐藏字段不加必填校验"
+            },
+            "required": {
+             "type": "boolean",
+             "description": "必填"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+            },
+            "unique": {
+             "type": "boolean",
+             "description": "不允许与已有数据重复"
+            },
+            "predefined_value": {
+             "type": "string",
+             "description": "默认值"
+            },
+            "placeholder": {
+             "type": "string",
+             "description": "占位提示文字"
+            }
+           }
+          },
+          {
+           "type": "object",
+           "title": "AttachmentFieldInput",
+           "description": "AttachmentField 字段",
+           "additionalProperties": false,
+           "required": [
+            "type",
+            "label"
+           ],
+           "properties": {
+            "type": {
+             "const": "AttachmentField"
+            },
+            "label": {
+             "type": "string",
+             "description": "字段标题"
+            },
+            "cid": {
+             "type": "string",
+             "description": "本次请求内的临时标识，供公式等引用"
+            },
+            "notes": {
+             "type": "string",
+             "description": "字段说明"
+            },
+            "private": {
+             "type": "boolean",
+             "description": "隐藏字段；隐藏字段不加必填校验"
+            },
+            "required": {
+             "type": "boolean",
+             "description": "必填"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+            },
+            "max_size": {
+             "type": "integer",
+             "minimum": 1,
+             "maximum": 500,
+             "description": "单文件大小上限（MB）"
+            },
+            "max_file_quantity": {
+             "type": "integer",
+             "minimum": 1,
+             "description": "最多上传的文件数"
+            },
+            "media_type": {
+             "type": "object",
+             "additionalProperties": false,
+             "description": "允许的文件类型；type 为预设分组，type=custom 时必须用 value 列出扩展名",
+             "properties": {
+              "type": {
+               "type": "string",
+               "enum": [
+                "unlimited",
+                "doc",
+                "image",
+                "video",
+                "audio",
+                "compress",
+                "custom"
+               ]
+              },
+              "value": {
+               "type": "array",
+               "items": {
+                "type": "string"
+               },
+               "description": "小写扩展名，不含点"
+              }
+             },
+             "if": {
+              "properties": {
+               "type": {
+                "const": "custom"
+               }
+              },
+              "required": [
+               "type"
+              ]
+             },
+             "then": {
+              "required": [
+               "value"
+              ],
+              "properties": {
+               "value": {
+                "minItems": 1
+               }
+              }
+             }
+            },
+            "mobile_camera_only": {
+             "type": "boolean",
+             "description": "移动端只能拍照上传，不能从相册选择"
+            }
+           }
+          },
+          {
+           "type": "object",
+           "title": "FormulaFieldInput",
+           "description": "FormulaField 字段",
+           "additionalProperties": false,
+           "required": [
+            "type",
+            "label"
+           ],
+           "properties": {
+            "type": {
+             "const": "FormulaField"
+            },
+            "label": {
+             "type": "string",
+             "description": "字段标题"
+            },
+            "cid": {
+             "type": "string",
+             "description": "本次请求内的临时标识，供公式等引用"
+            },
+            "notes": {
+             "type": "string",
+             "description": "字段说明"
+            },
+            "private": {
+             "type": "boolean",
+             "description": "隐藏字段；隐藏字段不加必填校验"
+            },
+            "required": {
+             "type": "boolean",
+             "description": "必填"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+            },
+            "formula_display": {
+             "type": "string",
+             "description": "公式 HTML，字段引用写成 <gd-field data-cid=\"...\"> 或 <gd-field data-api-code=\"...\">"
+            },
+            "result_display_type": {
+             "type": "string",
+             "enum": [
+              "string",
+              "numeric",
+              "datetime"
+             ],
+             "description": "结果显示方式"
+            },
+            "result_display_as_date": {
+             "type": "boolean",
+             "description": "result_display_type=datetime 的旧写法"
+            },
+            "precision": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 14,
+             "description": "小数位数"
+            },
+            "display_precision": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "显示用小数位数"
+            },
+            "display_as_percentage": {
+             "type": "boolean",
+             "description": "按百分比显示；与 thousands_separator 互斥"
+            },
+            "thousands_separator": {
+             "type": "boolean",
+             "description": "显示千分位分隔符；与 display_as_percentage 互斥"
+            },
+            "currency_symbol": {
+             "type": "string",
+             "description": "货币符号"
+            },
+            "currency_symbol_position": {
+             "type": "string",
+             "enum": [
+              "prefix",
+              "suffix"
+             ],
+             "description": "货币符号位置"
+            },
+            "icon_type": {
+             "type": "string",
+             "enum": [
+              "none",
+              "formula-2",
+              "date-2",
+              "number-2",
+              "dollar1",
+              "cny1",
+              "sum",
+              "text",
+              "text2"
+             ],
+             "description": "字段图标"
+            }
+           },
+           "allOf": [
+            {
+             "description": "display_as_percentage 与 thousands_separator 不能同时为 true",
+             "not": {
+              "properties": {
+               "display_as_percentage": {
+                "const": true
+               },
+               "thousands_separator": {
+                "const": true
+               }
+              },
+              "required": [
+               "display_as_percentage",
+               "thousands_separator"
+              ]
+             }
+            }
+           ]
+          },
+          {
+           "type": "object",
+           "title": "RelationFieldInput",
+           "description": "RelationField 字段",
+           "additionalProperties": false,
+           "required": [
+            "type",
+            "label"
+           ],
+           "properties": {
+            "type": {
+             "const": "RelationField"
+            },
+            "label": {
+             "type": "string",
+             "description": "字段标题"
+            },
+            "cid": {
+             "type": "string",
+             "description": "本次请求内的临时标识，供公式等引用"
+            },
+            "notes": {
+             "type": "string",
+             "description": "字段说明"
+            },
+            "private": {
+             "type": "boolean",
+             "description": "隐藏字段；隐藏字段不加必填校验"
+            },
+            "required": {
+             "type": "boolean",
+             "description": "必填"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+            },
+            "related_form_token": {
+             "type": "string",
+             "description": "关联的表格 token；只能是另一张表格，且需要它的管理权限"
+            },
+            "paired": {
+             "type": "boolean",
+             "description": "双向关联，缺省开启；开启时在关联的表格中自动创建反向列"
+            },
+            "related_label": {
+             "type": "string",
+             "description": "反向列名称，只在创建反向列时使用，缺省取本表格名称"
+            }
+           }
+          }
+         ],
+         "title": "TableColumnInput"
+        }
+       ]
       }
      },
      "remove": {
@@ -21574,6 +22578,58 @@
    }
   ]
  },
+ "RelationFieldInput": {
+  "type": "object",
+  "title": "RelationFieldInput",
+  "description": "RelationField 字段",
+  "additionalProperties": false,
+  "required": [
+   "type",
+   "label"
+  ],
+  "properties": {
+   "type": {
+    "const": "RelationField"
+   },
+   "label": {
+    "type": "string",
+    "description": "字段标题"
+   },
+   "cid": {
+    "type": "string",
+    "description": "本次请求内的临时标识，供公式等引用"
+   },
+   "notes": {
+    "type": "string",
+    "description": "字段说明"
+   },
+   "private": {
+    "type": "boolean",
+    "description": "隐藏字段；隐藏字段不加必填校验"
+   },
+   "required": {
+    "type": "boolean",
+    "description": "必填"
+   },
+   "position": {
+    "type": "integer",
+    "minimum": 0,
+    "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+   },
+   "related_form_token": {
+    "type": "string",
+    "description": "关联的表格 token；只能是另一张表格，且需要它的管理权限"
+   },
+   "paired": {
+    "type": "boolean",
+    "description": "双向关联，缺省开启；开启时在关联的表格中自动创建反向列"
+   },
+   "related_label": {
+    "type": "string",
+    "description": "反向列名称，只在创建反向列时使用，缺省取本表格名称"
+   }
+  }
+ },
  "ReservationByDayQuotaInput": {
   "type": "object",
   "title": "ReservationByDayQuotaInput",
@@ -23568,7 +24624,8 @@
      "EmailField",
      "LinkField",
      "AttachmentField",
-     "FormulaField"
+     "FormulaField",
+     "RelationField"
     ]
    },
    "label": {
@@ -24478,6 +25535,58 @@
       }
      }
     ]
+   },
+   {
+    "type": "object",
+    "title": "RelationFieldInput",
+    "description": "RelationField 字段",
+    "additionalProperties": false,
+    "required": [
+     "type",
+     "label"
+    ],
+    "properties": {
+     "type": {
+      "const": "RelationField"
+     },
+     "label": {
+      "type": "string",
+      "description": "字段标题"
+     },
+     "cid": {
+      "type": "string",
+      "description": "本次请求内的临时标识，供公式等引用"
+     },
+     "notes": {
+      "type": "string",
+      "description": "字段说明"
+     },
+     "private": {
+      "type": "boolean",
+      "description": "隐藏字段；隐藏字段不加必填校验"
+     },
+     "required": {
+      "type": "boolean",
+      "description": "必填"
+     },
+     "position": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+     },
+     "related_form_token": {
+      "type": "string",
+      "description": "关联的表格 token；只能是另一张表格，且需要它的管理权限"
+     },
+     "paired": {
+      "type": "boolean",
+      "description": "双向关联，缺省开启；开启时在关联的表格中自动创建反向列"
+     },
+     "related_label": {
+      "type": "string",
+      "description": "反向列名称，只在创建反向列时使用，缺省取本表格名称"
+     }
+    }
    }
   ],
   "title": "TableColumnInput",
@@ -24492,7 +25601,8 @@
    "EmailField": "EmailFieldInput",
    "LinkField": "LinkFieldInput",
    "AttachmentField": "AttachmentFieldInput",
-   "FormulaField": "FormulaFieldInput"
+   "FormulaField": "FormulaFieldInput",
+   "RelationField": "RelationFieldInput"
   }
  },
  "TableCreateInput": {
@@ -24536,7 +25646,8 @@
         "EmailField",
         "LinkField",
         "AttachmentField",
-        "FormulaField"
+        "FormulaField",
+        "RelationField"
        ]
       },
       "label": {
@@ -25446,6 +26557,58 @@
          }
         }
        ]
+      },
+      {
+       "type": "object",
+       "title": "RelationFieldInput",
+       "description": "RelationField 字段",
+       "additionalProperties": false,
+       "required": [
+        "type",
+        "label"
+       ],
+       "properties": {
+        "type": {
+         "const": "RelationField"
+        },
+        "label": {
+         "type": "string",
+         "description": "字段标题"
+        },
+        "cid": {
+         "type": "string",
+         "description": "本次请求内的临时标识，供公式等引用"
+        },
+        "notes": {
+         "type": "string",
+         "description": "字段说明"
+        },
+        "private": {
+         "type": "boolean",
+         "description": "隐藏字段；隐藏字段不加必填校验"
+        },
+        "required": {
+         "type": "boolean",
+         "description": "必填"
+        },
+        "position": {
+         "type": "integer",
+         "minimum": 0,
+         "description": "字段在表单中的目标位置（0 起）；缺省追加到末尾"
+        },
+        "related_form_token": {
+         "type": "string",
+         "description": "关联的表格 token；只能是另一张表格，且需要它的管理权限"
+        },
+        "paired": {
+         "type": "boolean",
+         "description": "双向关联，缺省开启；开启时在关联的表格中自动创建反向列"
+        },
+        "related_label": {
+         "type": "string",
+         "description": "反向列名称，只在创建反向列时使用，缺省取本表格名称"
+        }
+       }
       }
      ],
      "title": "TableColumnInput"
@@ -28885,6 +30048,10 @@
    "attachment_id": {
     "type": "string",
     "description": "图片附件 ID（见「上传表单图片」）"
+   },
+   "url": {
+    "type": "string",
+    "description": "图片地址，仅 `image_type=description` 时返回；写进表单描述或字段描述的 `<img src>`"
    }
   }
  },
