@@ -22,13 +22,30 @@ interface Captured {
 }
 
 /** 假的金数据 API + 假的 PostHog：两边的请求都记下来，埋点内容从 /batch/ 的请求体里读。 */
-function harness(options: { analytics?: boolean; collectIntent?: boolean; me?: Response } = {}) {
+function harness(
+  options: {
+    analytics?: boolean;
+    collectIntent?: boolean;
+    me?: Response;
+    /** 第一次 /batch 发不出去（等 posthog 的 requestTimeout 把它 abort），之后的正常 */
+    hangFirstBatch?: boolean;
+    /** /batch 一律回这个状态码 */
+    batchStatus?: number;
+    requestTimeoutMs?: number;
+  } = {}
+) {
   const apiCalls: { url: string; body?: string }[] = [];
   const batches: { api_key: string; batch: Captured[] }[] = [];
+  let batchCalls = 0;
   const fetchImpl: typeof fetch = async (input, init) => {
     const url = String(input);
     const headers = new Headers(init?.headers);
     if (url.includes('/batch')) {
+      if (options.hangFirstBatch && ++batchCalls === 1) {
+        return new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(new Error('aborted'))));
+      }
+      if (options.batchStatus)
+        return new Response('{"status":0}', { status: options.batchStatus, headers: JSON_HEADERS });
       const raw = init?.body;
       const text =
         typeof raw === 'string'
@@ -62,7 +79,8 @@ function harness(options: { analytics?: boolean; collectIntent?: boolean; me?: R
           apiKey: 'phc_test',
           host: 'https://ph.test',
           collectIntent: options.collectIntent,
-          fetch: fetchImpl
+          fetch: fetchImpl,
+          requestTimeoutMs: options.requestTimeoutMs
         });
   const app = createApp({
     config: { apiBaseUrl: 'https://api.test/api/v1', publicUrls: ['https://mcp.test'] },
@@ -101,6 +119,14 @@ const INITIALIZE = {
   method: 'initialize',
   params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'claude-ai', version: '0.1.0' } }
 };
+
+async function until(check: () => boolean, timeoutMs = 2000): Promise<void> {
+  const started = Date.now();
+  while (!check()) {
+    if (Date.now() - started > timeoutMs) throw new Error('等待超时');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
 
 function decodeSessionToken(value: string): Record<string, string> {
   return JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Record<string, string>;
@@ -282,4 +308,52 @@ test('GET /me 没给出用户：事件匿名，不建人', async () => {
   assert.equal(call.event, '$mcp_tool_call');
   assert.equal(call.distinct_id, call.properties.$session_id);
   assert.equal(call.properties.$process_person_profile, false);
+});
+
+test('PostHog 客户端按请求新建：前一个请求的上报发不出去，不耽误后面请求的上报', async () => {
+  const h = harness({ hangFirstBatch: true, requestTimeoutMs: 200 });
+  const init = await legacy(h.app, INITIALIZE); // 这个请求的 flush 卡在第一次 /batch 上
+  const replay = { 'Mcp-Session-Id': init.res.headers.get('mcp-session-id')! };
+  const call = await legacy(
+    h.app,
+    {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: { name: 'list_forms', arguments: { limit: 1, context: '看看表单' } }
+    },
+    replay
+  );
+  assert.equal(call.res.status, 200);
+  await until(() => h.batches.length >= 1);
+  // 先到的是第二个请求的 tool_call：共用一个客户端的话，它会排在卡住的 initialize 后面一起等
+  assert.deepEqual(
+    h.batches[0].batch.map((e) => e.event),
+    ['$mcp_tool_call']
+  );
+  await h.analytics?.flush(); // 等第一个请求重试完，别把定时器留给下一个测试
+  assert.ok(
+    h.batches.some((b) => b.batch.some((e) => e.event === '$mcp_initialize')),
+    '重试后 initialize 也到了'
+  );
+});
+
+test('PostHog 拒收：上报失败会打到 console（线上再经 Sentry），不影响工具结果', async () => {
+  const h = harness({ batchStatus: 500 });
+  const logged: unknown[][] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => {
+    logged.push(args);
+  };
+  try {
+    const init = await legacy(h.app, INITIALIZE);
+    assert.equal(init.res.status, 200);
+    await h.analytics?.flush();
+  } finally {
+    console.error = original;
+  }
+  assert.ok(
+    logged.some((args) => String(args[0]).includes('posthog flush failed')),
+    `没看到上报失败的日志：${JSON.stringify(logged.map((a) => String(a[0])))}`
+  );
 });

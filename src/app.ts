@@ -12,7 +12,7 @@
  * 都能用），401 质询里的 resource_metadata 指向本服务自己路径下的 well-known 文档，而不是域名根；RFC 9728 允许
  * 客户端直接按质询里给的 URL 取。不指定时按请求推断（信任反向代理的 X-Forwarded-*）。
  *
- * 配了 POSTHOG_API_KEY 时每个请求的 McpServer 都装上 PostHog MCP analytics（analytics.ts）。
+ * 配了 POSTHOG_API_KEY 时每个请求的 McpServer 都装上 PostHog MCP analytics（analytics.ts），响应发出后在 waitUntil 里上报。
  * 意外的异常报 Sentry（worker.ts 用 withSentry 初始化；没配 SENTRY_DSN 时 SDK 什么都不发，Node 入口没接）：
  * 工具 handler 抛出的、令牌校验时 API 不可达的、路由里没接住的。API 回的 4xx / 5xx 是正常的工具结果，不报。
  */
@@ -28,7 +28,7 @@ import {
   type OAuthMetadata
 } from '@modelcontextprotocol/server';
 import { captureException, setUser } from '@sentry/cloudflare';
-import { analyticsFromConfig, CONTEXT_INSTRUCTIONS, type McpAnalytics } from './analytics.js';
+import { analyticsFromConfig, CONTEXT_INSTRUCTIONS, type McpAnalytics, type RequestAnalytics } from './analytics.js';
 import { JinshujuApi, TransportError } from './api.js';
 import { TokenVerifier, bearerToken, challenge, loadAuthServerMetadata, userIdOf } from './auth.js';
 import type { Config } from './config.js';
@@ -64,6 +64,8 @@ export function createApp(options: AppOptions = {}): Hono {
       : loadAuthServerMetadata(cfg.authServer, fetchImpl));
 
   // 一个请求一个 McpServer，令牌闭包进每个工具的 handler；埋点也按请求装，用户与会话跟着请求走。
+  // 埋点句柄按请求对象存着：factory 里装上，路由在响应发出后拿出来 flush。
+  const trackers = new WeakMap<Request, RequestAnalytics>();
   const factory = async (ctx: McpRequestContext) => {
     const token = ctx.authInfo?.token;
     if (!token) throw new Error('unauthenticated request reached the MCP handler');
@@ -74,7 +76,7 @@ export function createApp(options: AppOptions = {}): Hono {
       instructions,
       onToolError: reportToolError
     });
-    if (analytics) await analytics.instrument(server, ctx.authInfo);
+    if (analytics && ctx.requestInfo) trackers.set(ctx.requestInfo, await analytics.instrument(server, ctx.authInfo));
     return server;
   };
   // 工具不发中途通知，响应就是一个 JSON（缺省的 auto 模式）：在 handler 跑完后才组装，本次请求的埋点在返回前已收齐。
@@ -205,7 +207,8 @@ export function createApp(options: AppOptions = {}): Hono {
       : await handler.fetch(request, { authInfo });
     // 工具调用中 API 回了 401（令牌中途失效）：让下一次请求重新校验。
     if (response.status === 401) await verifier.forget(token);
-    if (analytics) flushInBackground(c, analytics);
+    const tracker = trackers.get(request);
+    if (tracker) flushInBackground(c, tracker);
     return response;
   });
 
@@ -224,18 +227,15 @@ function jsonRpcError(status: number, code: number, message: string): Response {
   });
 }
 
-/** Workers 上把上报放进 waitUntil，响应不等它；Node 没有 executionCtx，由 posthog-node 定时批量发送。 */
-function flushInBackground(c: Context, analytics: McpAnalytics): void {
-  let waitUntil: ((promise: Promise<unknown>) => void) | undefined;
+/** 把本次请求的上报发出去：Workers 上放进 waitUntil，响应不等它；Node 没有 executionCtx，发了就不管。 */
+function flushInBackground(c: Context, tracker: RequestAnalytics): void {
+  const flushing = tracker.flush().catch((error) => {
+    console.error('posthog flush failed:', error);
+    captureException(error, { level: 'warning' });
+  });
   try {
-    waitUntil = c.executionCtx.waitUntil.bind(c.executionCtx);
+    c.executionCtx.waitUntil(flushing);
   } catch {
-    return;
+    // Node：没有 executionCtx，上面已经在发了
   }
-  waitUntil(
-    analytics.flush().catch((error) => {
-      console.error('posthog flush failed:', error);
-      captureException(error, { level: 'warning' });
-    })
-  );
 }
