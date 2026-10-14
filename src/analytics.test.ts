@@ -331,11 +331,10 @@ test('PostHog 客户端按请求新建：前一个请求的上报发不出去，
     h.batches[0].batch.map((e) => e.event),
     ['$mcp_tool_call']
   );
-  await h.analytics?.flush(); // 等第一个请求重试完，别把定时器留给下一个测试
-  assert.ok(
-    h.batches.some((b) => b.batch.some((e) => e.event === '$mcp_initialize')),
-    '重试后 initialize 也到了'
-  );
+  // 重试后 initialize 也到了。posthog 的请求超时定时器是 unref 的，光 await flush() 的话 Node 20 / 22 上
+  // 事件循环会先空掉、测试被取消；until 轮询的定时器撑着事件循环，等它超时重试完。
+  await until(() => h.batches.some((b) => b.batch.some((e) => e.event === '$mcp_initialize')), 3000);
+  await h.analytics?.flush(); // 别把定时器留给下一个测试
 });
 
 test('PostHog 拒收：上报失败会打到 console（线上再经 Sentry），不影响工具结果', async () => {
