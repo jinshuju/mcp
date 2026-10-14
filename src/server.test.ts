@@ -10,6 +10,7 @@ interface Recorded {
   method: string;
   url: string;
   auth: string | null;
+  userAgent: string | null;
   body?: string;
 }
 
@@ -20,6 +21,7 @@ function fakeApi(respond: (req: Recorded) => Response) {
       method: init?.method ?? 'GET',
       url: String(input),
       auth: new Headers(init?.headers).get('authorization'),
+      userAgent: new Headers(init?.headers).get('user-agent'),
       body: typeof init?.body === 'string' ? init.body : undefined
     };
     calls.push(rec);
@@ -88,7 +90,7 @@ test('tools/call：多传了键时点名多余的参数并列出可用参数', a
   await close();
 });
 
-test('tools/call：成功时返回文本（有 outputSchema 的再给 structuredContent），并带 Bearer', async () => {
+test('tools/call：成功时返回文本（有 outputSchema 的再给 structuredContent），并带 Bearer 与 User-Agent', async () => {
   const payload = { total: 1, count: 1, data: [{ name: '报名表', token: 'AbCdEf' }], next: null };
   const { calls, fetchImpl } = fakeApi(
     () => new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json' } })
@@ -98,6 +100,8 @@ test('tools/call：成功时返回文本（有 outputSchema 的再给 structured
   assert.equal(result.isError, undefined);
   assert.equal(calls[0].url, 'https://api.test/api/v1/forms?limit=1');
   assert.equal(calls[0].auth, 'Bearer tok');
+  // 金数据按这个前缀把 MCP 建的表单记成 create_source=mcp（而不是 api），改 UA 时别丢了它
+  assert.match(calls[0].userAgent ?? '', /^jinshuju-mcp\//);
   assert.equal((result.content[0] as { text: string }).text, JSON.stringify(payload));
   const spec = TOOLS.find((t) => t.name === 'list_forms')!;
   assert.deepEqual(result.structuredContent, spec.outputSchema ? payload : undefined);
