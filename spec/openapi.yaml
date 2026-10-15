@@ -5919,6 +5919,14 @@ components:
           description: 表单关联：展示字段设置
           items:
             $ref: '#/components/schemas/DisplayFieldSetting'
+        allow_reverse_association:
+          type: boolean
+          description: 表单关联：是否在被关联表单上显示反向关联
+        reverse_display_field_api_codes:
+          type: array
+          items:
+            type: string
+          description: 表单关联：反向关联展示的字段 api_code，开启反向关联时给出
         rating_type:
           type: string
           description: 评分字段：外观（如 `star`）
@@ -7753,7 +7761,10 @@ components:
           description: 受影响字段的 api_code；`targets_display_mode=abort` 时可省略
         targets_display_mode:
           type: string
-          description: "`show` / `hide` / `abort`，默认 show"
+          enum:
+          - show
+          - abort
+          description: "`show` / `abort`，默认 show"
         operator:
           type: string
           enum:
@@ -13984,6 +13995,15 @@ components:
           examples:
           - - calculable
             - choices_layout
+        summary:
+          type: string
+          description: 这种字段是什么、怎么写的一段说明。`kind=table` 时不返回
+        field_example:
+          type: object
+          description: 写进 `fields[]` 的一个完整示例。只在 `GET /field_types/{type}` 返回，`kind=table` 时不返回
+        note:
+          type: string
+          description: 示例表达不了、容易写错的地方。只在 `GET /field_types/{type}` 返回，没有时不返回
     EntryCountResponse:
       type: object
       required:

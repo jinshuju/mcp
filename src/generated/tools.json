@@ -537,7 +537,11 @@
          },
          "targets_display_mode": {
           "type": "string",
-          "description": "`show` / `hide` / `abort`，默认 show"
+          "enum": [
+           "show",
+           "abort"
+          ],
+          "description": "`show` / `abort`，默认 show"
          },
          "operator": {
           "type": "string",
@@ -598,7 +602,11 @@
          },
          "targets_display_mode": {
           "type": "string",
-          "description": "`show` / `hide` / `abort`，默认 show"
+          "enum": [
+           "show",
+           "abort"
+          ],
+          "description": "`show` / `abort`，默认 show"
          },
          "operator": {
           "type": "string",
@@ -3916,7 +3924,11 @@
          },
          "targets_display_mode": {
           "type": "string",
-          "description": "`show` / `hide` / `abort`，默认 show"
+          "enum": [
+           "show",
+           "abort"
+          ],
+          "description": "`show` / `abort`，默认 show"
          },
          "operator": {
           "type": "string",
@@ -3977,7 +3989,11 @@
          },
          "targets_display_mode": {
           "type": "string",
-          "description": "`show` / `hide` / `abort`，默认 show"
+          "enum": [
+           "show",
+           "abort"
+          ],
+          "description": "`show` / `abort`，默认 show"
          },
          "operator": {
           "type": "string",
@@ -5065,7 +5081,11 @@
        },
        "targets_display_mode": {
         "type": "string",
-        "description": "`show` / `hide` / `abort`，默认 show"
+        "enum": [
+         "show",
+         "abort"
+        ],
+        "description": "`show` / `abort`，默认 show"
        },
        "operator": {
         "type": "string",
@@ -5126,7 +5146,11 @@
        },
        "targets_display_mode": {
         "type": "string",
-        "description": "`show` / `hide` / `abort`，默认 show"
+        "enum": [
+         "show",
+         "abort"
+        ],
+        "description": "`show` / `abort`，默认 show"
        },
        "operator": {
         "type": "string",
@@ -5556,7 +5580,11 @@
          },
          "targets_display_mode": {
           "type": "string",
-          "description": "`show` / `hide` / `abort`，默认 show"
+          "enum": [
+           "show",
+           "abort"
+          ],
+          "description": "`show` / `abort`，默认 show"
          },
          "operator": {
           "type": "string",
@@ -5617,7 +5645,11 @@
          },
          "targets_display_mode": {
           "type": "string",
-          "description": "`show` / `hide` / `abort`，默认 show"
+          "enum": [
+           "show",
+           "abort"
+          ],
+          "description": "`show` / `abort`，默认 show"
          },
          "operator": {
           "type": "string",
@@ -6060,7 +6092,11 @@
          },
          "targets_display_mode": {
           "type": "string",
-          "description": "`show` / `hide` / `abort`，默认 show"
+          "enum": [
+           "show",
+           "abort"
+          ],
+          "description": "`show` / `abort`，默认 show"
          },
          "operator": {
           "type": "string",
@@ -6121,7 +6157,11 @@
          },
          "targets_display_mode": {
           "type": "string",
-          "description": "`show` / `hide` / `abort`，默认 show"
+          "enum": [
+           "show",
+           "abort"
+          ],
+          "description": "`show` / `abort`，默认 show"
          },
          "operator": {
           "type": "string",
