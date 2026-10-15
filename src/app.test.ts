@@ -150,6 +150,28 @@ test('PRM 与 AS 元数据：/mcp 路径与根路径都能取到', async () => {
   assert.equal(((await as.json()) as { issuer: string }).issuer, 'https://account.test');
 });
 
+test('尾部斜杠：/mcp/ 与 PRM 路径带斜杠也能用', async () => {
+  const a = app({ count: 0 });
+  const unauth = await a.request('https://mcp.test/mcp/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+    body: '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+  });
+  assert.equal(unauth.status, 401);
+  const prm = await a.request('https://mcp.test/.well-known/oauth-protected-resource/mcp/');
+  assert.equal(((await prm.json()) as { resource: string }).resource, 'https://mcp.test/mcp');
+
+  const transport = new StreamableHTTPClientTransport(new URL('https://mcp.test/mcp/'), {
+    fetch: async (input, init) => a.request(input instanceof Request ? input : String(input), init),
+    requestInit: { headers: { Authorization: 'Bearer good' } }
+  });
+  const client = new Client({ name: 'test', version: '0.0.0' });
+  await client.connect(transport);
+  const { tools } = await client.listTools();
+  assert.ok(tools.some((t) => t.name === 'list_forms'));
+  await client.close();
+});
+
 test('无效令牌：401；有效令牌：tools/list 成功且校验结果被缓存', async () => {
   const me = { count: 0 };
   const a = app(me);

@@ -140,7 +140,8 @@ export function createApp(options: AppOptions = {}): Hono {
       }
     });
 
-  const app = new Hono();
+  // 不区分尾部斜杠：用户常把地址填成 /mcp/，缺省的严格匹配会让它 404。
+  const app = new Hono({ strict: false });
 
   // 路由里没接住的异常：Hono 缺省只打 console 并回 500，这里顺带报 Sentry。
   app.onError((error, c) => {
