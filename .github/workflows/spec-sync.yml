@@ -22,25 +22,14 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run spec:update
-      - name: Summarize tool changes
+      - name: Describe the tool changes
         id: summary
-        run: |
-          {
-            echo 'body<<EOF'
-            echo 'The live openapi.yaml changed; the tools have been regenerated.'
-            echo
-            echo '```'
-            git diff --stat -- spec src/generated | tail -20
-            echo '```'
-            echo
-            echo 'Tools:' "$(node -e "console.log(require('./src/generated/meta.json').toolCount)")"
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
+        run: node scripts/sync-summary.mjs
       - uses: peter-evans/create-pull-request@v7
         with:
           branch: chore/sync-openapi
-          commit-message: 'feat: sync tools with openapi.yaml'
-          title: 'feat: sync tools with openapi.yaml'
+          commit-message: ${{ steps.summary.outputs.title }}
+          title: ${{ steps.summary.outputs.title }}
           body: ${{ steps.summary.outputs.body }}
           labels: openapi-sync
           delete-branch: true
