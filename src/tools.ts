@@ -1,5 +1,5 @@
 /**
- * 把生成的 ToolSpec 注册成 MCP 工具：一一对应的工具直接发请求，组合工具交给 composites.ts。
+ * Registers the generated ToolSpecs as MCP tools: a one-to-one tool sends its request directly; a composite tool goes to composites.ts.
  */
 import {
   fromJsonSchema,
@@ -25,13 +25,13 @@ export interface ToolRuntime {
   api: JinshujuApi;
   credential: Credential;
   maxResultChars: number;
-  /** 工具抛了异常先告诉它（HTTP 部署报 Sentry），报错照常转给模型；stdio 不传 */
+  /** Told first when a tool throws (the HTTP deployment reports to Sentry); the error still goes to the model as usual; stdio passes none */
   onError?: (error: unknown, tool: string) => void;
 }
 
 /**
- * outputSchema 只用来「告诉模型会返回什么」，不用来拒绝响应：
- * openapi.yaml 与线上实现偶有出入时，一次成功的 API 调用不应该因此变成工具错误。
+ * outputSchema only tells the model what comes back; it never rejects a response:
+ * when openapi.yaml and the live implementation disagree now and then, a successful API call must not turn into a tool error.
  */
 const permissiveValidator: jsonSchemaValidator = {
   getValidator:
@@ -67,7 +67,7 @@ export function registerGeneratedTools(server: McpServer, runtime: ToolRuntime):
   }
 }
 
-/** 列出可查的 schema 名，给 get_schema 的报错和 resources 列表用。 */
+/** Lists the schema names that can be looked up, for get_schema's error and the resources list. */
 export function schemaNames(): string[] {
   return Object.keys(SCHEMAS);
 }

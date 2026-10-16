@@ -1,11 +1,11 @@
 /**
  * openapi.yaml + mcp.overlay.yaml -> src/generated/{operations,tools,schemas,meta}.json
  *
- * 这是整个项目唯一「知道 OpenAPI」的地方。运行时只读产物，不解析 YAML。
- * 产物提交进仓库：reviewer 能在 PR 里看到 openapi.yaml 的改动如何影响工具，
- * CI 里 `npm run generate && git diff --exit-code src/generated` 保证不漂移。
+ * This is the only place in the project that knows OpenAPI. The runtime only reads the output and never parses YAML.
+ * The output is committed: reviewers see in the PR how an openapi.yaml change affects the tools, and
+ * `npm run generate && git diff --exit-code src/generated` in CI keeps it from drifting.
  *
- * 用法：npm run generate
+ * Usage: npm run generate
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -19,7 +19,7 @@ const root = new URL('..', import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), 'utf8');
 
 interface ToolOverride {
-  /** 整段替换 openapi 的操作描述（summary 保留）；只在原文对模型是噪音时用 */
+  /** Replaces the openapi operation description entirely (summary kept); only when the original is noise to the model */
   description?: string;
   descriptionAppend?: string;
   annotations?: Json;
@@ -62,7 +62,7 @@ const toolOverrides = overlay.tools ?? {};
 const parameterOverrides = overlay.parameters ?? {};
 const outputSchemaMaxChars = overlay.outputSchemaMaxChars ?? 700;
 
-// ---------- $ref 解析 ----------
+// ---------- $ref resolution ----------
 
 function lookup(ref: string): Json {
   if (!ref.startsWith('#/')) throw new Error(`external $ref not supported: ${ref}`);
@@ -97,8 +97,8 @@ function isPointerStub(schema: unknown): boolean {
 }
 
 /**
- * 内联所有 $ref（指针 schema 除外），并把 OpenAPI 专有关键字清理成纯 JSON Schema 2020-12。
- * `seen` 防环：递归引用退化成 {type: object}。
+ * Inlines every $ref (except pointer schemas) and cleans OpenAPI-only keywords into plain JSON Schema 2020-12.
+ * `seen` guards against cycles: a recursive reference degrades to {type: object}.
  */
 function inline(node: unknown, seen: readonly string[] = []): unknown {
   if (Array.isArray(node)) return node.map((item) => inline(item, seen));
@@ -119,7 +119,7 @@ function inline(node: unknown, seen: readonly string[] = []): unknown {
   for (const [key, value] of Object.entries(obj)) {
     if (key === 'discriminator' || key === 'xml' || key === 'externalDocs' || key === 'nullable') continue;
     if (key === 'example') {
-      // OpenAPI 3.0 写法 -> JSON Schema 2020-12 的 examples
+      // OpenAPI 3.0 style -> JSON Schema 2020-12 examples
       if (!('examples' in obj)) out.examples = [value];
       continue;
     }
@@ -128,7 +128,7 @@ function inline(node: unknown, seen: readonly string[] = []): unknown {
   for (const key of ['allOf', 'oneOf', 'anyOf'] as const) {
     const list = out[key];
     if (!Array.isArray(list)) continue;
-    // omitSchemas 留下的空壳不占位
+    // empty shells left by omitSchemas take no slot
     const kept = list.filter((item) => !(item && typeof item === 'object' && Object.keys(item as Json).length === 0));
     if (!kept.length) {
       delete out[key];
@@ -140,9 +140,10 @@ function inline(node: unknown, seen: readonly string[] = []): unknown {
 }
 
 /**
- * 内联在工具入参里的「按 type 分支」联合（oneOf / anyOf 的每个分支都有 title，且分支够多）：
- * 分支全文动辄上万字符，而每个分支都是 components.schemas 里的具名 schema，get_schema 能查。
- * 这里只保留公共属性（type 枚举、label 等），把分支名写进描述，形状校验交给服务端。
+ * A union that branches on type, inlined in a tool's input (every oneOf / anyOf branch has a title, and there are enough
+ * branches): the full branches easily run past ten thousand characters, while each branch is a named schema in
+ * components.schemas that get_schema can look up. Only the common properties stay (the type enum, label, etc.), the
+ * branch names go into the description, and shape validation is left to the server.
  */
 function collapseVariants(schema: Json): Json {
   for (const key of ['oneOf', 'anyOf'] as const) {
@@ -161,11 +162,13 @@ function collapseVariants(schema: Json): Json {
   return schema;
 }
 
-// ---------- 描述 / 注解 ----------
+// ---------- descriptions / annotations ----------
 
 /**
- * 操作说明里的 `OAuth scope: forms`：多行说明里独占一行，单行说明里跟在句末。抽进 scopes，不留在工具描述里。
- * 个别是按条件写的（`forms when image_type … ; form_setting otherwise`），从中只认 spec 里单独出现过的 scope 名。
+ * `OAuth scope: forms` in an operation description: on a line of its own in a multi-line description, at the end of the
+ * sentence in a one-line one. It goes into scopes and stays out of the tool description. A few are conditional
+ * (`forms when image_type … ; form_setting otherwise`); from those, only scope names that appear on their own elsewhere
+ * in the spec are taken.
  */
 const SCOPE_LINE = /(?:^|[ \t]+)OAuth scope:[ \t]*(.+?)[ \t]*(?:\n|$)/m;
 const SCOPE_LIST = /^[a-z_]+(?:\s*[/,]\s*[a-z_]+)*$/;
@@ -209,23 +212,23 @@ function inferAnnotations(method: Method): Json {
   }
 }
 
-// ---------- 操作表：openapi 的每个操作一条，运行时发请求用 ----------
+// ---------- operation table: one entry per openapi operation, used to send requests at runtime ----------
 
 interface ParamSpec {
   name: string;
   in: 'path' | 'query';
   required: boolean;
-  /** query 数组序列化成 name[]=a&name[]=b（服务端按数组读取） */
+  /** A query array is serialized as name[]=a&name[]=b (the server reads it as an array) */
   array?: boolean;
 }
 interface BodySpec {
   contentType: 'application/json' | 'multipart/form-data';
   required: boolean;
-  /** 请求体属性在入参顶层（去掉 path / query 参数后的其余键就是请求体） */
+  /** Body properties sit at the top level of the arguments (the keys left after removing path / query parameters are the body) */
   flatten: boolean;
-  /** 不 flatten 时，请求体在入参里的键名 */
+  /** When not flattened, the argument key that holds the body */
   param?: string;
-  /** 发出前再包一层：{ [wrap]: payload }（投影工具用） */
+  /** Wrapped once more before sending: { [wrap]: payload } (for projection tools) */
   wrap?: string;
 }
 interface OperationSpec {
@@ -236,7 +239,7 @@ interface OperationSpec {
   method: Method;
   path: string;
   params: ParamSpec[];
-  /** 入参里的属性（flatten 时含请求体属性）；运行时据此区分参数与请求体 */
+  /** Properties of the arguments (including body properties when flattened); the runtime uses them to tell parameters from the body */
   paramNames: string[];
   body?: BodySpec;
   successStatus: number;
@@ -273,7 +276,7 @@ interface Built {
   summary: string;
 }
 
-/** 把一个操作变成 {操作表项, inputSchema, outputSchema}。bodyMode：flatten / 嵌套键名。 */
+/** Turns one operation into {operation table entry, inputSchema, outputSchema}. bodyMode: flatten / the nesting key. */
 function buildOperation(operationId: string, bodyMode: 'flatten' | string): Built {
   const raw = rawOps.get(operationId);
   if (!raw) throw new Error(`unknown operationId ${operationId}`);
@@ -285,10 +288,10 @@ function buildOperation(operationId: string, bodyMode: 'flatten' | string): Buil
   for (const rawParam of [...shared, ...((op.parameters ?? []) as Json[])]) {
     const p = inline(rawParam) as Json;
     const where = p.in as string;
-    if (where !== 'path' && where !== 'query') continue; // header / cookie 参数不暴露
+    if (where !== 'path' && where !== 'query') continue; // header / cookie parameters are not exposed
     const name = p.name as string;
     const schema = { ...((p.schema as Json) ?? { type: 'string' }) };
-    // 按 components.parameters 的名字追加说明（同一个共享参数在所有引用它的操作里都生效）
+    // Append notes by components.parameters name (a shared parameter gets them in every operation that references it)
     const append =
       typeof rawParam.$ref === 'string' ? parameterOverrides[refName(rawParam.$ref)]?.descriptionAppend : undefined;
     const description = append
@@ -343,7 +346,7 @@ function buildOperation(operationId: string, bodyMode: 'flatten' | string): Buil
   const inputSchema: Json = { type: 'object', properties, additionalProperties: false };
   if (required.length) inputSchema.required = [...new Set(required)];
 
-  // 成功响应 -> outputSchema
+  // success response -> outputSchema
   const responses = (op.responses ?? {}) as Record<string, Json>;
   const okStatus = Object.keys(responses).find((s) => s.startsWith('2')) ?? '200';
   const okContent = ((responses[okStatus]?.content ?? {}) as Record<string, Json>)['application/json'];
@@ -376,7 +379,7 @@ function buildOperation(operationId: string, bodyMode: 'flatten' | string): Buil
   return { operation, inputSchema, outputSchema, summary };
 }
 
-/** `allOf` 里全是带 properties 的对象（且没有指针 stub）时合并成一个对象，便于 flatten。 */
+/** Merges `allOf` into one object when every part is an object with properties (and no pointer stub), so it can be flattened. */
 function mergeAllOf(schema: Json): Json {
   const list = schema.allOf;
   if (!Array.isArray(list)) return schema;
@@ -396,7 +399,7 @@ function mergeAllOf(schema: Json): Json {
   return merged;
 }
 
-/** 文件上传：multipart 里的二进制字段改成 base64 三元组，运行时再拼 FormData。 */
+/** File upload: the binary field in multipart becomes a base64 triple, and the runtime rebuilds FormData from it. */
 function multipartSchema(raw: Json): Json {
   const schema = structuredClone(raw ?? {});
   const props = (schema.properties ?? {}) as Json;
@@ -420,7 +423,7 @@ function multipartSchema(raw: Json): Json {
   return schema;
 }
 
-/** 去掉说明里专讲某个参数的列表项（`- \`name\` …`）：组合工具删掉的参数不该再出现在描述里。 */
+/** Drops list items in a description that document one parameter (`- \`name\` …`): a parameter a composite tool removed should not show up in its description. */
 function dropParamLines(description: string, names: string[]): string {
   return description
     .split('\n')
@@ -437,11 +440,11 @@ function describe(built: Built, override: ToolOverride = {}, outputSchema = buil
   return parts.filter(Boolean).join('\n');
 }
 
-// 运行时操作表：全部操作，一律 flatten（组合工具在代码里直接按请求体键传参）
+// Runtime operation table: every operation, all flattened (composite tools pass body keys directly in code)
 const operations: Record<string, OperationSpec> = {};
 for (const operationId of rawOps.keys()) operations[operationId] = buildOperation(operationId, 'flatten').operation;
 
-// ---------- 工具 ----------
+// ---------- tools ----------
 
 const tools: ToolSpec[] = [];
 
@@ -529,7 +532,7 @@ for (const [name, composite] of Object.entries(overlay.composites ?? {})) {
           }),
       description: `${composite.scene === 'exam' ? 'Exam' : 'Evaluation'} settings (${composite.settingOperation}): ${setting.operation.description}`
     };
-    // 场景由工具固定，入参里没有 scene；主操作说明里讲 `scene` 参数的那条留着，模型会照着传
+    // The tool fixes the scene and takes no scene argument; left in, the primary operation's bullet on `scene` makes models pass it
     extra.push(dropParamLines(built.operation.description, ['scene']));
   }
   tools.push({
@@ -538,7 +541,7 @@ for (const [name, composite] of Object.entries(overlay.composites ?? {})) {
     title: composite.title ?? name,
     description: [composite.description?.trim(), ...extra].filter(Boolean).join('\n'),
     inputSchema,
-    // 多表单计数的响应很小，随 tools/list 下发；考试 / 测评表单的响应是整个 Form，太大。
+    // The multi-form count response is small and ships with tools/list; an exam / evaluation form response is the whole Form, too large.
     outputSchema: composite.kind === 'count_entries' ? built.outputSchema : undefined,
     annotations: inferAnnotations(built.operation.method),
     composite: {
@@ -550,7 +553,7 @@ for (const [name, composite] of Object.entries(overlay.composites ?? {})) {
   });
 }
 
-// 名字唯一且合法（MCP 建议 ^[a-zA-Z0-9_-]{1,128}$）
+// Names are unique and valid (MCP recommends ^[a-zA-Z0-9_-]{1,128}$)
 const names = new Set<string>();
 for (const tool of tools) {
   if (!/^[a-z0-9_]{1,64}$/.test(tool.name)) throw new Error(`bad tool name: ${tool.name}`);
@@ -558,9 +561,9 @@ for (const tool of tools) {
   names.add(tool.name);
 }
 
-// ---------- schema 目录（get_schema / resources 用） ----------
+// ---------- schema catalog (for get_schema / resources) ----------
 
-/** 组件 schema：内联到「其它指针 schema」为止，自身不做指针替换、不折叠。 */
+/** A component schema: inlined up to other pointer schemas; the schema itself is neither replaced by a pointer nor collapsed. */
 function componentSchema(name: string): Json {
   const raw = schemas[name];
   if (!raw) throw new Error(`unknown schema ${name}`);
@@ -589,7 +592,7 @@ function componentSchema(name: string): Json {
 const schemaCatalog: Record<string, Json> = {};
 for (const name of Object.keys(schemas).sort()) schemaCatalog[name] = componentSchema(name);
 
-// ---------- 写出 ----------
+// ---------- output ----------
 
 const info = spec.info as Json;
 const specHash = createHash('sha256').update(read('spec/openapi.yaml')).digest('hex').slice(0, 16);

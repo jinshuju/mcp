@@ -1,6 +1,7 @@
 /**
- * 组合工具：一次调用发两个请求：考试 / 测评表单的建与改、多表单计数。
- * 入参 schema 由生成器从 openapi 拼出，这里只有编排：先发哪个、失败了怎么说。
+ * Composite tools: one call sends two requests: creating and editing exam / evaluation forms, and counting across forms.
+ * The generator assembles their input schema from openapi; this file only orchestrates: which request goes first, and what
+ * to say when one fails.
  */
 import type { CallToolResult } from '@modelcontextprotocol/server';
 import type { ApiResponse } from './api.js';
@@ -23,8 +24,9 @@ function ok(res: ApiResponse): boolean {
 }
 
 /**
- * 场景设置操作的入参：请求体 flatten 的操作把设置键展开到顶层；请求体是一个整体 schema（如 updateEvaluationSetting
- * 的 EvaluationSettingInput 指针）的操作则放在 body.param 键下。两种都按操作表来，不在这里猜。
+ * Arguments of the scene setting operation: an operation with a flattened body takes the setting keys at the top level;
+ * one whose body is a single schema (such as updateEvaluationSetting's EvaluationSettingInput pointer) takes them under
+ * the body.param key. Both follow the operation table; nothing is guessed here.
  */
 function settingArgs(settingOp: OperationSpec, formToken: unknown, setting: Args): Args {
   if (!settingOp.body || settingOp.body.flatten) return { form_token: formToken, ...setting };
@@ -58,7 +60,7 @@ export async function runComposite(tool: ToolSpec, args: Args, runtime: ToolRunt
   const hasSetting = !!setting && typeof setting === 'object' && Object.keys(setting as Args).length > 0;
 
   if (composite.kind === 'scene_form_create') {
-    // 先建表单（拿到 token），再写场景设置；设置被拒绝时表单已存在，必须说清楚，免得调用方再建一个。
+    // Create the form first (to get its token), then write the scene settings; if the settings are rejected the form already exists, and the result must say so, or the caller creates another one.
     const created = await api.call(op('createForm'), { ...formArgs, scene: composite.scene }, credential);
     if (!ok(created)) return toToolResult(tool, created, maxResultChars);
     const token = (created.json as { token?: string } | undefined)?.token;
@@ -74,7 +76,7 @@ export async function runComposite(tool: ToolSpec, args: Args, runtime: ToolRunt
     return withText(toToolResult(tool, created, maxResultChars), `${settingsUpdated} Form:`);
   }
 
-  // scene_form_update：设置先发（它是可能被拒绝的那一半：不是该场景的表单），被拒绝时其它改动一个都不发。
+  // scene_form_update: the settings go first (they are the half that may be rejected: a form not in that scene); if they are rejected, none of the other changes are sent.
   const formToken = formArgs.form_token;
   const hasFormChanges = Object.keys(formArgs).some((k) => k !== 'form_token' && formArgs[k] !== undefined);
   let settingResult: ApiResponse | undefined;

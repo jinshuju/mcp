@@ -1,7 +1,7 @@
 {
-  // Workers 风格部署（Cloudflare Workers，或任何兼容的自托管平台如 WDL）。服务器无状态：不需要 Durable Objects、KV 或 OAuth Provider。
-  // 对外访问地址通过运行时变量 / secret JINSHUJU_MCP_PUBLIC_URL 提供，不写在这里；逗号分隔可列多个
-  // （自定义域名 + 平台默认的带前缀地址），按请求的 Host 选用。不提供时按请求与 X-Forwarded-* 推断，WDL 上推断不出 https 和前缀，务必配置。
+  // Workers-style deployment (Cloudflare Workers, or any compatible self-hosted platform such as WDL). The server is stateless: no Durable Objects, KV or OAuth Provider.
+  // The public URL comes from the runtime variable / secret JINSHUJU_MCP_PUBLIC_URL, not from here; a comma-separated list
+  // (custom domain + the platform's default prefixed URL) is chosen by the request's Host. Without it the URL is inferred from the request and X-Forwarded-*; on WDL that cannot recover https or the prefix, so set it.
   "name": "jinshuju-mcp",
   "main": "src/worker.ts",
   "compatibility_date": "2026-06-17",

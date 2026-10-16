@@ -1,8 +1,8 @@
-# 统计 / 汇总：分组、求和、平均、分桶。来源：线上会话里 aggregate_entries / get_form_data_summary 紧跟 get_form 出现。
+# 统计汇总 (aggregation): grouping, sums, averages, buckets. Source: in production sessions aggregate_entries / get_form_data_summary come right after get_form.
 - id: agg-01
   category: 统计汇总
-  title: 分组计数与平均
-  source: 线上会话模式 get_form → aggregate_entries 分组
+  title: Counts and averages by group
+  source: production session pattern get_form → aggregate_entries with grouping
   prompt: 员工信息登记表里各部门分别有多少人？每个部门的平均月薪是多少？
   fixtures: [employees]
   max_turns: 6
@@ -17,7 +17,7 @@
 
 - id: agg-02
   category: 统计汇总
-  title: 平均分与 NPS 分布
+  title: Average score and NPS distribution
   prompt: 客户满意度调查问卷的平均满意度是多少分？推荐意愿里 9-10 分的推荐者有几人、0-6 分的贬损者有几人？
   fixtures: [satisfaction]
   max_turns: 8
@@ -32,7 +32,7 @@
 
 - id: agg-03
   category: 统计汇总
-  title: 条件求和并按维度拆分
+  title: Conditional sum, split by a dimension
   prompt: 办公用品采购申请里，已批准的申请总金额是多少？再按部门分别算一下已批准的金额。
   fixtures: [orders]
   max_turns: 8
@@ -46,7 +46,7 @@
 
 - id: agg-04
   category: 统计汇总
-  title: 分组平均找最低
+  title: Lowest group average
   prompt: 客户满意度调查问卷里，三种产品各自的平均满意度是多少？哪个产品最低？
   fixtures: [satisfaction]
   max_turns: 6
@@ -61,7 +61,7 @@
 
 - id: agg-05
   category: 统计汇总
-  title: 众数与数量汇总
+  title: Most common value and quantity totals
   prompt: 办公用品采购申请里哪种物品被申请的次数最多？这种物品一共申请了多少件？
   fixtures: [orders]
   max_turns: 6
@@ -73,7 +73,7 @@
 
 - id: agg-06
   category: 统计汇总
-  title: 多选字段的占比
+  title: Shares of a multiple-choice field
   prompt: 员工信息登记表里会 Python 的有几个人？占全部员工的比例是多少？
   fixtures: [employees]
   max_turns: 6
@@ -86,7 +86,7 @@
 
 - id: agg-07
   category: 统计汇总
-  title: 按月分桶
+  title: Buckets by month
   prompt: 客户满意度调查问卷按购买日期的月份统计一下，每个月各有多少份问卷？
   fixtures: [satisfaction]
   max_turns: 6

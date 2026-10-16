@@ -1,27 +1,28 @@
 /**
- * 运行配置。HTTP 部署从环境变量（Node）或 Workers 的 env 读；stdio 只用其中与 API 相关的部分。
+ * Runtime configuration. The HTTP deployment reads it from environment variables (Node) or the Workers env; stdio uses only the API-related part.
  */
 export interface Config {
-  /** API v1 地址，缺省 https://jinshuju.net/api/v1 */
+  /** API v1 base URL, https://jinshuju.net/api/v1 by default */
   apiBaseUrl: string;
-  /** OAuth 授权服务器（issuer），缺省 https://account.jinshuju.net */
+  /** OAuth authorization server (issuer), https://account.jinshuju.net by default */
   authServer: string;
   /**
-   * 本服务对外地址，可多个（如自定义域名 https://mcp.jinshuju.net 与平台默认的带前缀地址 https://host/jinshuju-mcp）。
-   * 按请求的 Host 选用其一，没有匹配的用第一个；为空则按每个请求的 X-Forwarded-* / Host 推断。
+   * Public addresses of this service, possibly several (e.g. the custom domain https://mcp.jinshuju.net and the platform's
+   * default prefixed address https://host/jinshuju-mcp). One is picked by the request's Host, falling back to the first;
+   * when empty, each request's X-Forwarded-* / Host decides.
    */
   publicUrls: string[];
-  /** 单次工具结果最多返回的字符数，超过则截断并提示缩小范围 */
+  /** Most characters one tool result returns; beyond it the result is truncated with a hint to narrow it */
   maxResultChars: number;
-  /** HTTP 模式下令牌校验结果的缓存时长（毫秒） */
+  /** How long token verification results are cached in HTTP mode (ms) */
   tokenCacheTtlMs: number;
-  /** 调用 API 的超时（毫秒） */
+  /** Timeout of API calls (ms) */
   timeoutMs: number;
-  /** PostHog 项目 token（phc_…），HTTP 模式上报 MCP analytics；为空则不上报 */
+  /** PostHog project token (phc_…) for MCP analytics in HTTP mode; nothing is reported when empty */
   posthogApiKey?: string;
-  /** PostHog 上报地址，缺省 https://us.i.posthog.com */
+  /** PostHog ingest host, https://us.i.posthog.com by default */
   posthogHost: string;
-  /** 是否采集模型写的调用意图（每个工具的 context 参数 → $mcp_intent），缺省开 */
+  /** Whether to collect the call intent the model writes (each tool's context argument → $mcp_intent); on by default */
   collectIntent: boolean;
 }
 
@@ -50,7 +51,7 @@ function bool(value: string | undefined, fallback: boolean): boolean {
   return fallback;
 }
 
-/** JINSHUJU_MCP_PUBLIC_URL：逗号分隔多个地址，去掉尾部斜杠与空项。 */
+/** JINSHUJU_MCP_PUBLIC_URL: several comma-separated addresses, with trailing slashes and empty items removed. */
 export function publicUrlsFromEnv(value: string | undefined): string[] {
   return (value ?? '')
     .split(',')
@@ -58,7 +59,7 @@ export function publicUrlsFromEnv(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
-/** 从环境变量读配置；键名统一带 JINSHUJU_ 前缀，和 @jinshuju/cli 一致。 */
+/** Reads the configuration from environment variables; keys carry the JINSHUJU_ prefix, as in @jinshuju/cli. */
 export function configFromEnv(env: EnvLike = process.env): Config {
   return {
     apiBaseUrl: (env.JINSHUJU_API_BASE_URL ?? DEFAULTS.apiBaseUrl).replace(/\/$/, ''),

@@ -1,5 +1,5 @@
 /**
- * 夹具：按 fixtures.yaml 在测评账户里建表单、灌数据、重置。状态记在 state/fixtures.json。
+ * Fixtures: create forms in the eval account from fixtures.yaml, load their entries, reset them. State lives in state/fixtures.json.
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -12,17 +12,17 @@ export function loadFixturesSpec(path = resolve(EVALS_DIR, 'fixtures.yaml')): Fi
   const spec = parse(readFileSync(path, 'utf8')) as FixturesSpec;
   const seen = new Set<string>();
   for (const form of spec.forms) {
-    if (seen.has(form.alias)) throw new Error(`fixtures.yaml：alias 重复 ${form.alias}`);
+    if (seen.has(form.alias)) throw new Error(`fixtures.yaml: duplicate alias ${form.alias}`);
     seen.add(form.alias);
     const labels = new Set<string>();
     for (const f of form.fields) {
-      if (labels.has(f.label)) throw new Error(`fixtures.yaml：${form.alias} 字段标题重复 ${f.label}`);
+      if (labels.has(f.label)) throw new Error(`fixtures.yaml: ${form.alias} has a duplicate field label ${f.label}`);
       labels.add(f.label);
     }
     for (const [i, entry] of (form.entries ?? []).entries()) {
       for (const key of Object.keys(entry)) {
         if (!form.fields.some((f) => f.key === key))
-          throw new Error(`fixtures.yaml：${form.alias} 第 ${i + 1} 条数据的键 ${key} 不是字段`);
+          throw new Error(`fixtures.yaml: ${form.alias} entry ${i + 1} has key ${key}, which is not a field`);
       }
     }
   }
@@ -46,7 +46,7 @@ export function saveState(cfg: EvalConfig, state: FixtureState): void {
 
 export function requireState(cfg: EvalConfig): FixtureState {
   const state = loadState(cfg);
-  if (!state) throw new Error('还没有夹具状态：先运行 `npm run eval -- seed`。');
+  if (!state) throw new Error('No fixture state yet: run `npm run eval -- seed` first.');
   return state;
 }
 
@@ -58,7 +58,7 @@ const stripHtml = (s: string) =>
 
 const UNIQUE_TYPES = new Set(['TextField', 'NameField', 'EmailField', 'MobileField', 'TextArea', 'NumberField']);
 
-/** 夹具字段 → FieldInput */
+/** Fixture field → FieldInput */
 export function toFieldInput(f: FixtureField): Record<string, unknown> {
   const input: Record<string, unknown> = { type: f.type, label: f.label };
   if (f.required) input.required = true;
@@ -70,12 +70,12 @@ export function toFieldInput(f: FixtureField): Record<string, unknown> {
   return input;
 }
 
-/** 夹具数据（按 key）→ 写入 API 的数据（按 api_code） */
+/** Fixture entry (by key) → entry for the API (by api_code) */
 export function toEntryInput(seeded: SeededForm, entry: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(entry)) {
     const field = seeded.fields[key];
-    if (!field) throw new Error(`夹具 ${seeded.alias} 没有字段 ${key}`);
+    if (!field) throw new Error(`Fixture ${seeded.alias} has no field ${key}`);
     out[field.api_code] = value;
   }
   return out;
@@ -86,14 +86,14 @@ function mapFields(spec: FixtureForm, form: FormDetail): SeededForm['fields'] {
   const fields: SeededForm['fields'] = {};
   for (const f of spec.fields) {
     const hit = byLabel.get(f.label);
-    if (!hit) throw new Error(`表单 ${spec.name} 里找不到字段「${f.label}」`);
+    if (!hit) throw new Error(`Form ${spec.name} has no field "${f.label}"`);
     fields[f.key] = { api_code: hit.api_code, type: hit.def.type, label: f.label };
   }
   return fields;
 }
 
 export interface SeedOptions {
-  /** 即使数据条数一致也重灌 */
+  /** Reload the entries even when the count already matches */
   reset?: boolean;
   log?: (line: string) => void;
 }
@@ -103,7 +103,7 @@ async function ensureFolder(api: EvalApi, name: string, log: (s: string) => void
   const hit = folders.find((f) => f.name === name && f.kind === 'form');
   if (hit) return hit.token;
   const created = await api.createFolder(name, 'form');
-  log(`创建文件夹「${name}」 ${created.token}`);
+  log(`Created folder "${name}" ${created.token}`);
   return created.token;
 }
 
@@ -114,11 +114,11 @@ async function findFormByName(api: EvalApi, name: string, preferToken?: string) 
     const kept = exact.find((r) => r.token === preferToken);
     if (kept) return kept;
   }
-  // 多个同名时取最早创建的那个（夹具最先建）
+  // Several with the same name: take the oldest (the fixture was created first)
   return exact.sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
 }
 
-/** 读到的值与夹具值是否一致（选项按显示值，日期按日，数字按数值） */
+/** Whether a value read back equals the fixture value (choices by label, dates by day, numbers by value) */
 export function sameValue(actual: unknown, expected: unknown): boolean {
   if (expected === undefined || expected === null || expected === '') {
     return actual === undefined || actual === null || actual === '' || (Array.isArray(actual) && actual.length === 0);
@@ -146,7 +146,7 @@ export async function seed(
   const previous = loadState(cfg);
   const me = await api.me();
   const billing = await api.billingAccount();
-  log(`账户：${me.name} <${me.email}> / ${billing.name}`);
+  log(`Account: ${me.name} <${me.email}> / ${billing.name}`);
 
   const folderToken = await ensureFolder(api, spec.folder, log);
   const outputFolderToken = await ensureFolder(api, spec.output_folder, log);
@@ -171,7 +171,7 @@ export async function seed(
     let detail: FormDetail;
     if (existing) {
       detail = await api.getForm(existing.token, { theme: true });
-      log(`复用表单「${formSpec.name}」 ${existing.token}`);
+      log(`Reusing form "${formSpec.name}" ${existing.token}`);
     } else {
       detail = await api.createForm({
         name: formSpec.name,
@@ -181,7 +181,7 @@ export async function seed(
         ...(formSpec.setting ? { setting: formSpec.setting } : {})
       });
       detail = await api.getForm(detail.token, { theme: true });
-      log(`创建表单「${formSpec.name}」 ${detail.token}`);
+      log(`Created form "${formSpec.name}" ${detail.token}`);
     }
     const seeded: SeededForm = {
       alias: formSpec.alias,
@@ -194,9 +194,9 @@ export async function seed(
         previous?.forms[formSpec.alias]?.theme_primary_color ?? (detail.theme?.primary_color as string | undefined)
     };
     state.forms[formSpec.alias] = seeded;
-    // 结构与设置对齐（复用的表单可能被上次评测改过）
+    // Align structure and settings (a reused form may have been changed by the last run)
     await resetStructure(api, formSpec, seeded, log);
-    // 数据
+    // Entries
     const wanted = formSpec.entries ?? [];
     const current = await api.listAllEntries(seeded.token);
     const needReseed =
@@ -217,19 +217,19 @@ export async function seed(
       }
       const after = await api.listAllEntries(seeded.token);
       if (after.length !== wanted.length) {
-        throw new Error(`表单「${formSpec.name}」灌数据后有 ${after.length} 条，期望 ${wanted.length} 条`);
+        throw new Error(`Form "${formSpec.name}" has ${after.length} entries after loading, expected ${wanted.length}`);
       }
       seeded.seed_serials = after.map((e) => e.serial_number).sort((a, b) => a - b);
-      log(`  数据重置：${wanted.length} 条`);
+      log(`  Entries reset: ${wanted.length}`);
     } else {
-      log(`  数据一致：${wanted.length} 条`);
+      log(`  Entries match: ${wanted.length}`);
     }
   }
   saveState(cfg, state);
   return state;
 }
 
-/** 把表单结构 / 设置 / 主题恢复成夹具描述；只在有差异时发请求。 */
+/** Restores a form's structure / settings / theme to the fixture description; sends a request only when something differs. */
 export async function resetStructure(
   api: EvalApi,
   spec: FixtureForm,
@@ -241,7 +241,7 @@ export async function resetStructure(
   const specLabels = new Set(spec.fields.map((f) => f.label));
   const ops: { add?: unknown[]; remove?: string[]; update?: unknown[]; update_choices?: unknown[] } = {};
 
-  // 多出来的字段删掉；缺的字段补回
+  // Remove extra fields; add missing ones back
   const extra = current.filter(({ def }) => !specLabels.has(def.label)).map(({ api_code }) => api_code);
   if (extra.length) ops.remove = extra;
   const missing = spec.fields.filter((f) => !current.some(({ def }) => def.label === f.label));
@@ -276,12 +276,12 @@ export async function resetStructure(
   if (Object.keys(ops).length) body.fields = ops;
   if (Object.keys(body).length) {
     form = await api.updateForm(seeded.token, body);
-    log(`  结构恢复：${Object.keys(body).join(' / ')}`);
-    // 字段可能被重建，刷新 api_code 映射
+    log(`  Structure restored: ${Object.keys(body).join(' / ')}`);
+    // Fields may have been recreated: refresh the api_code map
     seeded.fields = mapFields(spec, form);
   }
 
-  // 设置只在夹具声明了 setting 时对齐（其它表单保持服务端缺省）；填写密码任何时候都清掉
+  // Align settings only when the fixture declares setting (other forms keep the server defaults); always clear a fill password
   const setting = (form.setting ?? {}) as Record<string, unknown>;
   const diff: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(spec.setting ?? {})) {
@@ -289,21 +289,21 @@ export async function resetStructure(
       if (stripHtml(String(setting.success_message ?? '')) !== String(v)) diff[k] = v;
     } else if (JSON.stringify(setting[k] ?? null) !== JSON.stringify(v ?? null)) diff[k] = v;
   }
-  // 填写密码只能用空串清除（null 会被服务端拒绝）
+  // A fill password is cleared only with an empty string (the server rejects null)
   if (setting.access_password) diff.access_password = '';
   if (Object.keys(diff).length) {
     await api.updateFormSetting(seeded.token, diff);
-    log(`  设置恢复：${Object.keys(diff).join(' / ')}`);
+    log(`  Settings restored: ${Object.keys(diff).join(' / ')}`);
   }
 
   const primary = form.theme?.primary_color as string | undefined;
   if (seeded.theme_primary_color && primary && primary.toLowerCase() !== seeded.theme_primary_color.toLowerCase()) {
     await api.updateTheme(seeded.token, { primary_color: seeded.theme_primary_color });
-    log(`  主题恢复：primary_color`);
+    log(`  Theme restored: primary_color`);
   }
 }
 
-/** 把一个夹具的数据恢复成种子：删多余、补缺失、改回被改动的值。 */
+/** Restores a fixture's entries to the seed: delete extras, add missing ones, revert changed values. */
 export async function resetEntries(
   api: EvalApi,
   spec: FixtureForm,
@@ -354,10 +354,10 @@ export async function resetEntries(
     changed += missingRows.length;
   }
   seeded.seed_serials = newSerials.sort((a, b) => a - b);
-  if (changed) log(`  ${spec.alias} 数据重置：${changed} 处`);
+  if (changed) log(`  ${spec.alias} entries reset: ${changed} changes`);
 }
 
-/** 运行前后把夹具整体恢复（结构 + 数据），并把状态写回。 */
+/** Restores a whole fixture (structure + entries) before and after a run, and saves the state. */
 export async function resetFixture(
   api: EvalApi,
   cfg: EvalConfig,
@@ -368,13 +368,13 @@ export async function resetFixture(
 ): Promise<void> {
   const formSpec = spec.forms.find((f) => f.alias === alias);
   const seeded = state.forms[alias];
-  if (!formSpec || !seeded) throw new Error(`没有夹具 ${alias}`);
+  if (!formSpec || !seeded) throw new Error(`No fixture ${alias}`);
   await resetStructure(api, formSpec, seeded, log);
   await resetEntries(api, formSpec, seeded, log);
   saveState(cfg, state);
 }
 
-/** 把评测期间新建的表单（不属于夹具）移入产出文件夹，返回移动的表单。 */
+/** Moves forms created during the run (not fixtures) into the output folder; returns the forms moved. */
 export async function sweepCreatedForms(
   api: EvalApi,
   state: FixtureState,
@@ -392,10 +392,10 @@ export async function sweepCreatedForms(
       await api.moveFormToFolder(row.token, state.output_folder_token);
       moved.push({ token: row.token, name: row.name });
     } catch (error) {
-      log(`  移动表单 ${row.token} 失败：${(error as Error).message}`);
+      log(`  Moving form ${row.token} failed: ${(error as Error).message}`);
     }
   }
-  if (moved.length) log(`  新建表单 ${moved.length} 个已移入「产出」文件夹`);
+  if (moved.length) log(`  Moved ${moved.length} new forms into the output folder`);
   return moved;
 }
 

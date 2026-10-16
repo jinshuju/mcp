@@ -1,5 +1,6 @@
 /**
- * 报告：从 runs.jsonl 聚合出「模型 × MCP × 类别」的通过率表、token 表、轮次 / 报错 / 耗时表、任务明细与失败原因。
+ * Report: aggregates runs.jsonl into pass rates by model × MCP × category, tokens, turns / errors / duration, per-task results and failure reasons.
+ * Category names are data (see CATEGORIES) and appear as written in the column headers.
  */
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -89,7 +90,7 @@ export function buildSummary(meta: RunMeta, records: RunRecord[]): Summary {
       reasons:
         r.status === 'error'
           ? [r.error?.split('\n')[0] ?? 'error']
-          : r.assertions.filter((a) => !a.pass).map((a) => `${a.name}${a.detail ? `（${a.detail}）` : ''}`)
+          : r.assertions.filter((a) => !a.pass).map((a) => `${a.name}${a.detail ? ` (${a.detail})` : ''}`)
     });
   }
   const tasks = [...taskMap.values()].sort(
@@ -103,7 +104,7 @@ export function buildSummary(meta: RunMeta, records: RunRecord[]): Summary {
     const tools = new Map<string, { calls: number; errors: number }>();
     for (const r of records.filter((r) => r.mcp === t.name)) {
       for (const a of r.assertions.filter((a) => !a.pass)) counts.set(a.name, (counts.get(a.name) ?? 0) + 1);
-      if (r.status === 'error') counts.set('运行错误', (counts.get('运行错误') ?? 0) + 1);
+      if (r.status === 'error') counts.set('run error', (counts.get('run error') ?? 0) + 1);
       for (const c of r.calls) {
         const u = tools.get(c.name) ?? { calls: 0, errors: 0 };
         u.calls++;
@@ -134,44 +135,44 @@ function table(header: string[], rows: string[][]): string {
 export function renderMarkdown(s: Summary): string {
   const { meta } = s;
   const cols = [...s.categories, '*'];
-  const colNames = [...s.categories, '总计'];
+  const colNames = [...s.categories, 'Total'];
   const out: string[] = [];
   const started = meta.started_at.slice(0, 16).replace('T', ' ');
-  out.push(`# MCP 评测报告 ${meta.run_id}`, '');
+  out.push(`# MCP eval report ${meta.run_id}`, '');
   out.push(
-    `- 时间：${started} UTC（完成 ${meta.finished_at?.slice(0, 16).replace('T', ' ') ?? '未完成'}）`,
-    `- 任务：${meta.task_count} 个 × 模型 ${meta.models.length} 个 × MCP ${meta.targets.length} 个 × 重复 ${meta.repeat} 次 = ${Object.values(s.cells).find((c) => c)?.runs !== undefined ? (s.cells[cellKey('*', meta.targets[0]!.name, '*')]?.runs ?? 0) : 0} 次/MCP`,
-    `- 测评账户：${meta.account.billing_account_name}（${meta.account.user_name}）`,
-    `- judge 模型：${meta.judge_model}（只用于 claims 断言）`,
-    `- LLM 网关：${meta.llm_base_url}`,
+    `- Time: ${started} UTC (finished ${meta.finished_at?.slice(0, 16).replace('T', ' ') ?? 'not finished'})`,
+    `- Jobs: ${meta.task_count} tasks × ${meta.models.length} models × ${meta.targets.length} MCPs × ${meta.repeat} repeats = ${Object.values(s.cells).find((c) => c)?.runs !== undefined ? (s.cells[cellKey('*', meta.targets[0]!.name, '*')]?.runs ?? 0) : 0} per MCP`,
+    `- Eval account: ${meta.account.billing_account_name} (${meta.account.user_name})`,
+    `- Judge model: ${meta.judge_model} (claims assertions only)`,
+    `- LLM gateway: ${meta.llm_base_url}`,
     ''
   );
-  out.push('## 被测对象', '');
+  out.push('## MCPs under test', '');
   out.push(
     table(
-      ['MCP', '版本', '工具数', 'tools/list 大小', '估算 token'],
+      ['MCP', 'Version', 'Tools', 'tools/list size', 'Estimated tokens'],
       meta.targets.map((t) => [
         t.name,
         `\`${t.version}\``,
         `${t.tool_count}`,
-        `${k(t.catalog_chars)} 字符`,
+        `${k(t.catalog_chars)} chars`,
         `≈ ${k(t.catalog_chars / 3.5)}`
       ])
     ),
     '',
-    '> 估算 token 按 3.5 字符 / token 粗略折算，只用于比较两边目录大小；每轮对话都会带上整个目录。',
+    '> Estimated tokens assume a rough 3.5 characters per token and only compare catalog sizes; every turn carries the whole catalog.',
     ''
   );
 
-  out.push('## 通过率（模型 × MCP × 类别）', '');
+  out.push('## Pass rate (model × MCP × category)', '');
   out.push(
     table(
-      ['模型', 'MCP', ...colNames],
+      ['Model', 'MCP', ...colNames],
       s.combos.map(({ model, mcp }) => [model, mcp, ...cols.map((c) => pct(s.cells[cellKey(model, mcp, c)]))])
     ),
     ''
   );
-  out.push('按 MCP 汇总（所有模型）：', '');
+  out.push('By MCP (all models):', '');
   out.push(
     table(
       ['MCP', ...colNames],
@@ -180,10 +181,10 @@ export function renderMarkdown(s: Summary): string {
     ''
   );
 
-  out.push('## 平均 token（输入 / 输出，每个任务）', '');
+  out.push('## Average tokens (input / output, per task)', '');
   out.push(
     table(
-      ['模型', 'MCP', ...colNames],
+      ['Model', 'MCP', ...colNames],
       s.combos.map(({ model, mcp }) => [
         model,
         mcp,
@@ -198,10 +199,20 @@ export function renderMarkdown(s: Summary): string {
     ''
   );
 
-  out.push('## 轮次、工具调用、报错与耗时（每个任务平均）', '');
+  out.push('## Turns, tool calls, errors and duration (average per task)', '');
   out.push(
     table(
-      ['模型', 'MCP', '轮次', '工具调用', '工具报错', '报错后重试', '结果截断', '耗时', '运行错误'],
+      [
+        'Model',
+        'MCP',
+        'Turns',
+        'Tool calls',
+        'Tool errors',
+        'Retries after an error',
+        'Truncated results',
+        'Duration',
+        'Run errors'
+      ],
       s.combos.map(({ model, mcp }) => {
         const cell = s.cells[cellKey(model, mcp, '*')];
         return [
@@ -220,12 +231,12 @@ export function renderMarkdown(s: Summary): string {
     ''
   );
 
-  out.push('## 任务明细', '');
+  out.push('## Tasks', '');
   const comboKeys = s.combos.map((c) => `${c.model}|${c.mcp}`);
   const short = (m: string) => m.replace(/^anthropic-claude-/, 'claude-').replace(/^openai-/, '');
   out.push(
     table(
-      ['任务', '类别', ...s.combos.map((c) => `${short(c.model)} × ${c.mcp}`)],
+      ['Task', 'Category', ...s.combos.map((c) => `${short(c.model)} × ${c.mcp}`)],
       s.tasks.map((t) => [
         t.id,
         t.category,
@@ -239,32 +250,32 @@ export function renderMarkdown(s: Summary): string {
     ''
   );
 
-  out.push('## 失败原因 Top（按 MCP）', '');
+  out.push('## Top failure reasons (by MCP)', '');
   for (const t of meta.targets) {
     out.push(`### ${t.name}`, '');
     const list = s.failures[t.name] ?? [];
-    out.push(list.length ? list.map((f) => `- ${f.count} × ${f.name}`).join('\n') : '- （无）', '');
+    out.push(list.length ? list.map((f) => `- ${f.count} × ${f.name}`).join('\n') : '- (none)', '');
   }
 
-  out.push('## 失败明细', '');
+  out.push('## Failures', '');
   for (const t of s.tasks) {
     const lines: string[] = [];
     for (const key of comboKeys) {
       for (const r of t.results[key] ?? []) {
         if (r.status === 'passed') continue;
-        lines.push(`- ${key.replace('|', ' × ')}：${r.reasons.slice(0, 4).join('；')}`);
+        lines.push(`- ${key.replace('|', ' × ')}: ${r.reasons.slice(0, 4).join('; ')}`);
       }
     }
-    if (lines.length) out.push(`### ${t.id}（${t.category}）`, '', ...lines, '');
+    if (lines.length) out.push(`### ${t.id} (${t.category})`, '', ...lines, '');
   }
 
-  out.push('## 工具调用分布（按 MCP）', '');
+  out.push('## Tool calls (by MCP)', '');
   for (const t of meta.targets) {
     const list = (s.tool_usage[t.name] ?? []).slice(0, 25);
     out.push(`### ${t.name}`, '');
     out.push(
       table(
-        ['工具', '调用', '报错'],
+        ['Tool', 'Calls', 'Errors'],
         list.map((u) => [u.name, `${u.calls}`, `${u.errors}`])
       ),
       ''

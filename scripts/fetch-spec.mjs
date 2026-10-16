@@ -1,4 +1,4 @@
-// 拉取线上 openapi.yaml 到 spec/openapi.yaml。spec-sync workflow 和 `npm run spec:update` 都用它。
+// Fetches the live openapi.yaml into spec/openapi.yaml. Used by the spec-sync workflow and `npm run spec:update`.
 import { writeFileSync } from 'node:fs';
 
 const url = process.env.JINSHUJU_OPENAPI_URL ?? 'https://jinshuju.net/api/v1/openapi.yaml';

@@ -1,147 +1,147 @@
 # Architecture
 
-`@jinshuju/mcp` 是怎么拼起来的，以及为什么这么拼。README 说它能做什么，这里说它怎么做，写给下一个改它的人。
+How `@jinshuju/mcp` fits together, and why. The README says what it does; this says how, for the next person who changes it.
 
-## 原则
+## Principles
 
-- **OpenAPI First。** `spec/openapi.yaml` 是唯一事实来源。工具的名字、参数、描述、返回结构都从它来；
-  本仓库只决定「怎么投影」（`mcp.overlay.yaml`），不手写任何一个工具。
-- **生成在构建期，不在运行期。** `npm run generate` 把 YAML 变成 `src/generated/*.json` 并提交进仓库。
-  运行时不解析 YAML、不做 `$ref`；Workers 冷启动和 Node 进程一样快，PR 里能直接 review 工具 diff。
-- **无状态。** 一个 HTTP 请求一个 `McpServer`，什么都不记。这是 MCP 2026-07-28 的模型，也是能随便横向扩容、
-  不需要 Durable Objects / KV / session 粘滞的原因。2025 旧握手的客户端由 SDK 按无状态兜底。
-- **只做 Resource Server。** 令牌由 account.jinshuju.net 签发、由 API v1 校验，本服务一个都不签。
-- **服务端拥有词汇表。** 字段类型、场景、操作符都是 API 的；本服务校验形状（JSON Schema），把词原样递过去。
+- **OpenAPI first.** `spec/openapi.yaml` is the single source of truth. Tool names, arguments, descriptions and result shapes all come from it;
+  this repository only decides how to project it (`mcp.overlay.yaml`) and hand-writes no tool.
+- **Generated at build time, not at run time.** `npm run generate` turns the YAML into `src/generated/*.json`, which is committed.
+  Nothing parses YAML or resolves `$ref` at run time; a Workers cold start is as fast as a Node process, and a PR shows the tool diff directly.
+- **Stateless.** One `McpServer` per HTTP request, remembering nothing. This is the MCP 2026-07-28 model, and it is why the service scales out freely
+  without Durable Objects / KV / sticky sessions. Clients on the 2025 legacy handshake are served statelessly by the SDK's fallback.
+- **Resource Server only.** Tokens are issued by account.jinshuju.net and checked by API v1; this service issues none.
+- **The server owns the vocabulary.** Field types, scenes and operators belong to the API; this service validates shapes (JSON Schema) and passes the words through unchanged.
 
-## 模块
+## Modules
 
 ```
-spec/openapi.yaml        线上 https://jinshuju.net/api/v1/openapi.yaml 的副本（spec-sync workflow 每天更新）
-mcp.overlay.yaml         投影规则：exclude / pointerSchemas / bodyParam / 每个工具的覆盖
-scripts/generate.ts      YAML + overlay -> src/generated/{operations,tools,schemas,meta}.json（唯一知道 OpenAPI 的地方）
-scripts/fetch-spec.mjs   拉线上 YAML
+spec/openapi.yaml        Copy of the live https://jinshuju.net/api/v1/openapi.yaml (updated daily by the spec-sync workflow)
+mcp.overlay.yaml         Projection rules: exclude / pointerSchemas / bodyParam / per-tool overrides
+scripts/generate.ts      YAML + overlay -> src/generated/{operations,tools,schemas,meta}.json (the only place that knows OpenAPI)
+scripts/fetch-spec.mjs   Fetches the live YAML
 
 src/
-  types.ts        生成产物的形状（OperationSpec / ToolSpec / BodySpec）
-  api.ts          JinshujuApi：按 OperationSpec 发一次请求（URL、query、JSON / multipart、Bearer、超时、401 续期一次）
-  result.ts       把 ApiResponse 翻译成 CallToolResult（截断、structuredContent、错误详情）
-  tools.ts        把 ToolSpec 注册成 MCP 工具；get_schema
-  composites.ts   组合工具的编排：考试 / 测评建改（两个请求）、count_entries 单 / 多表单分发
-  server.ts       buildServer：McpServer + 工具 + resources + instructions
-  credential.ts   凭证接口 + Bearer 字符串凭证（无 Node 依赖，Worker 包只带这个）
-  cli-credential.ts  stdio 的本地凭证：~/.jinshuju/config.json（与 @jinshuju/cli 共用，含 refresh）
-  auth.ts         HTTP 鉴权：Bearer 提取、按令牌哈希缓存的校验（GET /me）、401 challenge、AS 元数据
-  analytics.ts    PostHog MCP analytics（@posthog/mcp）：按请求给 McpServer 装埋点，决定报什么、不报什么
-  app.ts          Hono 应用：/、/healthz、/.well-known/*、/mcp
-  node.ts         Node 入口（官方部署：Docker）
-  worker.ts       Cloudflare Workers 入口（可选）
-  stdio.ts        本地 stdio 入口（npm bin: jinshuju-mcp）
-  config.ts       环境变量 -> Config
-  version.ts      版本号（release-please 同步）
-  *.test.ts       node:test；不碰网络，fetch 全部注入
+  types.ts        Shapes of the generated output (OperationSpec / ToolSpec / BodySpec)
+  api.ts          JinshujuApi: sends one request per OperationSpec (URL, query, JSON / multipart, Bearer, timeout, one refresh on 401)
+  result.ts       Turns an ApiResponse into a CallToolResult (truncation, structuredContent, error details)
+  tools.ts        Registers ToolSpecs as MCP tools; get_schema
+  composites.ts   Orchestration of composite tools: create / edit exam and evaluation forms (two requests), count_entries for one / several forms
+  server.ts       buildServer: McpServer + tools + resources + instructions
+  credential.ts   Credential interface + Bearer string credential (no Node dependencies; the only one in the Worker bundle)
+  cli-credential.ts  Local credential for stdio: ~/.jinshuju/config.json (shared with @jinshuju/cli, with refresh)
+  auth.ts         HTTP authentication: Bearer extraction, verification cached by token hash (GET /me), 401 challenge, AS metadata
+  analytics.ts    PostHog MCP analytics (@posthog/mcp): instruments the McpServer per request, decides what is and is not reported
+  app.ts          Hono app: /, /healthz, /.well-known/*, /mcp
+  node.ts         Node entry (official deployment: Docker)
+  worker.ts       Cloudflare Workers entry (optional)
+  stdio.ts        Local stdio entry (npm bin: jinshuju-mcp)
+  config.ts       Environment variables -> Config
+  version.ts      Version number (kept in sync by release-please)
+  *.test.ts       node:test; no network, every fetch is injected
 ```
 
-依赖方向：`app` / `stdio` → `server` → `tools` → `composites` → `result` → `api` → `credential`；`types`、`config`、`version` 不依赖任何人。
-`analytics` 只被 `app` / `node` 用（stdio 不上报），依赖 `auth`（令牌哈希）、`tools`（参数名全集）与 `validation`（`context` 参数名）。
+Dependency direction: `app` / `stdio` → `server` → `tools` → `composites` → `result` → `api` → `credential`; `types`, `config` and `version` depend on nothing.
+`analytics` is used only by `app` / `node` (stdio does not report), and depends on `auth` (token hash), `tools` (the full set of argument names) and `validation` (the `context` argument name).
 
-工具集与 open.jinshuju.net/mcp 文档中的 60 个工具一一对应（overlay 的 `include` 就是对应表）：54 个一对一映射到操作，
-`edit_field_rules` 是 `updateForm` 请求体里 `field_rules` 的投影，考试 / 测评的 4 个建改工具和 `count_entries` 是组合工具。
-`operations.json` 收录全部 113 个操作，组合工具据此调用没有单独暴露的操作（如 `updateExamSetting`）。
+The tool set matches the 60 tools documented at open.jinshuju.net/mcp one to one (the overlay's `include` is the mapping): 54 map one to one onto operations,
+`edit_field_rules` is a projection of `field_rules` in the `updateForm` request body, and the 4 exam / evaluation create and edit tools and `count_entries` are composite tools.
+`operations.json` holds all 123 operations, so composite tools can call operations that are not exposed on their own (such as `updateExamSetting`).
 
-## 一次工具调用
+## One tool call
 
-1. 客户端 `POST /mcp`。`app.ts` 取出 Bearer；没有就回 `401` + `WWW-Authenticate: Bearer resource_metadata=…`，
-   客户端据此去 `/.well-known/oauth-protected-resource/mcp` 发现 account.jinshuju.net 并走 OAuth。
-2. `TokenVerifier` 按令牌的 SHA-256 查缓存；未命中就 `GET /me`。只有 `401` 才算无效（`403` 是 scope 不够，令牌本身有效）。
-   结果缓存 5 分钟：每个工具调用不多花一次 API 配额。
-3. `createMcpHandler` 用工厂为这个请求建一个 `McpServer`（`buildServer`），令牌闭包进每个工具的 handler。
-   配了 `POSTHOG_API_KEY` 时工厂顺手 `analytics.instrument(server, authInfo)`：用户 id、按令牌派生的会话 id 都闭包在这一个请求里。
-   2025 旧握手的请求（`isLegacyRequest`）不走 SDK 自带的无状态兜底，而是自己起一个 `enableJsonResponse` 的 transport：
-   SSE 会在 handler 跑之前就发出响应头，PostHog SDK 在 `initialize` 时铸的 `Mcp-Session-Id`（带客户端名字和版本，客户端
-   之后每个请求都回放）落不到响应头上，工具调用的事件也会落在响应之后、flush 之前。
-4. SDK 按 `inputSchema` 校验参数（`fromJsonSchema`，Node 上 AJV，workerd 上 @cfworker/json-schema）。
-   不合法直接回 `isError`，不发请求：参数问题在到达 API 之前就被拦下。
-5. `JinshujuApi.call` 拼 URL：路径参数 `encodeURIComponent`，query 省略空值，数组 `name[]=`（服务端按数组读取的写法）；
-   请求体 = 入参去掉 path / query 参数后的其余键（flatten），或 `bodyParam` 那个键；JSON / multipart（base64 三元组还原成文件）。
-   API 回 `401` 时让凭证续期一次再试（只对 stdio 的 OAuth 会话有意义）。组合工具由 `composites.ts` 决定先发哪个、
-   失败时怎么说（建考试表单：表单先建、设置后写，设置被拒绝时明确说「表单已创建」；改考试表单：设置先发，被拒绝则其它改动一个不发）。
-6. `toToolResult`：2xx → 紧凑 JSON 文本（超 `maxResultChars` 截断并提示用 fields / limit / next），
-   有 `outputSchema` 的工具同时给 `structuredContent`；非 2xx → `isError`，文本里有 HTTP 状态、`error_description`、
-   逐条 `errors[]`（pointer / message / code）和一句怎么办；`X-API-Input-Warnings` 任何时候都附在末尾。
+1. The client sends `POST /mcp`. `app.ts` takes the Bearer token; without one it answers `401` + `WWW-Authenticate: Bearer resource_metadata=…`,
+   from which the client finds account.jinshuju.net through `/.well-known/oauth-protected-resource/mcp` and runs OAuth.
+2. `TokenVerifier` looks the token's SHA-256 up in its cache; on a miss it calls `GET /me`. Only `401` means invalid (`403` means insufficient scope; the token itself is valid).
+   The result is cached for 5 minutes, so a tool call does not spend an extra API request.
+3. `createMcpHandler` uses a factory to build an `McpServer` for this request (`buildServer`); the token is closed over in every tool handler.
+   With `POSTHOG_API_KEY` set, the factory also runs `analytics.instrument(server, authInfo)`: the user id and the session id derived from the token are closed over in this one request.
+   Requests on the 2025 legacy handshake (`isLegacyRequest`) do not take the SDK's own stateless fallback; they get their own `enableJsonResponse` transport:
+   SSE sends the response headers before the handler runs, so the `Mcp-Session-Id` the PostHog SDK mints at `initialize` (carrying the client name and version, which the client
+   replays on every later request) would never reach the response headers, and tool-call events would land after the response and before the flush.
+4. The SDK validates arguments against `inputSchema` (`fromJsonSchema`: AJV on Node, @cfworker/json-schema on workerd).
+   Invalid arguments return `isError` without sending a request: argument problems are stopped before they reach the API.
+5. `JinshujuApi.call` builds the URL: path parameters are `encodeURIComponent`ed, empty query values are left out, arrays are sent as `name[]=` (how the server reads arrays);
+   the request body = the arguments left after removing path / query parameters (flatten), or the `bodyParam` key; JSON / multipart (the base64 triple becomes a file again).
+   When the API answers `401`, the credential refreshes once and retries (only meaningful for stdio OAuth sessions). For composite tools, `composites.ts` decides which request goes first
+   and what to say on failure (creating an exam form: the form first, then the settings, and a rejected setting says plainly "The form was created"; editing an exam form: the settings first, and if they are rejected none of the other changes are sent).
+6. `toToolResult`: 2xx → compact JSON text (truncated past `maxResultChars` with a hint to use fields / limit / next);
+   tools with an `outputSchema` also get `structuredContent`; non-2xx → `isError`, with the HTTP status, `error_description`,
+   each `errors[]` item (pointer / message / code) and one line on what to do; `X-API-Input-Warnings` is always appended at the end.
 
-`outputSchema` 只告诉模型会返回什么，不拒绝响应（绑定了一个永远通过的 validator）：
-openapi.yaml 与线上实现偶有出入时，一次成功的 API 调用不应变成工具错误。
+`outputSchema` only tells the model what comes back; it never rejects a response (it is bound to a validator that always passes):
+when openapi.yaml and the live implementation disagree now and then, a successful API call should not turn into a tool error.
 
-## 使用统计（analytics.ts）
+## Usage analytics (analytics.ts)
 
-采集口径照着 goldendata 内置 MCP 的 `TrackMCPEventService`，两边的数据在 PostHog 里能放在一起看：
+What is collected follows the built-in MCP's `TrackMCPEventService` (jinshuju.net/mcp), so data from both can be read together in PostHog:
 
-- 只留 `$mcp_initialize` 与 `$mcp_tool_call`，其余事件（`$mcp_tools_list`、`$mcp_resources_*`、`$identify`、`$exception`）在 `beforeSend` 里丢掉；
-  SDK 缺省带的 `$mcp_parameters` / `$mcp_response` / `$mcp_tool_description` 也去掉——只记参数名（`$mcp_input_keys`），不记值和返回内容。
-  SDK 读不懂 `fromJsonSchema` 产物里的声明，参数名全集由 `tools.json` 提供，模型编出来的键名记成 `[redacted]`。
-- 意图：SDK 给每个工具的 inputSchema 注入 `context`（问法与 goldendata 相同），`tools/call` 到达 handler 前先剥掉再校验；
-  关掉采集或客户端用着缓存的工具列表时 `context` 仍会发来，所以 `validation.ts` 无论如何都接受并丢弃它，不让它流到 API。
-  SDK 的其它注入（`llm_model`、`conversation_id`、`get_more_tools`、`send_feedback`）一律不开。
-- 身份与会话：`identify` 用 `GET /me` 的用户 id；`$session_id` 不用 SDK 每个请求新开的那个，换成令牌 SHA-256 派生的
-  `ses_…`（同一个令牌一个会话，与 goldendata 的 md5(token) 同一思路），2026-07-28 没有握手的客户端也能把多次调用归到一起。
-  同一会话的 `initialize` 一天只报一次（进程内去重，Workers 多实例时尽力而为）。
-- 发送：posthog-node 攒批。Workers 上每个请求结束时把 `flush()` 放进 `executionCtx.waitUntil`；Node 上靠定时器，SIGTERM 时 `shutdown()`。
-  工具不发中途通知，两条腿的响应都在 handler 跑完后才组装，事件一定在 flush 之前进队列。
+- Only `$mcp_initialize` and `$mcp_tool_call` are kept; every other event (`$mcp_tools_list`, `$mcp_resources_*`, `$identify`, `$exception`) is dropped in `beforeSend`;
+  `$mcp_parameters` / `$mcp_response` / `$mcp_tool_description`, which the SDK adds by default, are removed too — only argument names are recorded (`$mcp_input_keys`), not values or results.
+  The SDK cannot read the declarations in what `fromJsonSchema` produces, so the full set of argument names comes from `tools.json`; key names the model makes up are recorded as `[redacted]`.
+- Intent: the SDK injects `context` into every tool's inputSchema (asked the same way as the built-in MCP), and `tools/call` strips it before validation and before the handler;
+  `context` still arrives when collection is off or the client uses a cached tool list, so `validation.ts` always accepts and discards it, and it never reaches the API.
+  The SDK's other injections (`llm_model`, `conversation_id`, `get_more_tools`, `send_feedback`) are all off.
+- Identity and sessions: `identify` uses the user id from `GET /me`; `$session_id` is not the one the SDK opens per request but `ses_…` derived from the token's SHA-256
+  (one session per token, the same idea as the built-in MCP's md5(token)), so even clients on 2026-07-28 with no handshake have their calls grouped together.
+  `initialize` is reported once a day per session (deduplicated in process; best effort across Workers instances).
+- Sending: posthog-node batches. On Workers, `flush()` goes into `executionCtx.waitUntil` at the end of each request; on Node a timer does it, with `shutdown()` on SIGTERM.
+  Tools send no mid-call notifications, and both legs assemble the response only after the handler finishes, so events are always queued before the flush.
 
-## 生成规则（scripts/generate.ts）
+## Generation rules (scripts/generate.ts)
 
-| 输入                                                                          | 产物                                                                                                                                 |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `operationId`（camelCase）                                                    | 工具名 snake_case；overlay 可改名                                                                                                    |
-| `summary` + `description`                                                     | `title` + `description`；`OAuth scope: …` 那行抽进 `scopes`，不留在描述里                                                            |
-| path / query 参数                                                             | `inputSchema.properties` 顶层键；path 参数必填                                                                                       |
-| `requestBody`                                                                 | 缺省 flatten：请求体属性提升到入参顶层（运行时按参数名拆回）；数据本身（`entry`）和整个请求体是指针的操作嵌在一个键下（`bodyParam`） |
-| `projections`                                                                 | 一个工具 = 某操作请求体的一个子键，子键属性提升到顶层，发出时包回 `{ 子键: … }`                                                      |
-| `composites`                                                                  | 入参由主操作 + 场景设置操作的 schema 拼成，编排在 `composites.ts`                                                                    |
-| `multipart/form-data` 的 `file`                                               | `file_base64` + `file_name` + `content_type`                                                                                         |
-| HTTP 方法                                                                     | annotations：GET 只读幂等；DELETE 破坏性幂等；PUT/PATCH 幂等；POST 其它                                                              |
-| 2xx 响应 schema                                                               | 压缩后 ≤ `outputSchemaMaxChars` 才随 tools/list 下发，否则描述里留一句 `Returns schema "X"`                                          |
-| `pointerSchemas` 里的 `$ref`                                                  | 不内联，换成一句指向 `get_schema` / `jinshuju://schemas/{name}` 的说明                                                               |
-| `omitSchemas` 里的 `$ref`                                                     | 整个去掉（只给服务端校验用的 if/then 组合约束，对模型没有信息量）                                                                    |
-| 内联的 `oneOf` / `anyOf`，分支都有 `title` 且 ≥ `collapseVariantsMinBranches` | 折叠：只留公共属性，分支名写进描述（表格列 11 种从 12k 字符降到几百）                                                                |
-| 其余 `$ref`                                                                   | 内联（防环）；`discriminator` / `xml` / `nullable` 去掉，`example` 改 `examples`                                                     |
-| `components.schemas` 全部                                                     | `schemas.json` 目录，按 type 分支的带 `x-variants`（type → 分支 schema 名）                                                          |
+| Input                                                                                        | Output                                                                                                                                                                                                                |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operationId` (camelCase)                                                                    | Tool name in snake_case; the overlay can rename it                                                                                                                                                                    |
+| `summary` + `description`                                                                    | `title` + `description`; the `OAuth scope: …` line goes into `scopes` and is removed from the description                                                                                                             |
+| path / query parameters                                                                      | Top-level keys of `inputSchema.properties`; path parameters are required                                                                                                                                              |
+| `requestBody`                                                                                | Flattened by default: body properties are lifted to the top level of the input (split back by name at run time); the entry data itself (`entry`) and bodies that are a pointer are nested under one key (`bodyParam`) |
+| `projections`                                                                                | A tool = one sub-key of an operation's request body, with its properties lifted to the top level and wrapped back as `{ sub-key: … }` when sent                                                                       |
+| `composites`                                                                                 | Input built from the schemas of the main operation + the scene settings operation; orchestrated in `composites.ts`                                                                                                    |
+| `file` in `multipart/form-data`                                                              | `file_base64` + `file_name` + `content_type`                                                                                                                                                                          |
+| HTTP method                                                                                  | annotations: GET read-only and idempotent; DELETE destructive and idempotent; PUT/PATCH idempotent; POST none of these                                                                                                |
+| 2xx response schema                                                                          | Ships with tools/list only when, minified, it is ≤ `outputSchemaMaxChars`; otherwise the description gets one line, `Returns schema "X"`                                                                              |
+| `$ref` to a schema in `pointerSchemas`                                                       | Not inlined; replaced by one line pointing to `get_schema` / `jinshuju://schemas/{name}` (`Shape: schema "X"; …`)                                                                                                     |
+| `$ref` to a schema in `omitSchemas`                                                          | Removed entirely (if/then combined constraints used only for server-side validation tell the model nothing)                                                                                                           |
+| Inlined `oneOf` / `anyOf` whose branches all have a `title`, ≥ `collapseVariantsMinBranches` | Collapsed: only the common properties stay, and the branch names go into the description (11 kinds of table column drop from 12k characters to a few hundred)                                                         |
+| Any other `$ref`                                                                             | Inlined (cycle-safe); `discriminator` / `xml` / `nullable` removed, `example` becomes `examples`                                                                                                                      |
+| All of `components.schemas`                                                                  | The `schemas.json` catalog; schemas that branch on type carry `x-variants` (type → branch schema name)                                                                                                                |
 
-指针化是 token 瘦身的关键：`FieldInput` 一个 schema（52 种字段类型的联合）内联进 create_form / update_form 就是
-两万多 token；换成一句话加一个 `get_schema` 工具后，模型只在真的要建表单时才读它需要的那一两个类型。
+Pointers are what keep the token count down: inlined into create_form / update_form, the one `FieldInput` schema (a union of 52 field types) costs
+over twenty thousand tokens; as one line plus a `get_schema` tool, the model reads only the one or two types it needs, and only when it really creates a form.
 
-## 鉴权与部署
+## Authentication and deployment
 
-- **HTTP。** 任何能发 Bearer 的客户端都能用：OAuth（客户端自动走 account.jinshuju.net，支持动态注册 + PKCE + refresh）
-  或直接贴个人 / 企业 Access Token。本服务不区分，都转给 API。
-- **stdio。** `JINSHUJU_ACCESS_TOKEN` 优先，其次 `~/.jinshuju/config.json`（`jinshuju auth login` 写的）。
-  OAuth 会话快过期或遇到 401 时用 refresh_token 续期并原子写回（mode 600）。cli 和 mcp 共用一次登录。
-- **Node（官方）。** `Dockerfile` 一个进程，`PORT` 监听，`/healthz` 探活。无状态，随便扩副本。
-  对外地址可配 `JINSHUJU_MCP_PUBLIC_URL`（可含路径前缀，如 `https://host/jinshuju-mcp`；逗号分隔可给多个，按请求的 Host 选用，
-  没有匹配的用第一个），否则信任反向代理的 `X-Forwarded-Proto/Host/Prefix`。挂在前缀下时，401 质询里的 `resource_metadata` 指向本服务自己路径下的 well-known 文档，
-  而不是域名根（根路径不归本服务管）；RFC 9728 允许客户端直接按质询给的 URL 取。
-- **Workers（可选）。** `wrangler.jsonc` 没有任何绑定；`worker.ts` 只是把 Hono app 导出。WDL 这类平台在 TLS 终止后明文转发，
-  `X-Forwarded-Proto` 是 http 且不带 `X-Forwarded-Prefix`，按请求推断会得到错误地址，所以必须配 `JINSHUJU_MCP_PUBLIC_URL`，
-  把自定义域名和平台默认的带前缀地址都列进去，服务按 Host 选用。
+- **HTTP.** Any client that can send a Bearer token works: OAuth (the client goes to account.jinshuju.net on its own, with dynamic registration + PKCE + refresh)
+  or a personal / account access token pasted in. This service does not tell them apart; all go to the API.
+- **stdio.** `JINSHUJU_ACCESS_TOKEN` first, then `~/.jinshuju/config.json` (written by `jinshuju auth login`).
+  An OAuth session close to expiry, or one that meets a 401, is refreshed with its refresh_token and written back atomically (mode 600). The cli and mcp share one sign-in.
+- **Node (official).** `Dockerfile` runs one process listening on `PORT`, with `/healthz` for health checks. Stateless; add replicas freely.
+  The public URL can be set with `JINSHUJU_MCP_PUBLIC_URL` (it may carry a path prefix, e.g. `https://host/jinshuju-mcp`; a comma-separated list is chosen by the request's Host,
+  falling back to the first), otherwise the reverse proxy's `X-Forwarded-Proto/Host/Prefix` are trusted. Under a prefix, `resource_metadata` in the 401 challenge points to the well-known document under this service's own path,
+  not the domain root (the root does not belong to this service); RFC 9728 lets clients fetch the URL the challenge gives.
+- **Workers (optional).** `wrangler.jsonc` has no bindings; `worker.ts` just exports the Hono app. Platforms like WDL forward in plain text after TLS termination,
+  with `X-Forwarded-Proto` set to http and no `X-Forwarded-Prefix`, so inferring from the request gives the wrong URL. `JINSHUJU_MCP_PUBLIC_URL` is therefore required there,
+  listing both the custom domain and the platform's default prefixed URL; the service picks one by Host.
 
-## 测试
+## Tests
 
-`npm test` 构建后跑 `node --test dist/*.test.js`。`fetch` 全部注入，不碰网络、不读用户的凭证文件：
+`npm test` builds, then runs `node --test dist/*.test.js`. Every `fetch` is injected; tests touch no network and do not read the user's credential file:
 
-- `generated.test.ts` 守生成产物的不变量：与文档中的 60 个工具一一对应、无 `$ref`、路径参数必填、flatten / 嵌套、投影与组合的入参形状、指针化、注解；
-- `api.test.ts` 守 URL / body / multipart / 401 续期 / 传输错误；
-- `server.test.ts` 用 `InMemoryTransport` + `@modelcontextprotocol/client` 走完整的 tools/list、tools/call、组合工具的请求顺序与失败说明、resources；
-- `app.test.ts` 用 Hono 的 `app.request` 走 401 challenge、PRM、缓存、旧协议握手；
-- `analytics.test.ts` 注入假的 PostHog ingest，守采集口径：报哪些事件、参数名不带值、`context` 不流到 API、两个协议版本同一会话、关掉与不配时的行为。
+- `generated.test.ts` guards invariants of the generated output: one-to-one with the 60 documented tools, no `$ref`, required path parameters, flatten / nesting, input shapes of projections and composites, pointers, annotations;
+- `api.test.ts` guards URL / body / multipart / refresh on 401 / transport errors;
+- `server.test.ts` runs the full tools/list, tools/call, composite request order and failure messages, and resources through `InMemoryTransport` + `@modelcontextprotocol/client`;
+- `app.test.ts` runs the 401 challenge, PRM, caching and the legacy handshake through Hono's `app.request`;
+- `analytics.test.ts` injects a fake PostHog ingest and guards what is collected: which events, argument names without values, `context` never reaching the API, one session across both protocol versions, and behaviour when turned off or not configured.
 
-## 评测（evals/）
+## Evals (evals/)
 
-`evals/` 不参与发布，是针对「模型用起来顺不顺手」的回归测试：同一批任务、同一批模型，分别接本仓库的 MCP（进程内 `buildServer`）
-与内置 MCP（Streamable HTTP），按断言打分。裁判（夹具准备、状态核对、结果写入）直接走开放 API（复用 `src/api.ts` 与操作表），
-不经过任何被测 MCP。设计、任务格式与指标见 [evals/README.md](evals/README.md)；`evals.yml` 在发版、openapi.yaml 变更与每周一触发。
+`evals/` is not published; it is a regression test for how well models get on with the tools: the same tasks and the same models, connected to this repository's MCP (in-process `buildServer`)
+and to the built-in MCP (Streamable HTTP), scored by assertions. The referee (fixture setup, state checks, writing results) goes straight to the open API (reusing `src/api.ts` and the operation table),
+never through an MCP under test. Design, task format and metrics are in [evals/README.md](evals/README.md); `evals.yml` runs on release, on openapi.yaml changes and every Monday.
 
-## 发布与同步
+## Release and sync
 
-- CI 检查 `npm run generate` 后 `src/generated` 没有 diff，保证产物不漂移。
-- `spec-sync.yml` 每天拉线上 openapi.yaml，有变化就重新生成并开 PR —— 人只需要 review 工具的 diff。
-- `release.yml` 与 jinshuju/cli 相同：release-please 维护版本 PR，合并即通过 OIDC 发布到 npm。
+- CI checks that `npm run generate` leaves no diff in `src/generated`, so the output never drifts.
+- `spec-sync.yml` fetches the live openapi.yaml daily and, when it changed, regenerates and opens a PR — a person only reviews the tool diff.
+- `release.yml` matches jinshuju/cli: release-please keeps a release PR, and merging it publishes to npm through OIDC.

@@ -1,4 +1,4 @@
-# 给 AI 助手的项目约定
+# Conventions for AI assistants
 
-- `spec/openapi.yaml` 是唯一事实来源，`mcp.overlay.yaml` 只描述怎么把它投影成 MCP 工具。改完 overlay 跑 `npm run generate`，`src/generated/` 一并提交。
-- `mcp.overlay.yaml` 越简洁越好。`descriptionAppend` 只写模型照着 openapi 描述仍会用错的地方（如多选字段按选项筛选用 `any_in` 而不是 `eq`）；API 放开某个限制后，直接删掉对应说明，不要改写成正面提示。整段原文对模型都是噪音（如上传接口的 HTTP 鉴权 / multipart 细节）时才用 `description` 整段替换。
+- `spec/openapi.yaml` is the single source of truth; `mcp.overlay.yaml` only says how to project it into MCP tools. After changing the overlay, run `npm run generate` and commit `src/generated/` with it.
+- Keep `mcp.overlay.yaml` as short as possible. `descriptionAppend` covers only what models still get wrong when following the openapi description (e.g. filtering a multiple-choice field by a choice uses `any_in`, not `eq`); when the API lifts a restriction, delete the matching note instead of rewording it as a positive hint. Use `description` to replace the original text entirely only when all of it is noise to the model (e.g. the HTTP authentication / multipart details of upload endpoints).

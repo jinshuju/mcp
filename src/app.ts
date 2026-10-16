@@ -1,20 +1,23 @@
 /**
- * HTTP 入口（Hono）：同一份 app 跑在 Node（node.ts）和 Cloudflare Workers（worker.ts）上。
+ * HTTP entry (Hono): the same app runs on Node (node.ts) and Cloudflare Workers (worker.ts).
  *
- *   GET  /                                    说明页
- *   GET  /healthz                             健康检查
- *   GET  /.well-known/oauth-protected-resource[/mcp]   RFC 9728，指向 account.jinshuju.net
- *   GET  /.well-known/oauth-authorization-server       RFC 8414 镜像（给只探测资源域名的旧客户端）
- *   POST /mcp                                 MCP Streamable HTTP（2026-07-28 无状态；2025 旧握手按无状态兜底）
+ *   GET  /                                    landing page
+ *   GET  /healthz                             health check
+ *   GET  /.well-known/oauth-protected-resource[/mcp]   RFC 9728, pointing at account.jinshuju.net
+ *   GET  /.well-known/oauth-authorization-server       RFC 8414 mirror (for older clients that probe only the resource domain)
+ *   POST /mcp                                 MCP Streamable HTTP (2026-07-28 stateless; the 2025 handshake falls back to stateless)
  *
- * 服务可能挂在一个路径前缀下（如 https://host/jinshuju-mcp/…，平台转发时剥掉前缀）：
- * 对外地址用 JINSHUJU_MCP_PUBLIC_URL 指定（含前缀；逗号分隔可给多个，按请求 Host 选用，自定义域名和平台默认地址
- * 都能用），401 质询里的 resource_metadata 指向本服务自己路径下的 well-known 文档，而不是域名根；RFC 9728 允许
- * 客户端直接按质询里给的 URL 取。不指定时按请求推断（信任反向代理的 X-Forwarded-*）。
+ * The service may sit under a path prefix (e.g. https://host/jinshuju-mcp/…, with the platform stripping the prefix when
+ * forwarding): JINSHUJU_MCP_PUBLIC_URL gives the public address (prefix included; a comma-separated list gives several,
+ * picked by the request's Host, so a custom domain and the platform's default address both work), and resource_metadata in
+ * the 401 challenge points at the well-known document under this service's own path rather than the domain root; RFC 9728
+ * lets clients fetch the URL the challenge gives. When it is not set, the address is inferred from the request (trusting
+ * the reverse proxy's X-Forwarded-*).
  *
- * 配了 POSTHOG_API_KEY 时每个请求的 McpServer 都装上 PostHog MCP analytics（analytics.ts），响应发出后在 waitUntil 里上报。
- * 意外的异常报 Sentry（worker.ts 用 withSentry 初始化；没配 SENTRY_DSN 时 SDK 什么都不发，Node 入口没接）：
- * 工具 handler 抛出的、令牌校验时 API 不可达的、路由里没接住的。API 回的 4xx / 5xx 是正常的工具结果，不报。
+ * With POSTHOG_API_KEY set, every request's McpServer gets PostHog MCP analytics (analytics.ts), reported in waitUntil after
+ * the response goes out. Unexpected exceptions go to Sentry (worker.ts initializes it with withSentry; without SENTRY_DSN the
+ * SDK sends nothing; the Node entry is not wired): those a tool handler throws, an unreachable API during token verification,
+ * and anything a route does not catch. A 4xx / 5xx from the API is a normal tool result and is not reported.
  */
 import { Hono, type Context } from 'hono';
 import {
@@ -41,9 +44,9 @@ import { SERVER_TITLE, VERSION } from './version.js';
 export interface AppOptions {
   config?: Partial<Config>;
   fetch?: typeof fetch;
-  /** 测试用：跳过真实的授权服务器元数据拉取 */
+  /** For tests: skips fetching the real authorization server metadata */
   authServerMetadata?: OAuthMetadata;
-  /** 埋点。不传则按 config 决定（有 posthogApiKey 才开）；传 null 强制关；node.ts / 测试传自己的实例 */
+  /** Analytics. Omitted, config decides (on only with posthogApiKey); null forces it off; node.ts / tests pass their own instance */
   analytics?: McpAnalytics | null;
 }
 
@@ -63,8 +66,9 @@ export function createApp(options: AppOptions = {}): Hono {
       ? Promise.resolve(options.authServerMetadata)
       : loadAuthServerMetadata(cfg.authServer, fetchImpl));
 
-  // 一个请求一个 McpServer，令牌闭包进每个工具的 handler；埋点也按请求装，用户与会话跟着请求走。
-  // 埋点句柄按请求对象存着：factory 里装上，路由在响应发出后拿出来 flush。
+  // One McpServer per request, with the token closed over in every tool handler; analytics is installed per request too,
+  // so the user and session follow the request. The analytics handle is stored per request object: the factory installs
+  // it, and the route takes it out to flush after the response goes out.
   const trackers = new WeakMap<Request, RequestAnalytics>();
   const factory = async (ctx: McpRequestContext) => {
     const token = ctx.authInfo?.token;
@@ -79,13 +83,15 @@ export function createApp(options: AppOptions = {}): Hono {
     if (analytics && ctx.requestInfo) trackers.set(ctx.requestInfo, await analytics.instrument(server, ctx.authInfo));
     return server;
   };
-  // 工具不发中途通知，响应就是一个 JSON（缺省的 auto 模式）：在 handler 跑完后才组装，本次请求的埋点在返回前已收齐。
+  // Tools send no progress notifications, so the response is one JSON (the default auto mode): it is assembled after the handler finishes, and this request's analytics is complete before it returns.
   const handler: McpHttpHandler = createMcpHandler(factory, { legacy: 'reject' });
 
   /**
-   * 2025 旧握手（initialize + Mcp-Session-Id）的无状态服务。不用 SDK 自带的兜底而自己接一遍，只为用 JSON 响应
-   * 代替 SSE：SSE 在 handler 跑之前就把响应头发出去了，PostHog SDK 在 initialize 时铸的 Mcp-Session-Id（带客户端
-   * 名字和版本，客户端之后每个请求都会带回来）落不到响应头上，工具调用的埋点也会落在响应之后、flush 之前。
+   * Stateless service for the 2025 handshake (initialize + Mcp-Session-Id). It is wired here instead of using the SDK's
+   * own fallback only to answer with JSON instead of SSE: SSE sends the response headers before the handler runs, so the
+   * Mcp-Session-Id the PostHog SDK mints on initialize (carrying the client name and version, and sent back by the client
+   * on every later request) never reaches the headers, and tool call analytics would land after the response and before
+   * the flush.
    */
   async function serveLegacy(request: Request, authInfo: AuthInfo): Promise<Response> {
     if (request.method.toUpperCase() !== 'POST') return jsonRpcError(405, -32000, 'Method not allowed.');
@@ -108,8 +114,8 @@ export function createApp(options: AppOptions = {}): Hono {
   }
 
   /**
-   * 对外基址（无尾部斜杠，可含路径前缀）。配了地址就按请求的 Host 选一个，没有匹配的用第一个；
-   * 没配则按请求推断（信任反向代理的 X-Forwarded-*）。
+   * Public base URL (no trailing slash, may include a path prefix). With addresses configured, picks one by the request's
+   * Host, falling back to the first; without, infers it from the request (trusting the reverse proxy's X-Forwarded-*).
    */
   const publicUrls = cfg.publicUrls.map((u) => ({ base: u.replace(/\/$/, ''), host: new URL(u).host.toLowerCase() }));
   function publicBase(request: Request): string {
@@ -140,10 +146,10 @@ export function createApp(options: AppOptions = {}): Hono {
       }
     });
 
-  // 不区分尾部斜杠：用户常把地址填成 /mcp/，缺省的严格匹配会让它 404。
+  // Ignore trailing slashes: users often enter the address as /mcp/, which the default strict matching answers with 404.
   const app = new Hono({ strict: false });
 
-  // 路由里没接住的异常：Hono 缺省只打 console 并回 500，这里顺带报 Sentry。
+  // Exceptions a route does not catch: Hono only logs them to console and answers 500 by default; also report them to Sentry here.
   app.onError((error, c) => {
     console.error('unhandled error:', error);
     captureException(error);
@@ -162,7 +168,7 @@ export function createApp(options: AppOptions = {}): Hono {
   );
   app.get('/healthz', (c) => c.text('ok'));
 
-  // RFC 9728 保护资源元数据：带 /mcp 与不带的两个路径都应答同一份（兼容只探测 origin 的客户端）。
+  // RFC 9728 protected resource metadata: the paths with and without /mcp answer the same document (for clients that probe only the origin).
   const prmPaths = ['/.well-known/oauth-protected-resource', `/.well-known/oauth-protected-resource${MCP_PATH}`];
   app.on(['GET', 'OPTIONS'], prmPaths, async (c) => {
     if (c.req.method === 'OPTIONS') return json(null, 204);
@@ -175,7 +181,7 @@ export function createApp(options: AppOptions = {}): Hono {
     });
     return json(metadata);
   });
-  // RFC 8414 授权服务器元数据镜像。
+  // RFC 8414 authorization server metadata mirror.
   app.on(['GET', 'OPTIONS'], '/.well-known/oauth-authorization-server', async (c) => {
     if (c.req.method === 'OPTIONS') return json(null, 204);
     return json(await authServerMetadata());
@@ -209,7 +215,7 @@ export function createApp(options: AppOptions = {}): Hono {
     const response = (await isLegacyRequest(request))
       ? await serveLegacy(request, authInfo)
       : await handler.fetch(request, { authInfo });
-    // 工具调用中 API 回了 401（令牌中途失效）：让下一次请求重新校验。
+    // The API answered 401 during a tool call (the token expired mid-way): make the next request verify again.
     if (response.status === 401) await verifier.forget(token);
     const tracker = trackers.get(request);
     if (tracker) flushInBackground(c, tracker);
@@ -219,7 +225,7 @@ export function createApp(options: AppOptions = {}): Hono {
   return app;
 }
 
-/** 工具抛出的异常：API 连不上 / 超时是环境问题，记 warning；其它都是我们的 bug。 */
+/** An exception a tool throws: an unreachable API / timeout is environmental and logged as a warning; anything else is our bug. */
 function reportToolError(error: unknown, tool: string): void {
   captureException(error, { tags: { tool }, level: error instanceof TransportError ? 'warning' : 'error' });
 }
@@ -231,7 +237,7 @@ function jsonRpcError(status: number, code: number, message: string): Response {
   });
 }
 
-/** 把本次请求的上报发出去：Workers 上放进 waitUntil，响应不等它；Node 没有 executionCtx，发了就不管。 */
+/** Sends this request's analytics: on Workers it goes into waitUntil and the response does not wait; Node has no executionCtx, so it fires and forgets. */
 function flushInBackground(c: Context, tracker: RequestAnalytics): void {
   const flushing = tracker.flush().catch((error) => {
     console.error('posthog flush failed:', error);
@@ -240,6 +246,6 @@ function flushInBackground(c: Context, tracker: RequestAnalytics): void {
   try {
     c.executionCtx.waitUntil(flushing);
   } catch {
-    // Node：没有 executionCtx，上面已经在发了
+    // Node: no executionCtx; sending already started above
   }
 }

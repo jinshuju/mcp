@@ -43,23 +43,23 @@ async function connect(fetchImpl: typeof fetch, maxResultChars = 120_000) {
   return { client, close: async () => await client.close() };
 }
 
-test('tools/list：生成的工具 + get_schema，带注解与 outputSchema', async () => {
+test('tools/list: the generated tools plus get_schema, with annotations and outputSchema', async () => {
   const { client, close } = await connect(fakeApi(() => new Response('{}')).fetchImpl);
   const { tools } = await client.listTools();
   assert.equal(tools.length, TOOLS.length + 1);
   const listForms = tools.find((t) => t.name === 'list_forms')!;
   assert.equal(listForms.annotations?.readOnlyHint, true);
   const withOutput = TOOLS.filter((t) => t.outputSchema);
-  assert.ok(withOutput.length > 0, '至少有一部分工具随 tools/list 下发 outputSchema');
+  assert.ok(withOutput.length > 0, 'at least some tools carry an outputSchema in tools/list');
   for (const spec of withOutput) assert.ok(tools.find((t) => t.name === spec.name)?.outputSchema, spec.name);
   assert.ok(tools.find((t) => t.name === 'get_schema'));
   const createForm = tools.find((t) => t.name === 'create_form')!;
-  assert.equal(createForm.outputSchema, undefined, 'Form 响应含 FieldDefinition，不下发');
+  assert.equal(createForm.outputSchema, undefined, 'the Form response contains FieldDefinition, so it is not sent');
   assert.match(createForm.description ?? '', /get_schema/);
   await close();
 });
 
-test('tools/call：参数经 JSON Schema 校验，不合法时不发请求', async () => {
+test('tools/call: arguments are checked against the JSON Schema, and no request is sent when they are invalid', async () => {
   const { calls, fetchImpl } = fakeApi(() => new Response('{}'));
   const { client, close } = await connect(fetchImpl);
   const result = await client.callTool({ name: 'list_entries', arguments: { limit: 'ten' } });
@@ -70,7 +70,7 @@ test('tools/call：参数经 JSON Schema 校验，不合法时不发请求', asy
   await close();
 });
 
-test('tools/call：多传了键时点名多余的参数并列出可用参数', async () => {
+test('tools/call: extra keys are named, along with the arguments the tool accepts', async () => {
   const { calls, fetchImpl } = fakeApi(() => new Response('{}'));
   const { client, close } = await connect(fetchImpl);
   const result = await client.callTool({
@@ -90,7 +90,7 @@ test('tools/call：多传了键时点名多余的参数并列出可用参数', a
   await close();
 });
 
-test('tools/call：成功时返回文本（有 outputSchema 的再给 structuredContent），并带 Bearer 与 User-Agent', async () => {
+test('tools/call: success returns text (plus structuredContent when there is an outputSchema) and sends Bearer and User-Agent', async () => {
   const payload = { total: 1, count: 1, data: [{ name: '报名表', token: 'AbCdEf' }], next: null };
   const { calls, fetchImpl } = fakeApi(
     () => new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json' } })
@@ -100,20 +100,20 @@ test('tools/call：成功时返回文本（有 outputSchema 的再给 structured
   assert.equal(result.isError, undefined);
   assert.equal(calls[0].url, 'https://api.test/api/v1/forms?limit=1');
   assert.equal(calls[0].auth, 'Bearer tok');
-  // 金数据按这个前缀把 MCP 建的表单记成 create_source=mcp（而不是 api），改 UA 时别丢了它
+  // Jinshuju records forms created through MCP as create_source=mcp (not api) by this prefix; keep it when changing the UA
   assert.match(calls[0].userAgent ?? '', /^jinshuju-mcp\//);
   assert.equal((result.content[0] as { text: string }).text, JSON.stringify(payload));
   const spec = TOOLS.find((t) => t.name === 'list_forms')!;
   assert.deepEqual(result.structuredContent, spec.outputSchema ? payload : undefined);
 
   const counted = TOOLS.find((t) => t.name === 'count_entries')!;
-  assert.ok(counted.outputSchema, 'count_entries 的响应很小，应带 outputSchema');
+  assert.ok(counted.outputSchema, "count_entries's response is small, so it carries an outputSchema");
   const count = await client.callTool({ name: 'count_entries', arguments: { form_token: 'AbCdEf' } });
   assert.deepEqual(count.structuredContent, payload);
   await close();
 });
 
-test('tools/call：API 400 翻译成带 error_description / errors 的工具错误', async () => {
+test('tools/call: an API 400 becomes a tool error with error_description / errors', async () => {
   const { fetchImpl } = fakeApi(
     () =>
       new Response(
@@ -135,7 +135,7 @@ test('tools/call：API 400 翻译成带 error_description / errors 的工具错�
   await close();
 });
 
-test('组合工具：create_exam_form 先建表单再写设置；edit_exam_form 先写设置再改表单；count_entries 按入参分发', async () => {
+test('composite tools: create_exam_form creates the form, then writes the settings; edit_exam_form writes the settings, then edits the form; count_entries dispatches on its input', async () => {
   const { calls, fetchImpl } = fakeApi((req) => {
     if (req.method === 'POST' && req.url.endsWith('/forms')) {
       return new Response('{"token":"NewTok","name":"期末考试"}', {
@@ -185,8 +185,8 @@ test('组合工具：create_exam_form 先建表单再写设置；edit_exam_form 
   await close();
 });
 
-test('组合工具：测评设置的请求体整体放在 JSON body 里（updateEvaluationSetting 不 flatten）', async () => {
-  // 评测里发现：测评设置操作的请求体是 EvaluationSettingInput 指针（body.param），按考试那样展开会发出空请求体（HTTP 415）。
+test('composite tools: the evaluation settings go as the whole JSON body (updateEvaluationSetting is not flattened)', async () => {
+  // Found by the evals: the evaluation settings body is an EvaluationSettingInput pointer (body.param); flattening it like the exam settings sent an empty body (HTTP 415).
   const { calls, fetchImpl } = fakeApi((req) =>
     req.method === 'POST' && req.url.endsWith('/forms')
       ? new Response('{"token":"EvalTok"}', { status: 201, headers: { 'Content-Type': 'application/json' } })
@@ -217,7 +217,7 @@ test('组合工具：测评设置的请求体整体放在 JSON body 里（update
   await close();
 });
 
-test('组合工具：create_exam_form 的设置被拒绝时说明表单已创建', async () => {
+test("composite tools: when create_exam_form's settings are rejected, the result says the form was created", async () => {
   const { fetchImpl } = fakeApi((req) =>
     req.url.endsWith('/forms')
       ? new Response('{"token":"NewTok"}', { status: 201, headers: { 'Content-Type': 'application/json' } })
@@ -238,7 +238,7 @@ test('组合工具：create_exam_form 的设置被拒绝时说明表单已创建
   await close();
 });
 
-test('tools/call：请求体用 overlay 的键名发出，429 带 Retry-After 提示', async () => {
+test("tools/call: the body is sent under the overlay's key, and a 429 carries the Retry-After hint", async () => {
   const { calls, fetchImpl } = fakeApi((req) =>
     req.method === 'POST'
       ? new Response('{"error_description":"rate limited"}', { status: 429, headers: { 'Retry-After': '30' } })
@@ -256,7 +256,7 @@ test('tools/call：请求体用 overlay 的键名发出，429 带 Retry-After �
   await close();
 });
 
-test('tools/call：超长结果被截断并提示分页', async () => {
+test('tools/call: an oversized result is truncated with a hint to page', async () => {
   const big = { data: Array.from({ length: 500 }, (_, i) => ({ i, text: 'x'.repeat(50) })) };
   const { fetchImpl } = fakeApi(() => new Response(JSON.stringify(big)));
   const { client, close } = await connect(fetchImpl, 2000);
@@ -270,7 +270,7 @@ test('tools/call：超长结果被截断并提示分页', async () => {
   await close();
 });
 
-test('get_schema 与 resources：能读到指针 schema，未知名字给出候选', async () => {
+test('get_schema and resources: pointer schemas can be read, and an unknown name gets suggestions', async () => {
   const { client, close } = await connect(fakeApi(() => new Response('{}')).fetchImpl);
   const ok = await client.callTool({ name: 'get_schema', arguments: { name: 'FieldInput' } });
   const schema = JSON.parse((ok.content[0] as { text: string }).text);

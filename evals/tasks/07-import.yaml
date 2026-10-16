@@ -1,9 +1,9 @@
-# 导入：用户把表格内容贴进来。内置 MCP 走预签名上传（prepare_import_file_upload）、新 MCP 走 base64 上传（upload_import_file），
-# 模型也可以选择 create_entries 直接写入；评分只看数据是否正确落库，走哪条路记录在工具序列里。
+# 导入 (import): the user pastes spreadsheet content. The built-in MCP uploads through a presigned URL (prepare_import_file_upload), the new MCP as base64 (upload_import_file),
+# and a model may write with create_entries instead; scoring only checks that the entries land correctly, and the path taken shows in the tool sequence.
 - id: import-01
   category: 导入
-  title: CSV 文本导入
-  source: 线上会话模式 import_entries_from_file
+  title: Import CSV text
+  source: production session pattern import_entries_from_file
   prompt: |
     把下面这份 CSV 导入到「办公用品采购申请」，表头和表单字段同名：
     申请人,部门,物品,数量,单价,金额,申请日期,状态,用途说明
@@ -34,7 +34,7 @@
 
 - id: import-02
   category: 导入
-  title: 表格文本导入到报名表
+  title: Import table text into a signup form
   prompt: |
     下面是从 Excel 里复制出来的报名名单，帮我导入「秋季技术沙龙报名表」：
 
@@ -64,7 +64,7 @@
 
 - id: import-03
   category: 导入
-  title: 导入时按邮箱去重
+  title: Deduplicate by email on import
   prompt: |
     把这几位员工补录到「员工信息登记表（2026）」，如果邮箱已经登记过就跳过，不要重复：
     姓名,部门,职级,入职日期,月薪,邮箱,手机

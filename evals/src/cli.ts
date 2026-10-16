@@ -2,17 +2,17 @@
 /**
  * npm run eval -- <command> [options]
  *
- *   seed [--reset]                       在测评账户里准备夹具（表单 + 数据），写 state/fixtures.json
- *   run [options]                        跑矩阵；缺省全部任务 × EVAL_MODELS × new,builtin
+ *   seed [--reset]                       Prepare the fixtures (forms + entries) in the eval account; writes state/fixtures.json
+ *   run [options]                        Run the matrix; by default every task × EVAL_MODELS × new,builtin
  *       --models a,b  --mcp new,builtin  --tasks id,id  --category 读数据,统计汇总  --sample n
  *       --repeat n  --concurrency n  --judge model  --run-id id  --resume  --verbose  --no-upload
- *       --description-limit n            把工具描述截断到 n 字符（OpenAI 兼容网关有 1024 上限时用）
- *   report <run_id>                      生成 report.md / summary.json
- *   upload <run_id>                      把结果写进金数据表单
- *   reset [alias...]                     把夹具恢复成 fixtures.yaml 的样子
- *   sweep [--hours n]                    把最近 n 小时新建的非夹具表单移入「产出」文件夹
- *   tasks                                列出样本集
- *   catalog                              连上每个 MCP，打印版本、工具数、目录大小
+ *       --description-limit n            Truncate tool descriptions to n characters (for gateways with a 1024 limit)
+ *   report <run_id>                      Write report.md / summary.json
+ *   upload <run_id>                      Write the results into the Jinshuju results form
+ *   reset [alias...]                     Restore fixtures to what fixtures.yaml describes
+ *   sweep [--hours n]                    Move non-fixture forms created in the last n hours into the output folder
+ *   tasks                                List the sample set
+ *   catalog                              Connect to each MCP and print its version, tool count and catalog size
  */
 import { mkdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -97,7 +97,7 @@ async function main(): Promise<void> {
     case 'seed': {
       const { api } = await makeApi(cfg);
       const state = await seed(api, cfg, spec, { reset: !!flags.reset, log });
-      log(`夹具就绪：${Object.keys(state.forms).length} 个表单，状态写在 ${cfg.stateDir}/fixtures.json`);
+      log(`Fixtures ready: ${Object.keys(state.forms).length} forms, state in ${cfg.stateDir}/fixtures.json`);
       for (const f of Object.values(state.forms)) log(`  ${f.alias.padEnd(14)} ${f.token}  ${f.name}  ${f.url}`);
       return;
     }
@@ -106,7 +106,7 @@ async function main(): Promise<void> {
       const state = requireState(cfg);
       const aliases = positional.length ? positional : Object.keys(state.forms);
       for (const alias of aliases) {
-        log(`重置 ${alias}`);
+        log(`Resetting ${alias}`);
         await resetFixture(api, cfg, spec, state, alias, log);
       }
       return;
@@ -117,17 +117,17 @@ async function main(): Promise<void> {
       const hours = num(flags.hours, 24);
       const moved = await sweepCreatedForms(api, state, new Date(Date.now() - hours * 3_600_000), log);
       for (const m of moved) log(`  ${m.token}  ${m.name}`);
-      log(`共移动 ${moved.length} 个表单`);
+      log(`Moved ${moved.length} forms`);
       return;
     }
     case 'tasks': {
       const tasks = selectTasks(loadTasks(spec), { ids: list(flags.tasks), categories: list(flags.category) });
       for (const t of tasks) {
         log(
-          `${t.id.padEnd(10)} ${t.category.padEnd(5)} ${t.title}${t.writes ? '  [写]' : ''}${t.creates_forms ? '  [建表单]' : ''}  夹具=${(t.fixtures ?? []).join(',') || '-'}`
+          `${t.id.padEnd(10)} ${t.category.padEnd(5)} ${t.title}${t.writes ? '  [writes]' : ''}${t.creates_forms ? '  [creates forms]' : ''}  fixtures=${(t.fixtures ?? []).join(',') || '-'}`
         );
       }
-      log(`共 ${tasks.length} 个任务`);
+      log(`${tasks.length} tasks`);
       return;
     }
     case 'catalog': {
@@ -136,10 +136,10 @@ async function main(): Promise<void> {
         const mcp = await connectMcp(target, credential, cfg);
         log(`${target.name}: ${mcp.version}`);
         log(
-          `  工具 ${mcp.tools.length} 个，tools/list ${mcp.catalog_chars} 字符，instructions ${mcp.instructions?.length ?? 0} 字符`
+          `  ${mcp.tools.length} tools, tools/list ${mcp.catalog_chars} chars, instructions ${mcp.instructions?.length ?? 0} chars`
         );
         const long = mcp.tools.filter((t) => (t.description?.length ?? 0) > 1024).length;
-        log(`  描述超过 1024 字符的工具：${long} 个`);
+        log(`  Tools with a description over 1024 chars: ${long}`);
         await mcp.close();
       }
       return;
@@ -153,7 +153,7 @@ async function main(): Promise<void> {
         categories: list(flags.category),
         sample: str(flags.sample) ? num(flags.sample, 0) : undefined
       });
-      if (!tasks.length) throw new Error('没有选中任何任务');
+      if (!tasks.length) throw new Error('No tasks selected');
       const models = list(flags.models) ?? cfg.models;
       const targets = parseTargets(list(flags.mcp) ?? ['new', 'builtin'], cfg);
       const runId = str(flags['run-id']) ?? newRunId();
@@ -179,39 +179,39 @@ async function main(): Promise<void> {
       });
       const { markdown } = writeReport(runDir);
       log('');
-      log(markdown.split('\n## 任务明细')[0]!);
-      log(`报告：${resolve(runDir, 'report.md')}`);
+      log(markdown.split('\n## Tasks')[0]!);
+      log(`Report: ${resolve(runDir, 'report.md')}`);
       if (!flags['no-upload']) {
         try {
           const res = await uploadRun(api, cfg, spec, state, runDir, log);
-          log(`结果已写入金数据表单：${res.url}（${res.uploaded} 条）`);
+          log(`Results written to the Jinshuju form: ${res.url} (${res.uploaded} entries)`);
         } catch (error) {
-          log(`⚠ 写入结果表单失败：${(error as Error).message}`);
+          log(`⚠ Writing the results form failed: ${(error as Error).message}`);
         }
       }
       const failed = records.filter((r) => !r.passed).length;
-      log(`完成：${records.length - failed}/${records.length} 通过`);
+      log(`Done: ${records.length - failed}/${records.length} passed`);
       return;
     }
     case 'report': {
       const id = positional[0];
-      if (!id) throw new Error('用法：report <run_id>');
+      if (!id) throw new Error('Usage: report <run_id>');
       const { markdown } = writeReport(runDirFor(cfg, id));
       log(markdown);
       return;
     }
     case 'upload': {
       const id = positional[0];
-      if (!id) throw new Error('用法：upload <run_id>');
+      if (!id) throw new Error('Usage: upload <run_id>');
       const { api } = await makeApi(cfg);
       const state = requireState(cfg);
       const res = await uploadRun(api, cfg, spec, state, runDirFor(cfg, id), log);
-      log(`结果表单：${res.url}（本次写入 ${res.uploaded} 条）`);
+      log(`Results form: ${res.url} (${res.uploaded} entries written this time)`);
       return;
     }
     default:
       log(
-        '用法：npm run eval -- <seed|run|report|upload|reset|sweep|tasks|catalog> [options]（见 evals/src/cli.ts 顶部注释）'
+        'Usage: npm run eval -- <seed|run|report|upload|reset|sweep|tasks|catalog> [options] (see the comment at the top of evals/src/cli.ts)'
       );
       if (command !== 'help') process.exitCode = 1;
   }

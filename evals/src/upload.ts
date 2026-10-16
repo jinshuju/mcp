@@ -1,5 +1,6 @@
 /**
- * 把一次运行的结果写进金数据表单「MCP 评测结果（自动写入）」，一条运行一条数据，便于长期对比。
+ * Writes a run's results into the Jinshuju form "MCP 评测结果（自动写入）", one entry per job, for comparison over time.
+ * Field labels and the result choices below are the existing form's own: the form is looked up by them, so they stay as written.
  */
 import type { EvalApi } from './api.js';
 import { flattenFields } from './api.js';
@@ -54,7 +55,7 @@ export async function ensureResultsForm(
   if (!token) {
     const created = await api.createForm({
       name: spec.results_form,
-      description: '由 evals/ 的运行器自动写入，每条数据是一次「任务 × 模型 × MCP」的运行结果。',
+      description: 'Written by the evals/ runner; each entry is the result of one task × model × MCP job.',
       folder_token: state.folder_token,
       fields: FIELDS.map((f) => ({
         type: f.type,
@@ -64,7 +65,7 @@ export async function ensureResultsForm(
       }))
     });
     token = created.token;
-    log(`创建结果表单「${spec.results_form}」 ${token}`);
+    log(`Created results form "${spec.results_form}" ${token}`);
   }
   state.results_form_token = token;
   saveState(cfg, state);
@@ -73,7 +74,7 @@ export async function ensureResultsForm(
   const fields: Record<string, string> = {};
   for (const f of FIELDS) {
     const code = byLabel.get(f.label);
-    if (!code) throw new Error(`结果表单缺少字段「${f.label}」`);
+    if (!code) throw new Error(`The results form has no field "${f.label}"`);
     fields[f.key] = code;
   }
   return { token, fields, url: form.url };
@@ -135,7 +136,7 @@ export async function uploadRun(
   const meta = readMeta(runDir);
   const records = readRecords(runDir);
   const { token, fields, url } = await ensureResultsForm(api, cfg, spec, state, log);
-  // 幂等：已经上传过的 (run_id, job_id) 不重复写
+  // Idempotent: a (run_id, job) already uploaded is not written again
   const existing = await api.listAllEntries(token, {
     filters: [{ field: fields.run_id!, operator: 'eq', value: meta.run_id }],
     fields: [fields.task_id!, fields.model!, fields.mcp!]
@@ -150,7 +151,7 @@ export async function uploadRun(
       chunk.map((r) => toEntry(fields, r))
     );
     uploaded += chunk.length;
-    log(`  已写入 ${uploaded}/${pending.length}`);
+    log(`  Written ${uploaded}/${pending.length}`);
   }
   return { token, url, uploaded };
 }

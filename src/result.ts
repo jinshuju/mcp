@@ -1,6 +1,6 @@
 /**
- * 把 API 响应翻译成模型能读懂的 CallToolResult：成功给紧凑 JSON（必要时截断），
- * 失败给 HTTP 状态 + 服务端的 error_description / errors[] + 一句怎么办。
+ * Turns an API response into a CallToolResult the model can read: compact JSON on success (truncated when needed),
+ * and on failure the HTTP status + the server's error_description / errors[] + a line on what to do.
  */
 import type { CallToolResult } from '@modelcontextprotocol/server';
 import type { ApiResponse } from './api.js';
@@ -64,7 +64,7 @@ export function toToolResult(tool: ToolSpec, res: ApiResponse, maxResultChars: n
     }
     const result: CallToolResult = { content: [{ type: 'text', text: text + note }] };
     if (tool.outputSchema) {
-      // 声明了 outputSchema 的工具必须给 structuredContent。截断时不把整个大结果再塞一遍，只给一个说明对象。
+      // A tool that declares an outputSchema must return structuredContent. When truncated, don't stuff the whole large result in again; return a small explanatory object.
       if (truncated) {
         result.structuredContent = { truncated: true, total_chars: JSON.stringify(payload).length };
       } else if (payload && typeof payload === 'object' && !Array.isArray(payload)) {

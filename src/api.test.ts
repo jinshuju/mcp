@@ -8,7 +8,7 @@ import type { ToolSpec } from './types.js';
 const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t])) as Record<string, ToolSpec>;
 const base = 'https://api.test/api/v1';
 
-test('buildUrl：路径参数编码、query 省略空值、数组按 name[] 序列化', () => {
+test('buildUrl: encodes path parameters, omits empty query values, serializes arrays as name[]', () => {
   const url = buildUrl(base, byName.list_entries, {
     form_token: 'Ab Cd',
     limit: 5,
@@ -28,11 +28,11 @@ test('buildUrl：路径参数编码、query 省略空值、数组按 name[] 序�
   assert.equal(u2.search, '?tags%5B%5D=a&tags%5B%5D=b');
 });
 
-test('buildUrl：缺少路径参数时报错', () => {
+test('buildUrl: throws on a missing path parameter', () => {
   assert.throws(() => buildUrl(base, byName.get_form, {}), /form_token/);
 });
 
-test('bodyPayload：嵌套 / flatten / wrap 三种请求体', () => {
+test('bodyPayload: nested, flattened and wrapped request bodies', () => {
   assert.deepEqual(bodyPayload(byName.create_entry, { form_token: 'x', entry: { field_1: '张三' } }), {
     field_1: '张三'
   });
@@ -45,13 +45,13 @@ test('bodyPayload：嵌套 / flatten / wrap 三种请求体', () => {
   assert.equal(bodyPayload(byName.list_forms, { limit: 1 }), undefined);
 });
 
-test('buildBody：JSON 请求体', () => {
+test('buildBody: JSON request body', () => {
   const { body, contentType } = buildBody(byName.create_entry, { form_token: 'x', entry: { field_1: '张三' } });
   assert.equal(contentType, 'application/json');
   assert.equal(body, '{"field_1":"张三"}');
 });
 
-test('buildBody：multipart 把 base64 三元组还原成文件', async () => {
+test('buildBody: multipart turns the base64 triple back into a file', async () => {
   const { body, contentType } = buildBody(byName.upload_form_image, {
     image_type: 'header',
     file_base64: 'data:image/png;base64,aGVsbG8=',
@@ -67,7 +67,7 @@ test('buildBody：multipart 把 base64 三元组还原成文件', async () => {
   assert.equal(body.get('image_type'), 'header');
 });
 
-test('JinshujuApi.call：带凭证、解析 JSON、读取限流与警告头；401 时续期一次', async () => {
+test('JinshujuApi.call: sends the credential, parses JSON, reads rate-limit and warning headers; refreshes once on 401', async () => {
   const seen: { url: string; auth: string | null }[] = [];
   let calls = 0;
   const fetchImpl: typeof fetch = async (input, init) => {
@@ -103,7 +103,7 @@ test('JinshujuApi.call：带凭证、解析 JSON、读取限流与警告头；40
   assert.equal(res.rateLimit?.remaining, '9');
 });
 
-test('JinshujuApi.call：网络失败抛 TransportError', async () => {
+test('JinshujuApi.call: a network failure throws TransportError', async () => {
   const api = new JinshujuApi({
     baseUrl: base,
     fetch: async () => {

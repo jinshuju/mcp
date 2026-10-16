@@ -1,6 +1,7 @@
 /**
- * Cloudflare Workers 入口（可选部署方式）。无 Durable Objects / KV：服务器完全无状态。
- * 配了 SENTRY_DSN 就把异常报到 Sentry（SDK 自己从 env 读 SENTRY_DSN / SENTRY_ENVIRONMENT），没配时什么都不发。
+ * Cloudflare Workers entry (an optional deployment). No Durable Objects / KV: the server is fully stateless.
+ * With SENTRY_DSN set, exceptions go to Sentry (the SDK reads SENTRY_DSN / SENTRY_ENVIRONMENT from env itself); without it,
+ * nothing is sent.
  */
 import { withSentry, type CloudflareOptions } from '@sentry/cloudflare';
 import { createApp } from './app.js';
@@ -10,13 +11,13 @@ import { VERSION } from './version.js';
 type Env = Record<string, string | undefined>;
 let app: ReturnType<typeof createApp> | undefined;
 
-/** 只要错误，不开 tracing；不采集请求体 / IP / cookie：工具入参和返回里有用户的数据，口径同 analytics.ts。 */
+/** Errors only, no tracing; no request bodies / IPs / cookies: tool arguments and results hold user data, same policy as analytics.ts. */
 export function sentryOptions(): CloudflareOptions {
   return {
-    // release 在 Sentry 里是组织级的，用 worker 名和 goldendata 的区分开；名字里不能有 /，npm 包名用不了
+    // Releases are organization-wide in Sentry, so the worker name keeps them apart from goldendata's; the name cannot contain /, so the npm package name won't do
     release: `jinshuju-mcp@${VERSION}`,
     dataCollection: { httpBodies: [], userInfo: false, cookies: false },
-    // 事件由服务端发出，Sentry 按连接推断的 IP 是本服务的，不是用户的；javascript 平台缺省会推断，明确关掉
+    // Events are sent from the server, so the IP Sentry infers from the connection is this service's, not the user's; the javascript platform infers it by default, so turn it off explicitly
     beforeSend(event) {
       event.sdk = { ...event.sdk, settings: { ...event.sdk?.settings, infer_ip: 'never' } };
       return event;

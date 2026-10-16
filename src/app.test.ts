@@ -35,7 +35,7 @@ function app(meCalls: { count: number }, token = 'good') {
   });
 }
 
-test('无令牌：401 + WWW-Authenticate 指向本服务的 PRM', async () => {
+test("no token: 401 with WWW-Authenticate pointing at this server's PRM", async () => {
   const res = await app({ count: 0 }).request('https://mcp.test/mcp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
@@ -47,7 +47,7 @@ test('无令牌：401 + WWW-Authenticate 指向本服务的 PRM', async () => {
   assert.match(challenge, /resource_metadata="https:\/\/mcp\.test\/\.well-known\/oauth-protected-resource\/mcp"/);
 });
 
-test('令牌校验时 API 不可达：503 而不是裸 500', async () => {
+test('API unreachable during token verification: 503, not a bare 500', async () => {
   const a = createApp({
     config: { apiBaseUrl: 'https://api.test/api/v1', publicUrls: ['https://mcp.test'] },
     fetch: async () => {
@@ -68,13 +68,13 @@ test('令牌校验时 API 不可达：503 而不是裸 500', async () => {
   assert.match(((await res.json()) as { error_description: string }).error_description, /unreachable/);
 });
 
-test('路径前缀部署：对外地址含前缀时，质询与 PRM 都按前缀给出', async () => {
+test('deployed under a path prefix: the challenge and the PRM both carry the prefix of the public URL', async () => {
   const a = createApp({
     config: { apiBaseUrl: 'https://api.test/api/v1', publicUrls: ['https://host.test/jinshuju-mcp/'] },
     fetch: async () => new Response('{}', { status: 404 }),
     authServerMetadata: AS
   });
-  // 平台把 /jinshuju-mcp 前缀剥掉后转发，worker 看到的是 /mcp
+  // The platform strips the /jinshuju-mcp prefix before forwarding; the worker sees /mcp
   const res = await a.request('https://host.test/mcp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
@@ -91,7 +91,7 @@ test('路径前缀部署：对外地址含前缀时，质询与 PRM 都按前缀
   assert.equal(home.mcp, 'https://host.test/jinshuju-mcp/mcp');
 });
 
-test('多个对外地址：按请求 Host 选用，X-Forwarded-Host 优先，无匹配用第一个', async () => {
+test('several public URLs: chosen by the request Host, X-Forwarded-Host first, the first one when none matches', async () => {
   const a = createApp({
     config: {
       apiBaseUrl: 'https://api.test/api/v1',
@@ -102,14 +102,14 @@ test('多个对外地址：按请求 Host 选用，X-Forwarded-Host 优先，无
   });
   const resourceOf = async (res: Response) => ((await res.json()) as { resource: string }).resource;
   const prm = '/.well-known/oauth-protected-resource/mcp';
-  // 平台在 TLS 终止后明文转发：协议和前缀都推不出来，只能靠 Host 选地址
+  // The platform forwards plain HTTP after TLS termination: neither scheme nor prefix can be inferred, so Host picks the URL
   const viaDefault = await a.request(`http://host.test${prm}`, { headers: { 'x-forwarded-proto': 'http' } });
   assert.equal(await resourceOf(viaDefault), 'https://host.test/jinshuju-mcp/mcp');
   assert.equal(await resourceOf(await a.request(`http://MCP.test${prm}`)), 'https://mcp.test/mcp');
   const forwarded = await a.request(`http://internal.test${prm}`, { headers: { 'x-forwarded-host': 'host.test' } });
   assert.equal(await resourceOf(forwarded), 'https://host.test/jinshuju-mcp/mcp');
   assert.equal(await resourceOf(await a.request(`https://other.test${prm}`)), 'https://mcp.test/mcp');
-  // 401 质询同样按 Host
+  // The 401 challenge follows the Host too
   const res = await a.request('http://host.test/mcp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
@@ -122,7 +122,7 @@ test('多个对外地址：按请求 Host 选用，X-Forwarded-Host 优先，无
   );
 });
 
-test('不配对外地址：按请求与反向代理的 X-Forwarded-* 推断', async () => {
+test("no public URL configured: inferred from the request and the reverse proxy's X-Forwarded-* headers", async () => {
   const a = createApp({
     config: { apiBaseUrl: 'https://api.test/api/v1' },
     fetch: async () => new Response('{}', { status: 404 }),
@@ -137,7 +137,7 @@ test('不配对外地址：按请求与反向代理的 X-Forwarded-* 推断', as
   assert.equal(await resourceOf(proxied), 'https://mcp.test/svc/mcp');
 });
 
-test('PRM 与 AS 元数据：/mcp 路径与根路径都能取到', async () => {
+test('PRM and AS metadata: served under both the /mcp path and the root', async () => {
   const a = app({ count: 0 });
   for (const path of ['/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-protected-resource']) {
     const res = await a.request(`https://mcp.test${path}`);
@@ -150,7 +150,7 @@ test('PRM 与 AS 元数据：/mcp 路径与根路径都能取到', async () => {
   assert.equal(((await as.json()) as { issuer: string }).issuer, 'https://account.test');
 });
 
-test('尾部斜杠：/mcp/ 与 PRM 路径带斜杠也能用', async () => {
+test('trailing slash: /mcp/ and the PRM paths work with a slash too', async () => {
   const a = app({ count: 0 });
   const unauth = await a.request('https://mcp.test/mcp/', {
     method: 'POST',
@@ -172,7 +172,7 @@ test('尾部斜杠：/mcp/ 与 PRM 路径带斜杠也能用', async () => {
   await client.close();
 });
 
-test('无效令牌：401；有效令牌：tools/list 成功且校验结果被缓存', async () => {
+test('invalid token: 401; valid token: tools/list succeeds and the verification is cached', async () => {
   const me = { count: 0 };
   const a = app(me);
   const bad = await a.request('https://mcp.test/mcp', {
@@ -197,10 +197,10 @@ test('无效令牌：401；有效令牌：tools/list 成功且校验结果被缓
   const result = await client.callTool({ name: 'list_forms', arguments: { limit: 1 } });
   assert.equal(result.isError, undefined);
   await client.close();
-  assert.equal(me.count, 2, '一次失败 + 一次成功后缓存命中');
+  assert.equal(me.count, 2, 'one failure + one success, then a cache hit');
 });
 
-test('旧协议（2025 handshake）客户端：initialize 走无状态兜底', async () => {
+test('legacy (2025 handshake) client: initialize goes through the stateless fallback', async () => {
   const a = app({ count: 0 });
   const res = await a.request('https://mcp.test/mcp', {
     method: 'POST',
