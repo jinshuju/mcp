@@ -1,6 +1,6 @@
 name: Evals
 
-# MCP evals: on release, on openapi.yaml / overlay changes, every Monday, and on demand.
+# MCP evals: on demand only (Actions → Evals → Run workflow).
 # Secrets / vars needed:
 #   secrets.EVAL_JINSHUJU_ACCESS_TOKEN  Access token of the eval account (a dedicated account; its fixture data is reset again and again)
 #   secrets.EVAL_LLM_API_KEY            Key for the OpenAI-compatible gateway
@@ -30,16 +30,6 @@ on:
         description: Repeats per combination
         required: false
         default: '1'
-  release:
-    types: [published]
-  push:
-    branches: [main]
-    paths:
-      - spec/openapi.yaml
-      - mcp.overlay.yaml
-      - evals/**
-  schedule:
-    - cron: '0 1 * * 1' # Mondays 09:00 (Beijing time)
 
 permissions:
   contents: read

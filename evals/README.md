@@ -135,7 +135,7 @@ The form lives in the fixture folder, and its token is kept in `state/fixtures.j
 
 ## CI
 
-`.github/workflows/evals.yml`: on release (release published), on changes to `spec/openapi.yaml` / `mcp.overlay.yaml` / `evals/**`, every Monday, and on demand (models, MCPs and tasks can be chosen).
+`.github/workflows/evals.yml`: on demand only (Actions → Evals → Run workflow; models, MCPs and tasks can be chosen).
 It needs the secrets `EVAL_JINSHUJU_ACCESS_TOKEN` and `EVAL_LLM_API_KEY`, and the vars `EVAL_LLM_BASE_URL`, `EVAL_MODELS` and `EVAL_JUDGE_MODEL`.
 The report goes into the job summary, and `evals/results/` is kept as an artifact for 90 days.
 
