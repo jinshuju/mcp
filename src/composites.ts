@@ -14,7 +14,7 @@ type Args = Record<string, unknown>;
 
 function op(id: string): OperationSpec {
   const spec = OPERATIONS[id];
-  if (!spec) throw new Error(`operations.json 里没有 ${id}`);
+  if (!spec) throw new Error(`${id} is not in operations.json`);
   return spec;
 }
 
@@ -53,7 +53,7 @@ export async function runComposite(tool: ToolSpec, args: Args, runtime: ToolRunt
 
   const settingKey = composite.settingKey!;
   const settingOp = op(composite.settingOperation!);
-  const sceneName = composite.scene === 'exam' ? '考试' : '测评';
+  const settingsUpdated = `${composite.scene === 'exam' ? 'Exam' : 'Evaluation'} settings updated.`;
   const { [settingKey]: setting, ...formArgs } = args;
   const hasSetting = !!setting && typeof setting === 'object' && Object.keys(setting as Args).length > 0;
 
@@ -68,10 +68,10 @@ export async function runComposite(tool: ToolSpec, args: Args, runtime: ToolRunt
       const failure = toToolResult(tool, updated, maxResultChars);
       return withText(
         failure,
-        `表单已创建（token=${token}），但${sceneName}设置被拒绝，请用 edit_${composite.scene}_form 单独重试 ${settingKey}。`
+        `The form was created (token=${token}), but its ${composite.scene} settings were rejected; retry ${settingKey} alone with edit_${composite.scene}_form.`
       );
     }
-    return withText(toToolResult(tool, created, maxResultChars), `${sceneName}设置已更新。表单：`);
+    return withText(toToolResult(tool, created, maxResultChars), `${settingsUpdated} Form:`);
   }
 
   // scene_form_update：设置先发（它是可能被拒绝的那一半：不是该场景的表单），被拒绝时其它改动一个都不发。
@@ -84,15 +84,15 @@ export async function runComposite(tool: ToolSpec, args: Args, runtime: ToolRunt
   }
   if (!hasFormChanges) {
     return settingResult
-      ? withText(toToolResult(tool, settingResult, maxResultChars), `${sceneName}设置已更新。`)
-      : { isError: true, content: [{ type: 'text', text: `没有要修改的内容：请传 ${settingKey} 或表单字段。` }] };
+      ? withText(toToolResult(tool, settingResult, maxResultChars), settingsUpdated)
+      : { isError: true, content: [{ type: 'text', text: `Nothing to change: pass ${settingKey} or form fields.` }] };
   }
   const updated = await api.call(op('updateForm'), formArgs, credential);
   const result = toToolResult(tool, updated, maxResultChars);
   if (settingResult) {
     return withText(
       result,
-      ok(updated) ? `${sceneName}设置已更新。表单：` : `${sceneName}设置已更新，但表单修改被拒绝：`
+      ok(updated) ? `${settingsUpdated} Form:` : `${settingsUpdated} The form changes were rejected:`
     );
   }
   return result;

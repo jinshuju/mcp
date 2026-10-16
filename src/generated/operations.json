@@ -1,8 +1,8 @@
 {
  "listForms": {
   "operationId": "listForms",
-  "summary": "获取表单列表",
-  "description": "返回当前身份可见的表单（`kind=form`，不含表格与快速支付）。个人令牌返回该用户创建及被共享的表单；企业令牌返回企业下全部表单。\n默认按 id 倒序（即创建时间倒序），`next` 是下一页第一条的 id；传 `sort` 时按指定字段排序，`next` 变为 `row:<偏移量>`。\n每页默认 50 条，可用 `limit` 调整（最大 1000）。\n- 每行带 `entries_count`（数据量）与 `last_entry_created_at`（最近一次收到数据的时间），可配合 `filters` / `sort` 使用。\n- `include_transactions=true` 时，已绑定收款账户的表单附带 `transactions` 收款统计。",
+  "summary": "List forms",
+  "description": "Returns the forms visible to the current identity (`kind=form`, excluding tables and quick payment forms). A personal token returns the forms the user created and those shared with them; an account token returns every form in the account.\nBy default sorted by id descending (that is, by creation time descending), and `next` is the id of the first row of the next page; when `sort` is passed, rows are sorted by the given field and `next` becomes `row:<offset>`.\n50 per page by default, adjustable with `limit` (max 1000).\n- Each row carries `entries_count` (entry count) and `last_entry_created_at` (when the last entry was received), usable with `filters` / `sort`.\n- With `include_transactions=true`, forms bound to a payment account carry `transactions` payment statistics.",
   "tag": "Forms",
   "method": "get",
   "path": "/forms",
@@ -60,8 +60,8 @@
  },
  "createForm": {
   "operationId": "createForm",
-  "summary": "创建表单",
-  "description": "用字段定义列表创建一个表单，返回完整的表单结构。`name` 与 `fields` 必填。\n- `scene` 决定表单场景；考试 / 测评题型（如 `SingleSelect`、`FillInBlank`）只能在支持的场景下使用。\n- `layout=card`（分页式）不支持 PageBreak、Matrix*、TableField、GoodsField、ESignatureField、FormAssociation、MultipleBlanksField 及各类 Widget 字段。\n- `folder_token` 指定的文件夹必须可管理且 kind 为 form，否则分别返回 404 / 400。\n- `setting` 只接受白名单内的键（见 `FormSettingWriteInput`），`setting.notification_rules` 会整体替换由 API 创建的通知规则。\n- 返回的表单结构带 `url`（对外填写地址）。",
+  "summary": "Create a form",
+  "description": "Creates a form from a list of field definitions and returns the full form structure. `name` and `fields` are required.\n- `scene` sets the form's scene; exam / evaluation question types (such as `SingleSelect`, `FillInBlank`) can only be used in the scenes that support them.\n- `layout=card` (paged) does not support PageBreak, Matrix*, TableField, GoodsField, ESignatureField, FormAssociation, MultipleBlanksField or any kind of Widget field.\n- The folder named by `folder_token` must be manageable and of kind form; otherwise returns 404 / 400 respectively.\n- `setting` accepts only whitelisted keys (see `FormSettingWriteInput`); `setting.notification_rules` replaces, as a whole, the notification rules created through the API.\n- The returned form structure carries `url` (the public fill URL).",
   "tag": "Forms",
   "method": "post",
   "path": "/forms",
@@ -80,8 +80,8 @@
  },
  "getForm": {
   "operationId": "getForm",
-  "summary": "获取表单结构",
-  "description": "返回表单名称、对外填写地址（`url`）、描述、字段定义与设置。`fields` 中每个元素是 `{ \"<api_code>\": {...} }` 的单键对象，按字段顺序排列。\n以下内容在对应参数为 `true` 时附带：\n- `include_analytics`：每个可分析字段的定义中附带 `analytics`；\n- `include_theme`：附带 `theme`（表单主题）；\n- `include_field_rules`：附带 `field_rules`（字段显示规则）；\n- `include_extended_attributes`：附带 `extended_attributes`（数据来源链接）；\n- `include_transactions`：表单绑定了收款账户时附带 `transactions`（收款统计）。",
+  "summary": "Show a form's structure",
+  "description": "Returns the form's name, public fill URL (`url`), description, field definitions and settings. Each element of `fields` is a single-key object `{ \"<api_code>\": {...} }`, in field order.\nThe following are included when the matching parameter is `true`:\n- `include_analytics`: each analysable field's definition carries `analytics`;\n- `include_theme`: carries `theme` (the form theme);\n- `include_field_rules`: carries `field_rules` (field display rules);\n- `include_extended_attributes`: carries `extended_attributes` (source-tracking links);\n- `include_transactions`: carries `transactions` (payment statistics) when the form is bound to a payment account.",
   "tag": "Forms",
   "method": "get",
   "path": "/forms/{form_token}",
@@ -133,8 +133,8 @@
  },
  "createEntryLegacy": {
   "operationId": "createEntryLegacy",
-  "summary": "新增数据（旧路径）",
-  "description": "`POST /forms/{form_token}/entries` 的旧别名，行为完全相同。新接入请使用新路径。",
+  "summary": "Create an entry (legacy path)",
+  "description": "Legacy alias of `POST /forms/{form_token}/entries`, with identical behavior. New integrations should use the new path.",
   "tag": "Entries",
   "method": "post",
   "path": "/forms/{form_token}",
@@ -162,8 +162,8 @@
  },
  "updateForm": {
   "operationId": "updateForm",
-  "summary": "编辑表单",
-  "description": "增量编辑表单，也接受 `PUT`。请求体至少包含 `name` / `description` / `fields` / `setting` / `field_rules` 之一，否则返回 400。\n- `fields` 按 `add` / `remove` / `update` / `update_choices` 四类操作增量修改，未提及的字段、选项与 api_code 全部保留；\n  `update[].type` 可原地切换字段类型，会清空数据的切换必须带 `confirm_data_loss: true`。\n- `field_rules` 以 `GET /forms/{form_token}/field_rules` 返回的 `index` 定位规则做 `add` / `remove` / `update`。\n- `setting` 与创建时相同，只接受白名单内的键。\n返回更新后的完整表单结构。",
+  "summary": "Edit a form",
+  "description": "Edits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",
@@ -190,8 +190,8 @@
  },
  "checkFormFieldData": {
   "operationId": "checkFormFieldData",
-  "summary": "检查字段是否已有数据",
-  "description": "删除字段或选项前使用：批量检查字段（或字段的单个选项）是否已有提交的数据。删除仍有数据的字段或选项会连同这些数据一起删除且无法恢复。\n与网页编辑器删除前的检查结果一致。\n- 一次编辑涉及的所有删除目标放在同一次调用的 `checks` 里（最多 100 个，可跨多个字段）；`results` 与 `checks` 顺序一一对应。\n- 某个目标无法检查（如字段不存在）时，该行返回 `unavailable` 说明原因，其余目标照常返回。\n- `checks` 缺失、为空、超过 100 个、不是 JSON 数组或其中某项不是对象时返回 400。",
+  "summary": "Check whether fields already hold data",
+  "description": "Use before deleting a field or choice: checks in batch whether fields (or single choices of a field) already have submitted entries. Deleting a field or choice that still has entries deletes those entries with it, and they cannot be recovered.\nMatches the check the web editor runs before deleting.\n- Put every deletion target of one edit in the `checks` of a single call (at most 100, may span several fields); `results` matches `checks` one to one, in order.\n- When a target cannot be checked (for example, the field does not exist), its row returns `unavailable` with the reason; the other targets return as usual.\n- Returns 400 when `checks` is missing, empty, over 100, not a JSON array, or has an item that is not an object.",
   "tag": "Forms",
   "method": "get",
   "path": "/forms/{form_token}/fields/check",
@@ -213,14 +213,14 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "forms。"
+   "forms"
   ],
   "responseSchema": "FieldDataCheckResponse"
  },
  "previewFormFieldTypeChange": {
   "operationId": "previewFormFieldTypeChange",
-  "summary": "预览字段类型转换",
-  "description": "修改字段类型（PATCH /forms/{form_token} 中字段的 `type`）前使用：不修改任何数据，按字段当前的数据统计转换后保留与清空的条数。\n类型转换在原字段上进行（api_code 与数据列不变），因此受影响的只有数据；与网页编辑器转换前的预览结果一致。\n- 一次编辑涉及的所有转换放在同一次调用的 `checks` 里（最多 20 个）；`results` 与 `checks` 顺序一一对应。\n- `supported=false` 表示该字段不支持转换为目标类型，实际编辑也会被拒绝。\n- 多行文本转换为单选 / 多选等选择类字段时，额外返回将从已有数据生成的选项数 `choice_count`，以及是否超过选项上限 `choice_limit_exceeded`（超过时转换会被拒绝，而不是截断）。\n- 某项无法预览（字段不存在、`target_type` 不是该表单可用的类型等）时，该行返回 `unavailable` 说明原因，其余项照常返回。\n- `checks` 缺失、为空、超过 20 个、不是 JSON 数组或其中某项不是对象时返回 400。",
+  "summary": "Preview a field type change",
+  "description": "Use before changing a field's type (the field's `type` in PATCH /forms/{form_token}): changes no data, and counts, from the field's current entries, how many would be kept and how many cleared after the conversion.\nThe conversion happens on the original field (api_code and data column unchanged), so only entry data is affected; matches the preview the web editor shows before converting.\n- Put every conversion of one edit in the `checks` of a single call (at most 20); `results` matches `checks` one to one, in order.\n- `supported=false` means the field cannot be converted to the target type, and the actual edit is refused too.\n- When converting multi-line text to a choice field such as single choice / multiple choice, also returns `choice_count`, the number of choices that would be generated from existing entries, and `choice_limit_exceeded`, whether that exceeds the choice limit (when it does, the conversion is refused rather than truncated).\n- When an item cannot be previewed (the field does not exist, `target_type` is not a type available to this form, etc.), its row returns `unavailable` with the reason; the other items return as usual.\n- Returns 400 when `checks` is missing, empty, over 20, not a JSON array, or has an item that is not an object.",
   "tag": "Forms",
   "method": "get",
   "path": "/forms/{form_token}/fields/preview_convert",
@@ -242,14 +242,14 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "forms。"
+   "forms"
   ],
   "responseSchema": "FieldTypeChangePreviewResponse"
  },
  "listEntries": {
   "operationId": "listEntries",
-  "summary": "获取数据列表",
-  "description": "分页返回表单数据，每页缺省 50 条，可用 `limit` 指定（最大 1000）。默认按序号升序，`next` 为下一页第一条的序号。\n- `filters` / `keyword` 触发条件查询，`created_at` 只返回该时间及之后创建的数据（并改为按创建时间排序）；\n  这两种情况以及传 `sort` 时，`next` 变为行偏移量。\n- `fields` 只返回指定字段（序号始终返回）。\n- 每条数据的键为字段 api_code（配置了 api_code_alias 的字段以别名为键），值的形态见 `EntryData`。",
+  "summary": "List entries",
+  "description": "Returns form entries page by page, 50 per page by default, set with `limit` (max 1000). Sorted by serial number ascending by default; `next` is the serial number of the first entry of the next page.\n- `filters` / `keyword` trigger a conditional query; `created_at` returns only entries created at or after that time (and sorts by creation time instead);\n  in both these cases, and when `sort` is passed, `next` becomes a row offset.\n- `fields` returns only the given fields (the serial number is always returned).\n- Each entry is keyed by field api_code (a field with api_code_alias set is keyed by its alias); for the value shapes see `EntryData`.",
   "tag": "Entries",
   "method": "get",
   "path": "/forms/{form_token}/entries",
@@ -325,8 +325,8 @@
  },
  "createEntry": {
   "operationId": "createEntry",
-  "summary": "新增数据",
-  "description": "以字段 api_code（或 api_code_alias）为键提交一条数据。未知键被忽略；有效键为空时返回 400，`error_description` 以 `Entry attributes cannot be empty` 开头，并逐个说明被丢弃的键（不是该表单的字段，或是不可写入的签名 / 计算字段）。\n- 表单的「字段规则」与字段校验依然生效，校验失败返回 400，`error_description` 是 `{ \"<api_code>\": [\"错误\"] }` 序列化后的 JSON 字符串。\n- 手机字段跳过短信验证；签名字段、计算字段不可写入。\n- 表单数据量达到套餐上限时返回 403。\n- 附件字段接受多种写法，见 `EntryInput`。",
+  "summary": "Create an entry",
+  "description": "Submits one entry keyed by field api_code (or api_code_alias). Unknown keys are ignored; when no valid key remains, returns 400, with `error_description` starting with `Entry attributes cannot be empty` and naming each dropped key (not a field of this form, or a signature / calculated field that cannot be written).\n- The form's field display rules and field validation still apply; a validation failure returns 400, and `error_description` is `{ \"<api_code>\": [\"error\"] }` serialized as a JSON string.\n- Mobile fields skip SMS verification; signature fields and calculated fields cannot be written.\n- Returns 403 when the form's entry count has reached the plan limit.\n- Attachment fields accept several forms of input; see `EntryInput`.",
   "tag": "Entries",
   "method": "post",
   "path": "/forms/{form_token}/entries",
@@ -354,8 +354,8 @@
  },
  "countEntries": {
   "operationId": "countEntries",
-  "summary": "统计数据条数",
-  "description": "返回满足筛选条件的数据条数，不返回数据本身。`filters` / `keyword` 与 `GET /forms/{form_token}/entries` 相同；都不传时返回表单全部数据条数。\n协作者只统计其角色可见范围内的数据。",
+  "summary": "Count entries",
+  "description": "Returns the number of entries matching the filters, without the entries themselves. `filters` / `keyword` are the same as for `GET /forms/{form_token}/entries`; with neither, returns the total entry count of the form.\nA cooperator counts only the entries visible to their role.",
   "tag": "Entries",
   "method": "get",
   "path": "/forms/{form_token}/entries/count",
@@ -389,8 +389,8 @@
  },
  "aggregateEntries": {
   "operationId": "aggregateEntries",
-  "summary": "聚合统计数据",
-  "description": "在服务端对满足筛选条件的数据做整列聚合（求和、平均、计数、分位数等），可按 1～2 个字段分组。响应大小只取决于指标与分组数，与数据量无关。\n- `metrics` 必填，1～20 项；每个字段可用的函数见 `GET /forms/{form_token}?include_analytics=true` 返回的 `analytics.agg_funcs`。\n- `dimensions` 可选，最多 2 项；只有 `analytics.groupable` 为 true 的字段（单值的选项类字段和日期字段）可以分组，日期字段必须指定 `bucket`。\n- 不传 `dimensions` 时 `rows` 只有一行；分组时每组一行，最多 `limit` 组，`row_count` 为分组总数，超出时 `truncated` 为 true。\n- `filters` / `keyword` 与数据列表相同，但不支持 `creator_id`、`serial_number` 与关联字段条件（返回 400）。\n- 字段不存在、无权读取、函数或分组方式不适用于该字段时返回 400，并说明可用的字段 / 函数 / 分组方式。",
+  "summary": "Aggregate entries",
+  "description": "Aggregates whole columns on the server over the entries matching the filters (sum, average, count, percentiles, etc.), optionally grouped by 1 to 2 fields. The response size depends only on the number of metrics and groups, not on the amount of data.\n- `metrics` is required, 1 to 20 items; the functions each field takes are in the `analytics.agg_funcs` returned by `GET /forms/{form_token}?include_analytics=true`.\n- `dimensions` is optional, at most 2 items; only fields whose `analytics.groupable` is true (single-value choice fields and date fields) can be grouped by, and a date field must specify `bucket`.\n- Without `dimensions`, `rows` has a single row; when grouped, one row per group, at most `limit` groups; `row_count` is the total number of groups, and `truncated` is true when there are more.\n- `filters` / `keyword` are the same as for the entry list, but `creator_id`, `serial_number` and association field conditions are not supported (returns 400).\n- Returns 400 when a field does not exist or is not readable by the caller, or a function or grouping does not apply to the field, and says which fields / functions / groupings are available.",
   "tag": "Entries",
   "method": "get",
   "path": "/forms/{form_token}/entries/aggregate",
@@ -442,8 +442,8 @@
  },
  "summarizeEntries": {
   "operationId": "summarizeEntries",
-  "summary": "数据概况",
-  "description": "一次读取表单数据的整体概况：总览（匹配条数、今日新增）加上每个可分析字段的分布或数值统计。响应只有几 KB，与数据量无关。\n- 每个字段按 `kind` 返回统一结构：选项类给出各选项计数与占比，矩阵类按题目分组，数字给出最小 / 最大 / 求和 / 平均，日期给出最早 / 最晚，文本给出去重数。\n- 默认包含全部可分析字段（`analytics.summarisable` 为 true 的字段，另含 `created_at`），最多 60 个；超出的字段列在 `omitted_fields` 中，`truncated` 为 true。\n- `fields` 指定的字段不可分析或无权读取时返回 400。\n- `filters` / `keyword` 与数据列表相同，但不支持 `creator_id`、`serial_number` 与关联字段条件（返回 400）。",
+  "summary": "Summarize entries",
+  "description": "Reads an overall summary of the form's entries in one call: an overview (matching count, added today) plus the distribution or numeric statistics of each analysable field. The response is only a few KB, regardless of the amount of data.\n- Each field returns a uniform structure by `kind`: choice fields give each choice's count and share, matrix fields are grouped by question, numbers give min / max / sum / average, dates give earliest / latest, text gives the distinct count.\n- By default includes every analysable field (fields whose `analytics.summarisable` is true, plus `created_at`), at most 60; fields beyond that are listed in `omitted_fields`, and `truncated` is true.\n- Returns 400 when a field named in `fields` is not analysable or not readable by the caller.\n- `filters` / `keyword` are the same as for the entry list, but `creator_id`, `serial_number` and association field conditions are not supported (returns 400).",
   "tag": "Entries",
   "method": "get",
   "path": "/forms/{form_token}/entries/summary",
@@ -489,8 +489,8 @@
  },
  "countFormViewEntries": {
   "operationId": "countFormViewEntries",
-  "summary": "统计视图数据条数",
-  "description": "与 `GET /forms/{form_token}/entries/count` 相同，只统计该视图筛选出的数据：先套用视图的筛选条件，`filters` / `keyword` 在此基础上进一步缩小范围。视图的列和排序不影响结果；视图没有筛选条件时等同于整张表单。\n只能访问调用者可见的视图，否则 404（View cannot be found）。",
+  "summary": "Count the entries of a view",
+  "description": "Same as `GET /forms/{form_token}/entries/count`, but only over the entries the view's filters select: the view's filters apply first, and `filters` / `keyword` narrow the range further on top of them. The view's columns and sort do not affect the result; a view with no filters is the same as the whole form.\nOnly views visible to the caller are accessible; otherwise 404 (View cannot be found).",
   "tag": "Views",
   "method": "get",
   "path": "/forms/{form_token}/views/{view_token}/entries/count",
@@ -530,8 +530,8 @@
  },
  "aggregateFormViewEntries": {
   "operationId": "aggregateFormViewEntries",
-  "summary": "聚合统计视图数据",
-  "description": "与 `GET /forms/{form_token}/entries/aggregate` 相同，只统计该视图筛选出的数据：先套用视图的筛选条件，`filters` / `keyword` 在此基础上进一步缩小范围。视图的列和排序不影响结果；视图没有筛选条件时等同于整张表单。\n只能访问调用者可见的视图，否则 404（View cannot be found）。",
+  "summary": "Aggregate the entries of a view",
+  "description": "Same as `GET /forms/{form_token}/entries/aggregate`, but only over the entries the view's filters select: the view's filters apply first, and `filters` / `keyword` narrow the range further on top of them. The view's columns and sort do not affect the result; a view with no filters is the same as the whole form.\nOnly views visible to the caller are accessible; otherwise 404 (View cannot be found).",
   "tag": "Views",
   "method": "get",
   "path": "/forms/{form_token}/views/{view_token}/entries/aggregate",
@@ -589,8 +589,8 @@
  },
  "summarizeFormViewEntries": {
   "operationId": "summarizeFormViewEntries",
-  "summary": "视图数据概况",
-  "description": "与 `GET /forms/{form_token}/entries/summary` 相同，只统计该视图筛选出的数据：先套用视图的筛选条件，`filters` / `keyword` 在此基础上进一步缩小范围。视图的列和排序不影响结果；视图没有筛选条件时等同于整张表单。\n只能访问调用者可见的视图，否则 404（View cannot be found）。",
+  "summary": "Summarize the entries of a view",
+  "description": "Same as `GET /forms/{form_token}/entries/summary`, but only over the entries the view's filters select: the view's filters apply first, and `filters` / `keyword` narrow the range further on top of them. The view's columns and sort do not affect the result; a view with no filters is the same as the whole form.\nOnly views visible to the caller are accessible; otherwise 404 (View cannot be found).",
   "tag": "Views",
   "method": "get",
   "path": "/forms/{form_token}/views/{view_token}/entries/summary",
@@ -642,8 +642,8 @@
  },
  "createEntriesBatch": {
   "operationId": "createEntriesBatch",
-  "summary": "批量新增数据",
-  "description": "一次最多提交 200 条数据。逐条校验，合法的批量写入，非法的记录在 `errors` 中（`index` 为请求数组下标）。\n至少一条成功返回 201，全部失败返回 422；`entries` 为空或超过 200 条返回 400。\n提交前会按条数检查数据量上限，超限返回 403。批量写入不会触发单条新增的回调，但会创建一条「导入」活动记录并回填计算字段。",
+  "summary": "Create entries in batch",
+  "description": "Submits up to 200 entries at a time. Each entry is validated on its own; valid ones are written in bulk, invalid ones are recorded in `errors` (`index` is the position in the request array).\nReturns 201 when at least one succeeds and 422 when all fail; returns 400 when `entries` is empty or has over 200 entries.\nBefore writing, the entry count limit is checked against the number of entries submitted; over the limit returns 403. A batch write does not trigger the callbacks of a single create, but creates one \"import\" activity record and backfills calculated fields.",
   "tag": "Entries",
   "method": "post",
   "path": "/forms/{form_token}/entries/batch",
@@ -670,8 +670,8 @@
  },
  "patchEntriesBatch": {
   "operationId": "patchEntriesBatch",
-  "summary": "批量更新数据",
-  "description": "按序号批量增量更新，一次最多 200 行。每行 `serial_number` 必填，`entry` 为要修改的字段（未提及的字段保持不变）。\n逐行校验，失败的行记录在 `failed_rows`（`reason` 为 `invalid_serial_number` / `invalid_attributes` 等）。\n至少一行成功返回 200，全部失败返回 422；`entries` 为空或超过 200 行返回 400。\n批量更新不处理附件生命周期，因此**不能写附件字段**（含表格字段中的附件列），需要逐条更新。",
+  "summary": "Update entries in batch",
+  "description": "Partially updates entries in batch by serial number, up to 200 rows at a time. Each row requires `serial_number`; `entry` holds the fields to change (fields not mentioned stay unchanged).\nEach row is validated on its own; failed rows are recorded in `failed_rows` (`reason` is `invalid_serial_number` / `invalid_attributes`, etc.).\nReturns 200 when at least one row succeeds and 422 when all fail; returns 400 when `entries` is empty or has over 200 rows.\nBatch update does not handle the attachment lifecycle, so it **cannot write attachment fields** (including attachment columns inside table fields); update those one entry at a time.",
   "tag": "Entries",
   "method": "patch",
   "path": "/forms/{form_token}/entries/batch",
@@ -698,8 +698,8 @@
  },
  "getEntry": {
   "operationId": "getEntry",
-  "summary": "获取单条数据",
-  "description": "按序号返回一条数据。`fields` 可限定返回的字段。",
+  "summary": "Show an entry",
+  "description": "Returns one entry by serial number. `fields` limits the fields returned.",
   "tag": "Entries",
   "method": "get",
   "path": "/forms/{form_token}/entries/{serial_number}",
@@ -739,8 +739,8 @@
  },
  "updateEntryViaPost": {
   "operationId": "updateEntryViaPost",
-  "summary": "增量更新数据（POST）",
-  "description": "与 `PATCH` 同路径的 POST 别名，语义为增量更新，供不便发送 PATCH 的客户端使用。",
+  "summary": "Partially update an entry (POST)",
+  "description": "A POST alias of `PATCH` on the same path, with the same partial-update semantics, for clients that cannot easily send PATCH.",
   "tag": "Entries",
   "method": "post",
   "path": "/forms/{form_token}/entries/{serial_number}",
@@ -774,8 +774,8 @@
  },
  "replaceEntry": {
   "operationId": "replaceEntry",
-  "summary": "覆盖更新数据",
-  "description": "**整体覆盖**：请求体中未出现的可写字段会被清空，只保留本次提交的值。需要增量修改请用 `PATCH`。\n校验失败返回 400，`error_description` 为字段错误的 JSON 字符串。",
+  "summary": "Replace an entry",
+  "description": "**Full replace**: writable fields absent from the request body are cleared, and only the values submitted in this request are kept. For a partial update use `PATCH`.\nReturns 400 when validation fails, with `error_description` being the JSON string of the field errors.",
   "tag": "Entries",
   "method": "put",
   "path": "/forms/{form_token}/entries/{serial_number}",
@@ -809,8 +809,8 @@
  },
  "updateEntry": {
   "operationId": "updateEntry",
-  "summary": "增量更新数据",
-  "description": "**增量更新**：只修改请求体中出现的字段，其余字段保持原值。附件字段是整组覆盖，要保留已有文件需把读到的地址或附件 id 一并回传。\n校验失败返回 400，`error_description` 为字段错误的 JSON 字符串。",
+  "summary": "Partially update an entry",
+  "description": "**Partial update**: only the fields present in the request body change; the rest keep their values. An attachment field is replaced as a whole set: to keep existing files, send back the URLs or attachment ids you read along with the new ones.\nReturns 400 when validation fails, with `error_description` being the JSON string of the field errors.",
   "tag": "Entries",
   "method": "patch",
   "path": "/forms/{form_token}/entries/{serial_number}",
@@ -844,8 +844,8 @@
  },
  "deleteEntry": {
   "operationId": "deleteEntry",
-  "summary": "删除数据",
-  "description": "删除一条数据并记录删除活动。成功返回被删除数据的序号；删除失败（如表单状态不允许）返回 400。",
+  "summary": "Delete an entry",
+  "description": "Deletes one entry and records a delete activity. On success returns the serial number of the deleted entry; returns 400 when deletion fails (for example, the form's state does not allow it).",
   "tag": "Entries",
   "method": "delete",
   "path": "/forms/{form_token}/entries/{serial_number}",
@@ -872,8 +872,8 @@
  },
  "listEntryComments": {
   "operationId": "listEntryComments",
-  "summary": "列出数据评论",
-  "description": "按创建时间升序返回该条数据的全部评论，含创建者、被提及的用户与附件。 调用者若为协作者，需要对该表单具备数据读取权限且该条数据在其数据范围内，否则返回 400。 OAuth 令牌需要 scope：read_entries。",
+  "summary": "List an entry's comments",
+  "description": "Returns all comments on the entry, oldest first, with their creators, mentioned users and attachments. A caller who is a cooperator needs entry read permission on the form, and the entry must be within their data scope; otherwise returns 400.",
   "tag": "Comments",
   "method": "get",
   "path": "/forms/{form_token}/entries/{serial_number}/comments",
@@ -894,12 +894,14 @@
    "serial_number"
   ],
   "successStatus": 200,
-  "scopes": []
+  "scopes": [
+   "read_entries"
+  ]
  },
  "createEntryComment": {
   "operationId": "createEntryComment",
-  "summary": "创建数据评论",
-  "description": "在该条数据下创建评论，评论者为当前调用者，content 会去除首尾空白。content 为空或超过 2000 字返回 400。 content 中可用 @[<user_id>]（24 位十六进制用户 id）提及用户，被提及者必须是该表单的协作者，否则返回 400 并且不创建评论。 parent_id 用于回复，父评论必须属于同一条数据，否则返回 400。通过本接口无法附加文件。 调用者若为协作者，需要具备数据读取权限且该条数据在其数据范围内，否则返回 400。 OAuth 令牌需要 scope：read_entries。",
+  "summary": "Comment on an entry",
+  "description": "Creates a comment on the entry, authored by the caller; content is stripped of leading and trailing whitespace. Returns 400 when content is empty or longer than 2000 characters. Mention a user in content with @[<user_id>] (a 24-character hex user id); the mentioned user must be a cooperator on the form, otherwise returns 400 and no comment is created. parent_id makes the comment a reply; the parent comment must belong to the same entry, otherwise returns 400. This endpoint cannot attach files. A caller who is a cooperator needs entry read permission, and the entry must be within their data scope; otherwise returns 400.",
   "tag": "Comments",
   "method": "post",
   "path": "/forms/{form_token}/entries/{serial_number}/comments",
@@ -925,13 +927,15 @@
    "flatten": true
   },
   "successStatus": 201,
-  "scopes": [],
+  "scopes": [
+   "read_entries"
+  ],
   "responseSchema": "EntryComment"
  },
  "updateEntryComment": {
   "operationId": "updateEntryComment",
-  "summary": "更新数据评论",
-  "description": "修改评论内容，也接受 PUT。只有评论作者本人可以编辑，表单管理员也不能编辑他人评论，否则返回 400。 content 规则与创建相同（去除首尾空白、最长 2000 字、提及者必须是协作者）；评论已有的附件保持不变。 评论不属于该条数据时返回 404（comment cannot be found）。 OAuth 令牌需要 scope：read_entries。",
+  "summary": "Update a comment on an entry",
+  "description": "Changes a comment's content; PUT is accepted too. Only the comment's author can edit it; not even a form admin can edit someone else's comment; otherwise returns 400. content follows the same rules as on create (leading and trailing whitespace stripped, at most 2000 characters, mentioned users must be cooperators); the comment's existing attachments stay unchanged. Returns 404 (comment cannot be found) when the comment does not belong to the entry.",
   "tag": "Comments",
   "method": "patch",
   "path": "/forms/{form_token}/entries/{serial_number}/comments/{comment_id}",
@@ -963,13 +967,15 @@
    "flatten": true
   },
   "successStatus": 200,
-  "scopes": [],
+  "scopes": [
+   "read_entries"
+  ],
   "responseSchema": "EntryComment"
  },
  "deleteEntryComment": {
   "operationId": "deleteEntryComment",
-  "summary": "删除数据评论",
-  "description": "删除评论。评论作者本人、表单创建者或管理员角色的协作者可以删除，其他协作者返回 400。 已删除或不属于该条数据的评论返回 404（comment cannot be found）。 OAuth 令牌需要 scope：read_entries。",
+  "summary": "Delete a comment on an entry",
+  "description": "Deletes a comment. The comment's author, the form's creator, or a cooperator with the admin role can delete it; any other cooperator gets 400. Returns 404 (comment cannot be found) for a comment that is already deleted or does not belong to the entry.",
   "tag": "Comments",
   "method": "delete",
   "path": "/forms/{form_token}/entries/{serial_number}/comments/{comment_id}",
@@ -996,12 +1002,14 @@
    "comment_id"
   ],
   "successStatus": 200,
-  "scopes": []
+  "scopes": [
+   "read_entries"
+  ]
  },
  "getFormSetting": {
   "operationId": "getFormSetting",
-  "summary": "获取表单设置",
-  "description": "返回表单的提交后设置、收集规则（关闭规则、填写频率）、访问策略、微信限制与 Webhook 设置。\n\n仅当表单选择了微信公众号（selected_weixin_appid 存在）时才返回 `weixin` 字段。",
+  "summary": "Show a form's settings",
+  "description": "Returns the form's after-submission settings, collection rules (closing rules, fill frequency), access policy, WeChat restrictions and Webhook settings.\nThe `weixin` key is returned only when the form has a WeChat Official Account selected (selected_weixin_appid is present).",
   "tag": "Form Settings",
   "method": "get",
   "path": "/forms/{form_token}/setting",
@@ -1017,14 +1025,14 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ],
   "responseSchema": "FormSetting"
  },
  "updateFormSetting": {
   "operationId": "updateFormSetting",
-  "summary": "更新表单设置",
-  "description": "增量更新表单设置，只写入请求中出现的键；同时接受 PUT。\n\n- `submission_region_limited` / `submission_regions` 为付费功能，在此接口只读；写入请用「编辑表单」接口的 `setting`。\n- `manually_close_rule`、`by_time_range_close_rule`、`by_entries_close_rule`、`fill_frequency` 为嵌套对象，服务端以 nested attributes 方式创建或更新。\n- 保存成功返回 `{ \"status\": \"ok\" }`；模型校验失败返回 400，响应体为 `{ \"errors\": \"...\", \"status\": \"failed\" }`（与通用错误结构不同）。",
+  "summary": "Update a form's settings",
+  "description": "Partially updates the form's settings, writing only the keys present in the request; PUT is accepted too.\n- `submission_region_limited` / `submission_regions` are a paid feature and read-only here; to write them, use `setting` on the \"Edit a form\" endpoint.\n- `manually_close_rule`, `by_time_range_close_rule`, `by_entries_close_rule` and `fill_frequency` are nested objects; the server creates or updates them as nested attributes.\n- Returns `{ \"status\": \"ok\" }` on success; returns 400 when model validation fails, with body `{ \"errors\": \"...\", \"status\": \"failed\" }` (not the common error shape).",
   "tag": "Form Settings",
   "method": "patch",
   "path": "/forms/{form_token}/setting",
@@ -1046,14 +1054,14 @@
   },
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ],
   "responseSchema": "FormSettingSaveOk"
  },
  "getManuallyCloseRule": {
   "operationId": "getManuallyCloseRule",
-  "summary": "获取手动关闭状态",
-  "description": "返回表单是否被手动关闭收集。未创建过手动关闭规则时返回 `{ \"closed\": false }`。",
+  "summary": "Show whether a form is manually closed",
+  "description": "Returns whether the form has been manually closed for collection. Returns `{ \"closed\": false }` when no manual closing rule has ever been created.",
   "tag": "Form Settings",
   "method": "get",
   "path": "/forms/{form_token}/manually_close_rule",
@@ -1069,14 +1077,14 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ],
   "responseSchema": "ManuallyCloseRule"
  },
  "updateManuallyCloseRule": {
   "operationId": "updateManuallyCloseRule",
-  "summary": "手动开启或关闭收集",
-  "description": "通过 `open` 手动开启（true）或关闭（false）表单收集；同时接受 PUT。\n不存在手动关闭规则时会创建，存在则更新。手动关闭状态发生变化时，服务端会删除该表单的其他关闭规则（按时间、按数据量等）。\n\n缺少 `open` 参数时返回 400（响应体以服务端实现为准）；保存失败返回 400，响应体为 `{ \"errors\": \"...\", \"status\": \"failed\" }`。",
+  "summary": "Open or close collection manually",
+  "description": "Opens (true) or closes (false) the form for collection manually through `open`; PUT is accepted too.\nCreates the manual closing rule when none exists, updates it otherwise. When the manual closed state changes, the server deletes the form's other closing rules (by time, by entry count, etc.).\nReturns 400 when the `open` parameter is missing (the response body depends on the server implementation); returns 400 when saving fails, with body `{ \"errors\": \"...\", \"status\": \"failed\" }`.",
   "tag": "Form Settings",
   "method": "patch",
   "path": "/forms/{form_token}/manually_close_rule",
@@ -1097,14 +1105,14 @@
   },
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ],
   "responseSchema": "ManuallyCloseRule"
  },
  "updateAccessPolicy": {
   "operationId": "updateAccessPolicy",
-  "summary": "更新填写频率限制",
-  "description": "更新表单的填写频率限制（fill_frequency）；同时接受 PUT。\n该接口只接受 `fill_frequency` 一个键，其余访问策略字段请使用 PATCH /forms/{form_token}/setting。\n\n保存成功返回 `{ \"status\": \"ok\" }`；校验失败返回 400，响应体为 `{ \"errors\": \"...\", \"status\": \"failed\" }`（与通用错误结构不同）。",
+  "summary": "Update the fill frequency limit",
+  "description": "Updates the form's fill frequency limit (fill_frequency); PUT is accepted too.\nThis endpoint takes only the `fill_frequency` key; for the other access policy keys, use PATCH /forms/{form_token}/setting.\nReturns `{ \"status\": \"ok\" }` on success; returns 400 when validation fails, with body `{ \"errors\": \"...\", \"status\": \"failed\" }` (not the common error shape).",
   "tag": "Form Settings",
   "method": "patch",
   "path": "/forms/{form_token}/access_policy",
@@ -1125,14 +1133,14 @@
   },
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ],
   "responseSchema": "FormSettingSaveOk"
  },
  "createFormWebhook": {
   "operationId": "createFormWebhook",
-  "summary": "设置 Webhook",
-  "description": "设置表单的数据推送地址 `entry_post_url`，并同时开启新数据推送（post_new_entry = true）。\n\n需要套餐支持 Webhook，否则返回 402 且响应体为空。\n服务端不检查保存结果，直接回显设置中的 `entry_post_url`（URL 格式不合法时是否已持久化以服务端实现为准）。",
+  "summary": "Set the Webhook",
+  "description": "Sets the form's entry push URL `entry_post_url` and turns on pushing new entries (post_new_entry = true).\nThe plan must support Webhook; otherwise returns 402 with an empty body.\nThe server does not check the save result and echoes `entry_post_url` from the settings as is (whether an invalid URL was persisted depends on the server implementation).",
   "tag": "Form Settings",
   "method": "post",
   "path": "/forms/{form_token}/webhook",
@@ -1153,14 +1161,14 @@
   },
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ],
   "responseSchema": "FormWebhook"
  },
  "deleteFormWebhook": {
   "operationId": "deleteFormWebhook",
-  "summary": "删除 Webhook",
-  "description": "移除表单设置中的 `entry_post_url`。成功返回 200，响应体为空。",
+  "summary": "Delete the Webhook",
+  "description": "Removes `entry_post_url` from the form's settings. Returns 200 with an empty body on success.",
   "tag": "Form Settings",
   "method": "delete",
   "path": "/forms/{form_token}/webhook",
@@ -1176,13 +1184,13 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ]
  },
  "updateFormTheme": {
   "operationId": "updateFormTheme",
-  "summary": "更新表单主题",
-  "description": "增量修改表单主题（配色、背景、头图、字体、表单容器、提交按钮）；同时接受 PUT。\n- 请求体必须至少包含 primary_color / secondary_color / wallpaper / header / typography / form_container / submit_button 之一（`generate_header_image` 会被转换为 header.header_image_url，因此也算），否则 400。\n- 头图来源优先级：header_image_upload_token > header_image_base64 > header_image_url > header_image_attachment_id；设置头图后若未指定 header.type，则自动设为 image。\n- 背景图来源优先级：background_image_upload_token > background_image_url > background_image_attachment_id。设置或移除背景图时会同时去掉主题模板自带的预设背景图，背景色保留。\n- `header_image_attachment_id` / `background_image_attachment_id` 填「上传表单图片」（image_type 为 header / wallpaper）返回的 `attachment_id`；传空字符串 `\"\"` 移除当前图片。\n- `header.carousel_images` 整体替换轮播图，最多 5 张，不能为空；每项需提供 image_upload_token / image_url / attachment_id 之一，attachment_id 必须是该表单已有的轮播图；传入后若未指定 header.type，则自动设为 carousel。\n- `text_style` 与 `typography.*` 中的键使用下划线（如 font_size），服务端转换为 CSS 连字符键并与现有样式合并；返回值中为连字符键。\n- `generate_header_image` 调用 AI 生成头图，消耗 AI 点数；点数不足返回 402，生成失败返回 400。\n- 图片 upload_token 即「上传表单图片」使用的 `form_image_token`，其记录的图片用途需匹配（header / wallpaper / carousel），且必须已完成上传。",
+  "summary": "Update a form's theme",
+  "description": "Partially updates the form's theme (colors, background, header image, typography, form container, submit button); PUT is accepted too.\n- The request body must contain at least one of primary_color / secondary_color / wallpaper / header / typography / form_container / submit_button (`generate_header_image` is turned into header.header_image_url, so it counts too); otherwise 400.\n- Header image source precedence: header_image_upload_token > header_image_base64 > header_image_url > header_image_attachment_id; when a header image is set and header.type is not given, header.type is set to image.\n- Background image source precedence: background_image_upload_token > background_image_url > background_image_attachment_id. Setting or removing the background image also removes the preset background image that comes with the theme template; the background color is kept.\n- `header_image_attachment_id` / `background_image_attachment_id` take the `attachment_id` returned by \"Upload a form image\" (image_type header / wallpaper); pass an empty string `\"\"` to remove the current image.\n- `header.carousel_images` replaces the carousel images as a whole: at most 5, not empty; each item gives one of image_upload_token / image_url / attachment_id, and an attachment_id must be a carousel image the form already has; when it is passed and header.type is not given, header.type is set to carousel.\n- Keys in `text_style` and `typography.*` use underscores (e.g. font_size); the server converts them to hyphenated CSS keys and merges them into the existing styles; the response uses the hyphenated keys.\n- `generate_header_image` has AI generate a header image and consumes AI points; returns 402 when points are insufficient, 400 when generation fails.\n- An image upload_token is the `form_image_token` used by \"Upload a form image\"; the image purpose it records must match (header / wallpaper / carousel), and its upload must be complete.",
   "tag": "Form Settings",
   "method": "patch",
   "path": "/forms/{form_token}/theme",
@@ -1210,8 +1218,8 @@
  },
  "getExamSetting": {
   "operationId": "getExamSetting",
-  "summary": "获取考试设置",
-  "description": "返回考试场景表单的交卷后展示、限时答题、考前须知与分数区间评语设置。\n仅考试场景（scene = exam）表单可用，否则返回 400。表单尚无考试设置记录时返回空对象 `{}`。",
+  "summary": "Show a form's exam settings",
+  "description": "Returns an exam form's settings for what is shown after the exam is submitted, the time limit, the pre-exam notice and score range comments.\nOnly for forms in the exam scene (scene = exam); otherwise returns 400. Returns an empty object `{}` when the form has no exam settings record yet.",
   "tag": "Form Settings",
   "method": "get",
   "path": "/forms/{form_token}/exam_setting",
@@ -1227,14 +1235,14 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ],
   "responseSchema": "ExamSetting"
  },
  "updateExamSetting": {
   "operationId": "updateExamSetting",
-  "summary": "更新考试设置",
-  "description": "增量更新考试场景表单的设置；同时接受 PUT。仅考试场景表单可用，否则返回 400。\n\n- 套餐不支持\"提交后显示成绩\"时，`notice_after_filling_mode` 会被强制写为 none，且 `success_message_rich_text` 被忽略。\n- `interval_comments` 整体替换现有区间评语；仅在（本次传入或已保存的）`notice_after_filling_mode` 为 grade / explaination / answer 时生效；传空数组不会关闭区间评语。\n- 区间评语需满足 end_point ≥ start_point 且互不重叠，否则 400。\n- 表单已有必填题目时传 `show_timeout: true` 返回 400；开启限时后题目字段不能再设必填（考生信息字段的必填不受影响），要开限时先取消题目必填。\n- `notice_after_filling_mode` 不为 none 时，服务端会清空表单设置中的 success_redirect_url / success_redirect_fields。\n- 请求体不含任何可识别键时视为无操作，直接返回当前设置。",
+  "summary": "Update a form's exam settings",
+  "description": "Partially updates an exam form's settings; PUT is accepted too. Only for exam-scene forms; otherwise returns 400.\n- When the plan does not support \"show the score after submission\", `notice_after_filling_mode` is forced to none and `success_message_rich_text` is ignored.\n- `interval_comments` replaces the existing range comments as a whole; it takes effect only when `notice_after_filling_mode` (passed in this request or already saved) is grade / explaination / answer; passing an empty array does not turn range comments off.\n- Range comments must have end_point ≥ start_point and must not overlap; otherwise 400.\n- Passing `show_timeout: true` returns 400 when the form already has required questions; once the time limit is on, question fields cannot be made required (required candidate info fields are not affected); to turn on the time limit, make the questions optional first.\n- When `notice_after_filling_mode` is not none, the server clears success_redirect_url / success_redirect_fields in the form's settings.\n- A request body with no recognized keys is a no-op and returns the current settings.",
   "tag": "Form Settings",
   "method": "patch",
   "path": "/forms/{form_token}/exam_setting",
@@ -1255,14 +1263,14 @@
   },
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ],
   "responseSchema": "ExamSetting"
  },
  "getEvaluationSetting": {
   "operationId": "getEvaluationSetting",
-  "summary": "获取测评设置",
-  "description": "返回测评场景表单的报告展示、维度（指标）设置与总分区间评语。\n仅测评场景（scene = evaluation）表单可用，否则返回 400。表单尚无测评设置记录时返回空对象 `{}`。",
+  "summary": "Show a form's evaluation settings",
+  "description": "Returns an evaluation form's report display, dimension (indicator) settings and total score range comments.\nOnly for forms in the evaluation scene (scene = evaluation); otherwise returns 400. Returns an empty object `{}` when the form has no evaluation settings record yet.",
   "tag": "Form Settings",
   "method": "get",
   "path": "/forms/{form_token}/evaluation_setting",
@@ -1278,14 +1286,14 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ],
   "responseSchema": "EvaluationSetting"
  },
  "updateEvaluationSetting": {
   "operationId": "updateEvaluationSetting",
-  "summary": "更新测评设置",
-  "description": "增量更新测评场景表单的设置；同时接受 PUT。仅测评场景表单可用，否则返回 400。\n\n- 套餐不支持\"提交后显示测评报告\"时，`notice_after_filling_mode` 会被强制写为 none。\n- `evaluation_comments` 整体替换总分区间评语，传空数组则关闭区间评语；仅在（本次传入或已保存的）`notice_after_filling_mode` 为 reports / customize 时生效。\n- 按分数区间的评语必须同时给出 start_point 与 end_point；在表单编辑器中按条件编写的评语会以 `id` + `conditions` 读回，更新时必须按原 id 传回（只能改 comment / retry，不能改条件或加区间），遗漏或改动均返回 400。\n- `indicator_setting.indicators` 整体替换维度；传回 `api_code` 可保留已有维度身份。维度只能绑定表单上可见的可计分题目，可用 `field_api_codes` 或 `field_cids` 引用，引用未知字段返回 400。\n- `notice_after_filling_mode` 不为 none 时，服务端会清空表单设置中的 success_redirect_url / success_redirect_fields。\n- 请求体不含任何可识别键时视为无操作，直接返回当前设置。",
+  "summary": "Update a form's evaluation settings",
+  "description": "Partially updates an evaluation form's settings; PUT is accepted too. Only for evaluation-scene forms; otherwise returns 400.\n- When the plan does not support \"show the evaluation report after submission\", `notice_after_filling_mode` is forced to none.\n- `evaluation_comments` replaces the total score range comments as a whole, and an empty array turns range comments off; it takes effect only when `notice_after_filling_mode` (passed in this request or already saved) is reports / customize.\n- A comment by score range must give both start_point and end_point; comments written with conditions in the form editor read back as `id` + `conditions` and must be passed back with their original id when updating (only comment / retry may change; the conditions cannot be changed and no range can be added); leaving one out or changing it returns 400.\n- `indicator_setting.indicators` replaces the dimensions as a whole; pass `api_code` back to keep an existing dimension's identity. A dimension can bind only scorable questions visible on the form, referenced by `field_api_codes` or `field_cids`; referencing an unknown field returns 400.\n- When `notice_after_filling_mode` is not none, the server clears success_redirect_url / success_redirect_fields in the form's settings.\n- A request body with no recognized keys is a no-op and returns the current settings.",
   "tag": "Form Settings",
   "method": "patch",
   "path": "/forms/{form_token}/evaluation_setting",
@@ -1307,14 +1315,14 @@
   },
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ],
   "responseSchema": "EvaluationSetting"
  },
  "listFieldRules": {
   "operationId": "listFieldRules",
-  "summary": "获取字段显示规则",
-  "description": "返回表单的有效字段显示规则（逻辑跳转）。`index` 为 0 起始的位置，PATCH /forms/{form_token} 的 field_rules 更新与删除按此 index 定位。",
+  "summary": "Show a form's field display rules",
+  "description": "Returns the form's effective field display rules (logic jumps). `index` is the 0-based position; field_rules updates and removals in PATCH /forms/{form_token} locate rules by this index.",
   "tag": "Forms",
   "method": "get",
   "path": "/forms/{form_token}/field_rules",
@@ -1330,13 +1338,13 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "forms。"
+   "forms"
   ]
  },
  "listExtendedAttributes": {
   "operationId": "listExtendedAttributes",
-  "summary": "获取数据来源链接",
-  "description": "返回表单已生成的\"跟踪数据来源\"扩展属性（按创建时间升序），每条附带携带该值的填写链接。",
+  "summary": "List the source-tracking links",
+  "description": "Returns the \"track entry source\" extended attributes generated for the form (oldest first), each with the fill link that carries its value.",
   "tag": "Forms",
   "method": "get",
   "path": "/forms/{form_token}/extended_attributes",
@@ -1352,13 +1360,13 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "forms。"
+   "forms"
   ]
  },
  "listFormCooperators": {
   "operationId": "listFormCooperators",
-  "summary": "获取表单协作者",
-  "description": "返回表单的协作者及其角色名称，包含从文件夹继承的角色；同一用户通过多条路径获得角色时只返回距离最近的一条。",
+  "summary": "List a form's cooperators",
+  "description": "Returns the form's cooperators and their role names, including roles inherited from folders; when a user gets roles through several paths, only the nearest one is returned.",
   "tag": "Forms",
   "method": "get",
   "path": "/forms/{form_token}/cooperators",
@@ -1374,13 +1382,13 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "forms。"
+   "forms"
   ]
  },
  "copyForm": {
   "operationId": "copyForm",
-  "summary": "复制表单",
-  "description": "复制表单并返回新表单（与 GET /forms/{form_token} 相同结构）。新表单的创建者为当前调用用户（账户级令牌为账户所有者）。\n\n- 源表单允许公开复制（can_duplicated_in_public）时，不要求调用者对源表单有访问权限；否则无权限返回 404。\n- 源表单被冻结、或源表单创建者账号被禁用时返回 403，响应体为 `{ \"errors\": ..., \"status_code\": \"form_forbidden\" }`（与通用错误结构不同）。\n- `folder_token` 接受文件夹 token 或 id；文件夹不存在或无管理权限返回 404。\n- 复制失败（模型校验不通过）返回 400。",
+  "summary": "Copy a form",
+  "description": "Copies the form and returns the new form (same shape as GET /forms/{form_token}). The new form's creator is the calling user (the account owner for an account token).\n- When the source form allows public copying (can_duplicated_in_public), the caller needs no access to the source form; otherwise a caller without access gets 404.\n- Returns 403 when the source form is frozen or its creator's account is disabled, with body `{ \"errors\": ..., \"status_code\": \"form_forbidden\" }` (not the common error shape).\n- `folder_token` takes a folder token or id; returns 404 when the folder does not exist or the caller lacks manage permission on it.\n- Returns 400 when copying fails (model validation does not pass).",
   "tag": "Forms",
   "method": "post",
   "path": "/forms/{form_token}/copy",
@@ -1401,14 +1409,14 @@
   },
   "successStatus": 200,
   "scopes": [
-   "forms。"
+   "forms"
   ],
   "responseSchema": "Form"
  },
  "moveFormToFolder": {
   "operationId": "moveFormToFolder",
-  "summary": "移动表单到文件夹",
-  "description": "将表单移入指定文件夹，或移出文件夹（`folder_token` 传 null）；同时接受 PUT。移动仅影响当前调用用户的文件夹归属。\n\n- 请求体必须包含 `folder_token` 键（值可为 null），否则 400。\n- `folder_token` 只接受文件夹 token（不接受 id）；文件夹不存在或当前用户无管理权限返回 404。\n- 文件夹类型（form / table）必须与表单类型一致，否则 400。\n- 移动表格请使用 `PATCH /tables/{table_token}/folder`。",
+  "summary": "Move a form into a folder",
+  "description": "Moves the form into a folder, or out of one (pass null as `folder_token`); PUT is accepted too. The move affects only the calling user's folder placement.\n- The request body must contain the `folder_token` key (its value may be null); otherwise 400.\n- `folder_token` takes only a folder token (not an id); returns 404 when the folder does not exist or the current user lacks manage permission on it.\n- The folder type (form / table) must match the form's type; otherwise 400.\n- To move a table, use `PATCH /tables/{table_token}/folder`.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}/folder",
@@ -1429,14 +1437,14 @@
   },
   "successStatus": 200,
   "scopes": [
-   "forms。"
+   "forms"
   ],
   "responseSchema": "FormFolderMoveResult"
  },
  "createWeixinOauthSession": {
   "operationId": "createWeixinOauthSession",
-  "summary": "微信授权换 openid",
-  "description": "用微信网页授权返回的 `code`，通过表单所选公众号换取用户 openid。\n表单微信授权 scope 为 userinfo 时，额外返回 `unionid`（微信有返回时）与 `profile`。\n\n- 表单未配置微信公众号或公众号账号不存在时返回 400；缺少 `code` 返回 400。\n- 微信侧换取失败（code 无效等）或获取用户信息失败时返回 502。",
+  "summary": "Exchange a WeChat authorization code for an openid",
+  "description": "Exchanges the `code` returned by WeChat web authorization for the user's openid, through the WeChat Official Account the form has selected.\nWhen the form's WeChat authorization scope is userinfo, also returns `unionid` (when WeChat returns one) and `profile`.\n- Returns 400 when the form has no WeChat Official Account configured or that account does not exist; returns 400 when `code` is missing.\n- Returns 502 when the exchange fails on the WeChat side (invalid code, etc.) or fetching the user info fails.",
   "tag": "Forms",
   "method": "post",
   "path": "/forms/{form_token}/weixin_oauth_session",
@@ -1457,14 +1465,14 @@
   },
   "successStatus": 200,
   "scopes": [
-   "write_entries。"
+   "write_entries"
   ],
   "responseSchema": "FormWeixinOauthSession"
  },
  "listFormViews": {
   "operationId": "listFormViews",
-  "summary": "列出表单视图",
-  "description": "返回当前调用者在该表单上可见的视图：自己创建的视图，以及其他协作者设为 cooperators 可见的视图； 其他用户的 personal 视图不会返回。排序遵循调用者自己保存的视图顺序，未排序的视图按 position、created_at 追加在后。 OAuth 令牌需要 scope：forms。",
+  "summary": "List a form's views",
+  "description": "Returns the views the caller can see on the form: views they created, and views whose visibility other cooperators set to cooperators; other users' personal views are not returned. The order follows the caller's own saved view order; views not in it are appended by position, then created_at.",
   "tag": "Views",
   "method": "get",
   "path": "/forms/{form_token}/views",
@@ -1479,12 +1487,14 @@
    "form_token"
   ],
   "successStatus": 200,
-  "scopes": []
+  "scopes": [
+   "forms"
+  ]
  },
  "createFormView": {
   "operationId": "createFormView",
-  "summary": "创建表单视图",
-  "description": "为表单创建一个新视图，创建者为当前调用者，visibility 未传时默认为 cooperators，position 为当前可见视图的最大值加 1。 每个用户在同一表单最多 100 个视图，达到上限返回 422（View limit reached）。 view_type 为 kanban 且未传 kanban_group_by_api_code 时，服务端自动选择分组字段；未传 kanban_hidden_groups 时默认隐藏 __unset__ 分组； prefer_columns 为空时使用表单默认列（看板视图最多 5 列，含 serial_number）。 filter 不合法（不是数组、字段不存在、运算符不支持、值不合法）返回 422。模型校验失败（如 name 为空或超过 120 字、分组字段不支持看板分组）返回 422。 表单视图（view_type 为 form）：仅表格支持，否则 422；title 缺省为表格名称，未传 field_overrides 时按当前列顺序勾选全部可填写的列，published 缺省 false（未发布时填写链接不可用）。title / description / published / field_overrides 只适用于表单视图，用在其他类型上返回 422。创建、修改、删除表单视图（包括把视图切换为或切换出表单视图）需要调用者在该表格上拥有可新增数据的预置角色，否则 403；企业令牌不受此限制。填写项的列不存在、不能作为填写项或设置了该列类型不支持的校验时返回 422，错误信息带列 api_code。 OAuth 令牌需要 scope：forms。",
+  "summary": "Create a view on a form",
+  "description": "Creates a new view on the form, created by the caller; visibility defaults to cooperators when not passed, and position is the highest position among the currently visible views plus 1. Each user can have at most 100 views on one form; at the limit, returns 422 (View limit reached). When view_type is kanban and kanban_group_by_api_code is not passed, the server picks the grouping field; when kanban_hidden_groups is not passed, the __unset__ group is hidden by default; when prefer_columns is empty, the form's default columns are used (at most 5 columns for a kanban view, serial_number included). Returns 422 when filter is invalid (not an array, unknown field, unsupported operator, invalid value). Returns 422 when model validation fails (e.g. name is empty or longer than 120 characters, or the grouping field does not support kanban grouping). Form views (view_type form): supported only on tables, otherwise 422; title defaults to the table name; without field_overrides, all fillable columns are selected in the current column order; published defaults to false (the fill link does not work while unpublished). title / description / published / field_overrides apply only to form views; using them on another type returns 422. Creating, updating or deleting a form view (including switching a view to or from a form view) requires the caller to hold a predefined role on the table that can add entries, otherwise 403; an account token is exempt. Returns 422 when a fill item's column does not exist, cannot be a fill item, or sets a validation its column type does not support; the error message names the column's api_code.",
   "tag": "Views",
   "method": "post",
   "path": "/forms/{form_token}/views",
@@ -1505,13 +1515,15 @@
    "param": "body"
   },
   "successStatus": 201,
-  "scopes": [],
+  "scopes": [
+   "forms"
+  ],
   "responseSchema": "FormView"
  },
  "getFormView": {
   "operationId": "getFormView",
-  "summary": "获取表单视图",
-  "description": "返回单个视图。只能读取调用者可见的视图（自己创建的或 cooperators 可见的），其他用户的 personal 视图返回 404（View cannot be found）。 OAuth 令牌需要 scope：forms。",
+  "summary": "Show a view of a form",
+  "description": "Returns one view. Only views visible to the caller can be read (created by the caller or visible to cooperators); another user's personal view returns 404 (View cannot be found).",
   "tag": "Views",
   "method": "get",
   "path": "/forms/{form_token}/views/{view_token}",
@@ -1532,13 +1544,15 @@
    "view_token"
   ],
   "successStatus": 200,
-  "scopes": [],
+  "scopes": [
+   "forms"
+  ],
   "responseSchema": "FormView"
  },
  "updateFormView": {
   "operationId": "updateFormView",
-  "summary": "更新表单视图",
-  "description": "更新视图配置，也接受 PUT。只更新请求中出现的键：filter 传空数组会清空筛选，不传则保持不变； kanban_group_by_api_code 变化且未同时传 kanban_group_order / kanban_hidden_groups 时，这两个列表重置为默认值。 协作者可以修改 cooperators 可见视图的配置，但只有视图创建者可以切换 visibility，否则返回 403； view_scope 为 form 的视图不允许切换 visibility。filter 不合法或模型校验失败返回 422。 field_overrides 整体替换填写项配置；表单视图的权限要求与参数限制同创建。 OAuth 令牌需要 scope：forms。",
+  "summary": "Update a view of a form",
+  "description": "Updates the view's configuration; PUT is accepted too. Only the keys present in the request are updated: an empty array for filter clears the filters, and leaving filter out keeps them unchanged; when kanban_group_by_api_code changes and kanban_group_order / kanban_hidden_groups are not passed with it, those two lists reset to their defaults. Cooperators can change the configuration of a view visible to cooperators, but only the view's creator can switch visibility, otherwise returns 403; a view whose view_scope is form cannot switch visibility. Returns 422 when filter is invalid or model validation fails. field_overrides replaces the fill item settings as a whole; form views have the same permission requirements and parameter limits as on create.",
   "tag": "Views",
   "method": "patch",
   "path": "/forms/{form_token}/views/{view_token}",
@@ -1565,13 +1579,15 @@
    "param": "body"
   },
   "successStatus": 200,
-  "scopes": [],
+  "scopes": [
+   "forms"
+  ],
   "responseSchema": "FormView"
  },
  "deleteFormView": {
   "operationId": "deleteFormView",
-  "summary": "删除表单视图",
-  "description": "删除视图。预置视图（predefined）和 view_scope 为 form 的视图不能删除，删除后调用者将不再有任何可见视图时也会拒绝，均返回 422。 删除表单视图需要与创建相同的权限（否则 403），删除后其填写链接立即失效，不可恢复。 OAuth 令牌需要 scope：forms。",
+  "summary": "Delete a view of a form",
+  "description": "Deletes a view. Predefined views (predefined) and views whose view_scope is form cannot be deleted, and the deletion is also refused when it would leave the caller with no visible view; all of these return 422. Deleting a form view needs the same permission as creating one (otherwise 403); once it is deleted, its fill link stops working immediately, and this cannot be undone.",
   "tag": "Views",
   "method": "delete",
   "path": "/forms/{form_token}/views/{view_token}",
@@ -1592,12 +1608,14 @@
    "view_token"
   ],
   "successStatus": 200,
-  "scopes": []
+  "scopes": [
+   "forms"
+  ]
  },
  "listFormViewEntries": {
   "operationId": "listFormViewEntries",
-  "summary": "列出视图数据",
-  "description": "按视图的筛选条件和排序规则返回表单数据，每页最多 50 条。返回字段限定为视图 prefer_columns 中的字段（始终包含 serial_number）， prefer_columns 为空时返回全部可推送字段；排序按视图 sort 规则，未包含 serial_number 时追加 serial_number 升序。 分页使用 next 参数（行偏移量），最后一页 next 为 null。视图筛选中存在查询引擎不支持的运算符时返回 400。 只能访问调用者可见的视图，否则 404（View cannot be found）。 OAuth 令牌需要 scope：read_entries。",
+  "summary": "List a view's entries",
+  "description": "Returns the form's entries under the view's filters and sort rules, at most 50 per page. The returned fields are limited to those in the view's prefer_columns (serial_number always included); when prefer_columns is empty, all pushable fields are returned. Sorting follows the view's sort rules, with serial_number ascending appended when they do not include serial_number. Paginate with the next parameter (a row offset); next is null on the last page. Returns 400 when the view's filters use an operator the query engine does not support. Only views visible to the caller are accessible, otherwise 404 (View cannot be found).",
   "tag": "Views",
   "method": "get",
   "path": "/forms/{form_token}/views/{view_token}/entries",
@@ -1630,13 +1648,15 @@
    "include_labels"
   ],
   "successStatus": 200,
-  "scopes": [],
+  "scopes": [
+   "read_entries"
+  ],
   "responseSchema": "EntryListResponse"
  },
  "uploadEntryAttachment": {
   "operationId": "uploadEntryAttachment",
-  "summary": "上传数据附件",
-  "description": "为表单的附件字段（或表格字段中的附件列）预先上传一个文件，返回附件 ID；之后在创建 / 更新数据时把该 ID（或上传令牌）填入对应字段即可完成绑定。上传后未被任何数据引用的附件处于未使用状态。\n鉴权方式二选一：\n1. 常规 API 凭证（HTTP Basic 的 api_key / api_secret，或 Bearer 令牌）。\n2. 一次性上传令牌 `attachment_token`（代替常规凭证）：令牌以 `entry_att_tok_` 开头，30 分钟内有效、只能使用一次，并绑定到表单、字段、列与文件元数据。请求中带有 `attachment_token` 时不再校验常规凭证，以令牌所属用户的身份访问；令牌无效、过期、已使用、所属用户已被删除，或与请求的表单 / 字段 / 列不一致时返回 400 `attachment_token is invalid or expired; prepare upload again`；上传文件的文件名、Content-Type、字节数与令牌不一致时同样返回 400。\n没有凭证也没有 `attachment_token` 时返回 401。\n文件内容二选一：`multipart/form-data` 的 `file` 字段；或 JSON / 表单中的 `base64`（亦可用 `data`）字段传 Base64 字符串（可带 `data:<mime>;base64,` 前缀），配合 `file_name`（亦可用 `filename`）与 `content_type`。Base64 方式解码后不能超过 5 MB，超过返回 400 `attachment exceeds 5MB limit`，解码失败返回 400 `base64 is invalid`；两者都没有时返回 400 `file or base64 is required`。\n`field_api_code` 必须指向附件字段或表格字段；指向表格字段时必须同时传 `dimension_api_code` 且指向该表格中的附件列，否则返回 400；字段或列不存在返回 404。\n文件大小受字段（或列）设置的单文件上限限制，超出时返回 422，`error_description` 为具体校验信息（如 `文件超过了10 MB`）；上传到对象存储失败时返回 422 `上传失败，请重试`（以服务端文案为准）。\n表单不存在或当前身份无权访问时返回 404 `form cannot be found`。",
+  "summary": "Upload an entry attachment",
+  "description": "Uploads a file ahead of time for a form's attachment field (or an attachment column in a table field) and returns the attachment ID; then, when creating / updating an entry, put that ID (or the upload token) into the matching field to bind it. An uploaded attachment that no entry references stays unused.\nAuthenticate in one of two ways:\n1. Regular API credentials (a Bearer token).\n2. A one-time upload token `attachment_token` (instead of regular credentials): the token starts with `entry_att_tok_`, is valid for 30 minutes, can be used only once, and is bound to the form, field, column and file metadata. When the request carries `attachment_token`, regular credentials are not checked and the request acts as the token's user; returns 400 `attachment_token is invalid or expired; prepare upload again` when the token is invalid, expired, already used, its user has been deleted, or it does not match the requested form / field / column; also returns 400 when the uploaded file's name, Content-Type or byte size does not match the token.\nReturns 401 when there are neither credentials nor `attachment_token`.\nSend the file content in one of two ways: the `file` field of `multipart/form-data`; or a Base64 string in the `base64` (or `data`) field of a JSON / form-encoded body (a `data:<mime>;base64,` prefix is allowed), with `file_name` (or `filename`) and `content_type`. Base64 content cannot exceed 5 MB once decoded; larger returns 400 `attachment exceeds 5MB limit`, and a decoding failure returns 400 `base64 is invalid`; returns 400 `file or base64 is required` when neither is given.\n`field_api_code` must point to an attachment field or a table field; for a table field, `dimension_api_code` must also be passed and point to an attachment column in that table field, otherwise returns 400; returns 404 when the field or column does not exist.\nThe file size is capped by the per-file limit set on the field (or column); a larger file returns 422, with the specific validation message in `error_description` (e.g. `文件超过了10 MB`); returns 422 `上传失败，请重试` when uploading to object storage fails (the server's wording is authoritative).\nReturns 404 `form cannot be found` when the form does not exist or is not accessible to the current identity.",
   "tag": "Uploads",
   "method": "post",
   "path": "/forms/{form_token}/entry_attachments",
@@ -1663,8 +1683,8 @@
  },
  "uploadImportFile": {
   "operationId": "uploadImportFile",
-  "summary": "上传导入文件",
-  "description": "上传一个用于批量导入数据的表格文件（`.xlsx` / `.xls` / `.csv`）到指定表单，返回导入附件 ID；随后把它作为 `attachment_id` 交给「从已上传的表格文件导入数据」（`POST /forms/{form_token}/entry_imports`）发起导入。\n鉴权方式二选一：\n1. 常规 API 凭证（HTTP Basic 的 api_key / api_secret，或 Bearer 令牌）。\n2. 一次性上传令牌 `import_file_token`（代替常规凭证）：令牌以 `import_file_tok_` 开头，30 分钟内有效、只能使用一次，并绑定到表单与文件元数据。请求中带有 `import_file_token` 时不再校验常规凭证，以令牌所属用户的身份访问；上传文件的原始文件名、Content-Type、字节数必须与令牌记录的一致，否则返回 400。令牌不存在、已过期、已使用，或所属用户已被删除时返回 400 `import_file_token is invalid or expired; prepare upload again`；令牌属于另一个表单时返回 400 `import_file_token was issued for another form; prepare upload again`。\n没有凭证也没有 `import_file_token` 时返回 401。\n请求必须为 `multipart/form-data`，字段 `file` 携带文件；缺少文件返回 400 `file is required`。\n文件大小受账号套餐的 Excel 导入上限（单位 MB）限制，扩展名须为 xls / xlsx / csv；不满足时返回 422，`error_description` 为具体校验信息（使用上传令牌时令牌保持可用，可重新上传）。\n表单不存在或当前身份无权访问时返回 404 `form cannot be found`。",
+  "summary": "Upload an import file",
+  "description": "Uploads a spreadsheet file (`.xlsx` / `.xls` / `.csv`) for bulk-importing entries into the given form, and returns the import attachment ID; then pass it as `attachment_id` to \"Import entries from an uploaded spreadsheet\" (`POST /forms/{form_token}/entry_imports`) to start the import.\nAuthenticate in one of two ways:\n1. Regular API credentials (a Bearer token).\n2. A one-time upload token `import_file_token` (instead of regular credentials): the token starts with `import_file_tok_`, is valid for 30 minutes, can be used only once, and is bound to the form and the file metadata. When the request carries `import_file_token`, regular credentials are not checked, and the request acts as the user the token belongs to; the uploaded file's original file name, Content-Type and byte size must match what the token recorded, otherwise returns 400. Returns 400 `import_file_token is invalid or expired; prepare upload again` when the token does not exist, has expired, has been used, or its user has been deleted; returns 400 `import_file_token was issued for another form; prepare upload again` when the token belongs to another form.\nReturns 401 when there are neither credentials nor an `import_file_token`.\nThe request must be `multipart/form-data`, with the file in the `file` field; a missing file returns 400 `file is required`.\nThe file size is capped by the plan's Excel import limit (in MB), and the extension must be xls / xlsx / csv; otherwise returns 422, with the validation details in `error_description` (with an upload token, the token stays usable, so the file can be uploaded again).\nReturns 404 `form cannot be found` when the form does not exist or is not accessible to the current caller.",
   "tag": "Uploads",
   "method": "post",
   "path": "/forms/{form_token}/import_files",
@@ -1691,8 +1711,8 @@
  },
  "createEntryImport": {
   "operationId": "createEntryImport",
-  "summary": "从已上传的表格文件导入数据",
-  "description": "把「上传导入文件」得到的表格文件逐行追加为该表单的数据。先上传文件拿到导入附件 ID（`attachment_id`），再在这里说明哪一列写入哪个字段。\n文件、套餐导入上限、表头行、列映射等能预先判断的问题都在创建任务之前校验，被拒绝的导入不会写入任何数据；错误信息会带上这份表格的实际布局（行列范围与表头内容），便于据此修正后重试。\n校验通过后返回 `201`，数据在后台写入：`201` 表示任务已开始而非已完成，用「获取数据导入任务」轮询结果。\n- `attachment_id` 必须是当前用户为该表单上传的导入文件，否则返回 400（找不到该文件，需重新上传）；文件不是 xls / xlsx / csv 或无法读取时返回 400。\n- `columns` 不能为空；每项用 `field_api_code` 指定目标字段，并用 `column_label`（表头文字，需与表头单元格去掉首尾空格后完全一致）或 `sheet_column_index`（列号）指定来源列，两者都给时以 `sheet_column_index` 为准。\n- 字段必须是该表单可导入的字段；同一字段不能对应多列；表头中有多列同名时必须改用 `sheet_column_index`；列号必须在表格的列范围内。\n- `header_row_index` 缺省为表格的第一行，且其下方必须还有数据行。\n- 表单的必填字段都必须有对应的列，否则返回 400 并列出缺少的字段。\n- `unique_field_code` 指定一个字段做去重：文件中该字段的值已存在于表单数据时，这一行会被跳过（计入 `skip_count`）。\n- 表单不存在或当前身份无权访问时返回 404 `form cannot be found`。",
+  "summary": "Import entries from an uploaded spreadsheet",
+  "description": "Appends each row of a spreadsheet uploaded with \"Upload an import file\" as an entry of this form. Upload the file first to get the import attachment ID (`attachment_id`), then say here which column goes into which field.\nProblems that can be detected up front, such as the file, the plan's import limit, the header row and the column mapping, are checked before the job is created; a rejected import writes no entries. Error messages include the spreadsheet's actual layout (row and column range, and the header contents), so the request can be fixed and retried.\nOnce validation passes, returns `201` and the entries are written in the background: `201` means the job has started, not finished; poll \"Show an entry import job\" for the result.\n- `attachment_id` must be an import file the current user uploaded for this form, otherwise returns 400 (the file cannot be found; upload it again); returns 400 when the file is not xls / xlsx / csv or cannot be read.\n- `columns` must not be empty; each item names the target field with `field_api_code`, and the source column with `column_label` (the header text, which must exactly match the header cell after trimming leading and trailing spaces) or `sheet_column_index` (the column number); when both are given, `sheet_column_index` wins.\n- The field must be one this form can import into; one field cannot map to several columns; when several header columns share a name, use `sheet_column_index` instead; the column number must be within the spreadsheet's column range.\n- `header_row_index` defaults to the first row of the spreadsheet, and there must be data rows below it.\n- Every required field of the form must have a column, otherwise returns 400 listing the missing fields.\n- `unique_field_code` names a field to deduplicate on: when a row's value for that field already exists in the form's entries, the row is skipped (counted in `skip_count`).\n- Returns 404 `form cannot be found` when the form does not exist or is not accessible to the current caller.",
   "tag": "Entries",
   "method": "post",
   "path": "/forms/{form_token}/entry_imports",
@@ -1719,8 +1739,8 @@
  },
  "getEntryImport": {
   "operationId": "getEntryImport",
-  "summary": "获取数据导入任务",
-  "description": "返回一个数据导入任务的进度与结果。`status` 为 `pending` / `running` 时任务仍在进行，`processed_rows` 与 `total_rows` 可用于展示进度；\n`success` / `failed` / `cancelled` 为终态，`imported_count` / `skip_count` / `invalid_count` 为写入、跳过、校验失败的行数，`warnings` 为逐行提示，`error_message` 为任务失败原因。\n任务只能通过它导入的表单读取：id 不存在、不是合法 id 或属于其他表单时返回 404 `Import job not found for this form — check the id, and that it belongs to this form.`。\n表单不存在或当前身份无权访问时返回 404 `form cannot be found`。",
+  "summary": "Show an entry import job",
+  "description": "Returns the progress and result of an entry import job. While `status` is `pending` / `running`, the job is still in progress, and `processed_rows` and `total_rows` can be used to show progress;\n`success` / `failed` / `cancelled` are final states; `imported_count` / `skip_count` / `invalid_count` are the numbers of rows written, skipped and failing validation, `warnings` holds per-row notices, and `error_message` is why the job failed.\nA job can be read only through the form it imports into: when the id does not exist, is not a valid id, or belongs to another form, returns 404 `Import job not found for this form — check the id, and that it belongs to this form.`.\nReturns 404 `form cannot be found` when the form does not exist or is not accessible to the current caller.",
   "tag": "Entries",
   "method": "get",
   "path": "/forms/{form_token}/entry_imports/{id}",
@@ -1748,8 +1768,8 @@
  },
  "uploadFormImage": {
   "operationId": "uploadFormImage",
-  "summary": "上传表单图片",
-  "description": "上传一张属于表单本身的图片（图片选项图、表头图、背景图、表头轮播图的一帧、表单的对外查询页头图，或表单描述 / 字段描述里的插图），返回图片附件 ID。图片此时尚未绑定到任何表单，之后在表单或主题中引用它时才生效。\n鉴权方式二选一：\n1. 常规 API 凭证（HTTP Basic 的 api_key / api_secret，或 Bearer 令牌），此时必须用 `image_type` 说明图片用途，且只能是 `header`（表头图）、`wallpaper`（背景图）、`opensearch_header`（对外查询页头图）或 `description`（描述插图）：返回的 `attachment_id` 交给「更新表单主题」的 `header.header_image_attachment_id` / `wallpaper.background_image_attachment_id`，或「更新对外查询」的 `header.background_image.attachment_id`；`description` 另外返回图片地址 `url`，写进表单 `description` 或字段 `notes` 的 `<img src>`，保存表单时图片即归属该表单（每张表单最多 30 张），7 天内没被任何表单用上的会被清理。`image_type` 缺失或不在 `field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header` / `description` 之内时返回 400 `image_type must be one of: field_choice, header, wallpaper, carousel, opensearch_header, description.`；`field_choice` / `carousel` 没有接受附件 ID 的地方，只能配合上传令牌上传，否则返回 400。\n2. 一次性上传令牌 `form_image_token`（代替常规凭证）：令牌以 `form_img_tok_` 开头，30 分钟内有效、只能使用一次，已记录图片用途（`field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header` / `description`，此时忽略 `image_type`）与文件元数据；上传文件的原始文件名、Content-Type、字节数必须与令牌记录的一致，否则返回 400。上传成功后不要直接使用返回的 `attachment_id`，而是在「创建表单」/「编辑表单」的选项 `image_upload_token`，或「更新表单主题」的 `header.header_image_upload_token` / `wallpaper.background_image_upload_token` / `header.carousel_images[].image_upload_token`，或「更新对外查询」的 `header.background_image.image_upload_token` 中引用同一个令牌；用途为 `description` 时没有引用令牌的地方，直接用返回的 `url`。令牌不存在、已过期、已使用，或所属用户已被删除时返回 400 `form_image_token is invalid or expired; prepare upload again`。\n没有凭证也没有 `form_image_token` 时返回 401。请求必须为 `multipart/form-data`，字段 `file` 携带图片二进制；缺少文件返回 400 `file is required`。",
+  "summary": "Upload a form image",
+  "description": "Uploads an image that belongs to the form itself (a picture choice image, a header image, a background image, one frame of the header carousel, the header image of the form's public query page, or an inline image in the form description / a field description), and returns the image attachment ID. The image is not bound to any form yet; it takes effect only when a form or theme references it later.\nAuthenticate in one of two ways:\n1. Regular API credentials (a Bearer token). `image_type` must then say what the image is for, and can only be `header` (header image), `wallpaper` (background image), `opensearch_header` (public query page header image) or `description` (inline description image): pass the returned `attachment_id` to `header.header_image_attachment_id` / `wallpaper.background_image_attachment_id` of \"Update a form's theme\", or to `header.background_image.attachment_id` of \"Update a public query\"; `description` also returns the image address `url`, which goes into the `<img src>` of the form `description` or of a field's `notes`. When the form is saved, the image belongs to that form (at most 30 per form); images not used by any form within 7 days are cleaned up. Returns 400 `image_type must be one of: field_choice, header, wallpaper, carousel, opensearch_header, description.` when `image_type` is missing or not one of `field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header` / `description`; `field_choice` / `carousel` have nowhere that accepts an attachment ID, so they can only be uploaded with an upload token, otherwise returns 400.\n2. A one-time upload token `form_image_token` (instead of regular credentials): the token starts with `form_img_tok_`, is valid for 30 minutes, can be used only once, and has already recorded the image purpose (`field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header` / `description`; `image_type` is then ignored) and the file metadata; the uploaded file's original file name, Content-Type and byte size must match what the token recorded, otherwise returns 400. After a successful upload, do not use the returned `attachment_id` directly; instead reference the same token in a choice's `image_upload_token` in \"Create a form\" / \"Edit a form\", in `header.header_image_upload_token` / `wallpaper.background_image_upload_token` / `header.carousel_images[].image_upload_token` of \"Update a form's theme\", or in `header.background_image.image_upload_token` of \"Update a public query\"; for the `description` purpose nothing references the token, so use the returned `url` directly. Returns 400 `form_image_token is invalid or expired; prepare upload again` when the token does not exist, has expired, has been used, or its user has been deleted.\nReturns 401 when there are neither credentials nor a `form_image_token`. The request must be `multipart/form-data`, with the image binary in the `file` field; a missing file returns 400 `file is required`.",
   "tag": "Uploads",
   "method": "post",
   "path": "/form_image_attachments",
@@ -1762,20 +1782,15 @@
   },
   "successStatus": 201,
   "scopes": [
-   "`image_type`（或令牌记录的用途）为",
-   "field_choice",
-   "opensearch_header",
-   "description",
-   "时需要",
-   "forms，其余需要",
+   "forms",
    "form_setting"
   ],
   "responseSchema": "UploadedFormImage"
  },
  "listTables": {
   "operationId": "listTables",
-  "summary": "获取表格列表",
-  "description": "返回当前身份可见的数据表格（`kind=table`）。分页、`q`、`filters`、`sort`、`next`、`skip`、`limit` 的语义与表单列表相同，每页默认 50 条，最大 1000。",
+  "summary": "List tables",
+  "description": "Returns the tables (`kind=table`) visible to the current caller. Pagination, `q`, `filters`, `sort`, `next`, `skip` and `limit` mean the same as in the form list; 50 per page by default, up to 1000.",
   "tag": "Tables",
   "method": "get",
   "path": "/tables",
@@ -1827,8 +1842,8 @@
  },
  "createTable": {
   "operationId": "createTable",
-  "summary": "创建表格",
-  "description": "创建一个数据表格。与创建表单相同，但：\n- 字段类型只能是表格支持的列类型：`TextArea`、`RadioButton`、`CheckBox`、`BooleanField`、`MobileField`、`NumberField`、`DateTimeField`、`EmailField`、`LinkField`、`AttachmentField`、`FormulaField`、`RelationField`；\n- 附件列不接受数量 / 大小上限等限制属性，数字 / 计算列的精度受限，违反时返回 400 并列出问题列；\n- 选项列不会生成「其他」选项；`folder_token` 必须是 table 文件夹；不支持 `layout`。\n- `with_default_entries: true` 时创建后预置 3 条空白数据（与产品内新建表格一致），缺省不预置。\n返回包含字段与视图的表格结构。",
+  "summary": "Create a table",
+  "description": "Creates a table. Same as creating a form, except:\n- field types can only be the column types tables support: `TextArea`, `RadioButton`, `CheckBox`, `BooleanField`, `MobileField`, `NumberField`, `DateTimeField`, `EmailField`, `LinkField`, `AttachmentField`, `FormulaField`, `RelationField`;\n- attachment columns do not accept limit properties such as count / size limits, and number / formula columns have limited precision; a violation returns 400 listing the offending columns;\n- choice columns do not get an \"Other\" choice; `folder_token` must be a table folder; `layout` is not supported.\n- with `with_default_entries: true`, 3 blank entries are added after creation (as when creating a table in the product); by default none are added.\nReturns the table structure, including fields and views.",
   "tag": "Tables",
   "method": "post",
   "path": "/tables",
@@ -1847,8 +1862,8 @@
  },
  "getTable": {
   "operationId": "getTable",
-  "summary": "获取表格结构",
-  "description": "返回表格的基本信息、字段定义与当前身份可见的视图列表。token 对应的不是表格（如是普通表单）时返回 404 `table cannot be found`。",
+  "summary": "Show a table's structure",
+  "description": "Returns the table's basic information, field definitions and the views visible to the current caller. Returns 404 `table cannot be found` when the token is not a table (for example, a regular form).",
   "tag": "Tables",
   "method": "get",
   "path": "/tables/{table_token}",
@@ -1876,8 +1891,8 @@
  },
  "updateTable": {
   "operationId": "updateTable",
-  "summary": "编辑表格",
-  "description": "增量编辑表格，也接受 `PUT`。请求体与编辑表单相同（`kind` 会被忽略）；`fields.add` 与 `fields.update` 中的附件列不接受限制属性，`fields.add` 的类型必须是表格支持的列类型。",
+  "summary": "Edit a table",
+  "description": "Edits a table incrementally; `PUT` is also accepted. The request body is the same as for editing a form (`kind` is ignored); attachment columns in `fields.add` and `fields.update` do not accept limit properties, and types in `fields.add` must be column types tables support.",
   "tag": "Tables",
   "method": "patch",
   "path": "/tables/{table_token}",
@@ -1904,8 +1919,8 @@
  },
  "deleteTable": {
   "operationId": "deleteTable",
-  "summary": "删除表格",
-  "description": "删除表格及其数据，成功返回表格 token。",
+  "summary": "Delete a table",
+  "description": "Deletes a table and its entries; on success, returns the table token.",
   "tag": "Tables",
   "method": "delete",
   "path": "/tables/{table_token}",
@@ -1926,8 +1941,8 @@
  },
  "checkTableFieldData": {
   "operationId": "checkTableFieldData",
-  "summary": "检查表格列是否已有数据",
-  "description": "与 GET /forms/{form_token}/fields/check 相同，作用于数据表格的列。`table_token` 指向的不是数据表格时返回 404（`table cannot be found`）。",
+  "summary": "Check whether table columns already hold data",
+  "description": "Same as GET /forms/{form_token}/fields/check, applied to the columns of a table. Returns 404 (`table cannot be found`) when `table_token` does not point to a table.",
   "tag": "Tables",
   "method": "get",
   "path": "/tables/{table_token}/fields/check",
@@ -1949,14 +1964,14 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "forms。"
+   "forms"
   ],
   "responseSchema": "FieldDataCheckResponse"
  },
  "previewTableFieldTypeChange": {
   "operationId": "previewTableFieldTypeChange",
-  "summary": "预览表格列类型转换",
-  "description": "与 GET /forms/{form_token}/fields/preview_convert 相同，作用于数据表格的列；`target_type` 只接受表格支持的列类型（见 `GET /field_types?kind=table`）。\n`table_token` 指向的不是数据表格时返回 404（`table cannot be found`）。",
+  "summary": "Preview a table column type change",
+  "description": "Same as GET /forms/{form_token}/fields/preview_convert, applied to the columns of a table; `target_type` accepts only column types tables support (see `GET /field_types?kind=table`).\nReturns 404 (`table cannot be found`) when `table_token` does not point to a table.",
   "tag": "Tables",
   "method": "get",
   "path": "/tables/{table_token}/fields/preview_convert",
@@ -1978,14 +1993,14 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "forms。"
+   "forms"
   ],
   "responseSchema": "FieldTypeChangePreviewResponse"
  },
  "listTableEntries": {
   "operationId": "listTableEntries",
-  "summary": "获取表格数据列表",
-  "description": "与 `GET /forms/{form_token}/entries` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。",
+  "summary": "List table entries",
+  "description": "Exactly the same as `GET /forms/{form_token}/entries`, except that the target must be a table (otherwise 404 `table cannot be found`).",
   "tag": "Tables",
   "method": "get",
   "path": "/tables/{table_token}/entries",
@@ -2061,8 +2076,8 @@
  },
  "createTableEntry": {
   "operationId": "createTableEntry",
-  "summary": "新增表格数据",
-  "description": "与 `POST /forms/{form_token}/entries` 相同。",
+  "summary": "Create a table entry",
+  "description": "Same as `POST /forms/{form_token}/entries`.",
   "tag": "Tables",
   "method": "post",
   "path": "/tables/{table_token}/entries",
@@ -2090,8 +2105,8 @@
  },
  "countTableEntries": {
   "operationId": "countTableEntries",
-  "summary": "统计表格数据条数",
-  "description": "与 `GET /forms/{form_token}/entries/count` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。",
+  "summary": "Count table entries",
+  "description": "Exactly the same as `GET /forms/{form_token}/entries/count`, except that the target must be a table (otherwise 404 `table cannot be found`).",
   "tag": "Tables",
   "method": "get",
   "path": "/tables/{table_token}/entries/count",
@@ -2125,8 +2140,8 @@
  },
  "aggregateTableEntries": {
   "operationId": "aggregateTableEntries",
-  "summary": "聚合统计表格数据",
-  "description": "与 `GET /forms/{form_token}/entries/aggregate` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。\n字段可用的函数与分组方式见 `GET /tables/{table_token}?include_analytics=true`。",
+  "summary": "Aggregate table entries",
+  "description": "Exactly the same as `GET /forms/{form_token}/entries/aggregate`, except that the target must be a table (otherwise 404 `table cannot be found`).\nFor the functions and groupings each field supports, see `GET /tables/{table_token}?include_analytics=true`.",
   "tag": "Tables",
   "method": "get",
   "path": "/tables/{table_token}/entries/aggregate",
@@ -2178,8 +2193,8 @@
  },
  "summarizeTableEntries": {
   "operationId": "summarizeTableEntries",
-  "summary": "表格数据概况",
-  "description": "与 `GET /forms/{form_token}/entries/summary` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。",
+  "summary": "Summarize table entries",
+  "description": "Exactly the same as `GET /forms/{form_token}/entries/summary`, except that the target must be a table (otherwise 404 `table cannot be found`).",
   "tag": "Tables",
   "method": "get",
   "path": "/tables/{table_token}/entries/summary",
@@ -2225,8 +2240,8 @@
  },
  "countTableViewEntries": {
   "operationId": "countTableViewEntries",
-  "summary": "统计视图数据条数",
-  "description": "与 `GET /forms/{form_token}/views/{view_token}/entries/count` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。",
+  "summary": "Count the entries of a view",
+  "description": "Exactly the same as `GET /forms/{form_token}/views/{view_token}/entries/count`, except that the target must be a table (otherwise 404 `table cannot be found`).",
   "tag": "Tables",
   "method": "get",
   "path": "/tables/{table_token}/views/{view_token}/entries/count",
@@ -2266,8 +2281,8 @@
  },
  "aggregateTableViewEntries": {
   "operationId": "aggregateTableViewEntries",
-  "summary": "聚合统计视图数据",
-  "description": "与 `GET /forms/{form_token}/views/{view_token}/entries/aggregate` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。",
+  "summary": "Aggregate the entries of a view",
+  "description": "Exactly the same as `GET /forms/{form_token}/views/{view_token}/entries/aggregate`, except that the target must be a table (otherwise 404 `table cannot be found`).",
   "tag": "Tables",
   "method": "get",
   "path": "/tables/{table_token}/views/{view_token}/entries/aggregate",
@@ -2325,8 +2340,8 @@
  },
  "summarizeTableViewEntries": {
   "operationId": "summarizeTableViewEntries",
-  "summary": "视图数据概况",
-  "description": "与 `GET /forms/{form_token}/views/{view_token}/entries/summary` 完全相同，仅要求目标是表格（否则 404 `table cannot be found`）。",
+  "summary": "Summarize the entries of a view",
+  "description": "Exactly the same as `GET /forms/{form_token}/views/{view_token}/entries/summary`, except that the target must be a table (otherwise 404 `table cannot be found`).",
   "tag": "Tables",
   "method": "get",
   "path": "/tables/{table_token}/views/{view_token}/entries/summary",
@@ -2378,8 +2393,8 @@
  },
  "getTableEntry": {
   "operationId": "getTableEntry",
-  "summary": "获取单条表格数据",
-  "description": "与 `GET /forms/{form_token}/entries/{serial_number}` 相同。",
+  "summary": "Show a table entry",
+  "description": "Same as `GET /forms/{form_token}/entries/{serial_number}`.",
   "tag": "Tables",
   "method": "get",
   "path": "/tables/{table_token}/entries/{serial_number}",
@@ -2419,8 +2434,8 @@
  },
  "updateTableEntryViaPost": {
   "operationId": "updateTableEntryViaPost",
-  "summary": "增量更新表格数据（POST）",
-  "description": "与 `PATCH` 同路径的 POST 别名，语义为增量更新。",
+  "summary": "Partially update a table entry (POST)",
+  "description": "A POST alias for `PATCH` on the same path; it performs an incremental update.",
   "tag": "Tables",
   "method": "post",
   "path": "/tables/{table_token}/entries/{serial_number}",
@@ -2454,8 +2469,8 @@
  },
  "replaceTableEntry": {
   "operationId": "replaceTableEntry",
-  "summary": "覆盖更新表格数据",
-  "description": "与 `PUT /forms/{form_token}/entries/{serial_number}` 相同（整体覆盖）。",
+  "summary": "Replace a table entry",
+  "description": "Same as `PUT /forms/{form_token}/entries/{serial_number}` (full replacement).",
   "tag": "Tables",
   "method": "put",
   "path": "/tables/{table_token}/entries/{serial_number}",
@@ -2489,8 +2504,8 @@
  },
  "updateTableEntry": {
   "operationId": "updateTableEntry",
-  "summary": "增量更新表格数据",
-  "description": "与 `PATCH /forms/{form_token}/entries/{serial_number}` 相同（增量更新）。",
+  "summary": "Partially update a table entry",
+  "description": "Same as `PATCH /forms/{form_token}/entries/{serial_number}` (incremental update).",
   "tag": "Tables",
   "method": "patch",
   "path": "/tables/{table_token}/entries/{serial_number}",
@@ -2524,8 +2539,8 @@
  },
  "deleteTableEntry": {
   "operationId": "deleteTableEntry",
-  "summary": "删除表格数据",
-  "description": "与 `DELETE /forms/{form_token}/entries/{serial_number}` 相同。",
+  "summary": "Delete a table entry",
+  "description": "Same as `DELETE /forms/{form_token}/entries/{serial_number}`.",
   "tag": "Tables",
   "method": "delete",
   "path": "/tables/{table_token}/entries/{serial_number}",
@@ -2552,8 +2567,8 @@
  },
  "listTableEntryComments": {
   "operationId": "listTableEntryComments",
-  "summary": "列出表格数据评论",
-  "description": "按创建时间升序返回表格中该条数据的全部评论，规则与表单数据评论相同。token 对应的不是表格时返回 404（table cannot be found）。 OAuth 令牌需要 scope：read_entries。",
+  "summary": "List a table entry's comments",
+  "description": "Returns all comments on this table entry in ascending order of creation time, under the same rules as form entry comments. Returns 404 (table cannot be found) when the token is not a table.",
   "tag": "Comments",
   "method": "get",
   "path": "/tables/{table_token}/entries/{serial_number}/comments",
@@ -2574,12 +2589,14 @@
    "serial_number"
   ],
   "successStatus": 200,
-  "scopes": []
+  "scopes": [
+   "read_entries"
+  ]
  },
  "createTableEntryComment": {
   "operationId": "createTableEntryComment",
-  "summary": "创建表格数据评论",
-  "description": "在表格的该条数据下创建评论，参数与限制与表单数据评论相同（content 必填、最长 2000 字、提及者必须是协作者、parent_id 须属于同一条数据）。 token 对应的不是表格时返回 404（table cannot be found）。 OAuth 令牌需要 scope：read_entries。",
+  "summary": "Comment on a table entry",
+  "description": "Creates a comment on this table entry, with the same parameters and limits as form entry comments (content is required, at most 2000 characters, mentioned users must be cooperators, parent_id must belong to the same entry). Returns 404 (table cannot be found) when the token is not a table.",
   "tag": "Comments",
   "method": "post",
   "path": "/tables/{table_token}/entries/{serial_number}/comments",
@@ -2605,13 +2622,15 @@
    "flatten": true
   },
   "successStatus": 201,
-  "scopes": [],
+  "scopes": [
+   "read_entries"
+  ],
   "responseSchema": "EntryComment"
  },
  "updateTableEntryComment": {
   "operationId": "updateTableEntryComment",
-  "summary": "更新表格数据评论",
-  "description": "修改表格数据评论内容，也接受 PUT。只有评论作者本人可以编辑，否则返回 400；评论不属于该条数据时返回 404。 token 对应的不是表格时返回 404（table cannot be found）。 OAuth 令牌需要 scope：read_entries。",
+  "summary": "Update a comment on a table entry",
+  "description": "Changes the content of a table entry comment; PUT is also accepted. Only the comment's author can edit it, otherwise returns 400; returns 404 when the comment does not belong to this entry. Returns 404 (table cannot be found) when the token is not a table.",
   "tag": "Comments",
   "method": "patch",
   "path": "/tables/{table_token}/entries/{serial_number}/comments/{comment_id}",
@@ -2643,13 +2662,15 @@
    "flatten": true
   },
   "successStatus": 200,
-  "scopes": [],
+  "scopes": [
+   "read_entries"
+  ],
   "responseSchema": "EntryComment"
  },
  "deleteTableEntryComment": {
   "operationId": "deleteTableEntryComment",
-  "summary": "删除表格数据评论",
-  "description": "删除表格数据评论。评论作者本人、表格创建者或管理员角色的协作者可以删除，其他协作者返回 400；已删除的评论返回 404。 token 对应的不是表格时返回 404（table cannot be found）。 OAuth 令牌需要 scope：read_entries。",
+  "summary": "Delete a comment on a table entry",
+  "description": "Deletes a table entry comment. The comment's author, the table's creator, or a cooperator with the admin role can delete it; other cooperators get 400; a comment already deleted returns 404. Returns 404 (table cannot be found) when the token is not a table.",
   "tag": "Comments",
   "method": "delete",
   "path": "/tables/{table_token}/entries/{serial_number}/comments/{comment_id}",
@@ -2676,12 +2697,14 @@
    "comment_id"
   ],
   "successStatus": 200,
-  "scopes": []
+  "scopes": [
+   "read_entries"
+  ]
  },
  "listTableViews": {
   "operationId": "listTableViews",
-  "summary": "列出表格视图",
-  "description": "返回当前调用者在该表格上可见的视图，规则与表单视图列表相同。token 对应的不是表格（kind 不为 table）时返回 404（table cannot be found）。 OAuth 令牌需要 scope：forms。",
+  "summary": "List a table's views",
+  "description": "Returns the views of this table visible to the current caller, under the same rules as listing form views. Returns 404 (table cannot be found) when the token is not a table (kind is not table).",
   "tag": "Views",
   "method": "get",
   "path": "/tables/{table_token}/views",
@@ -2696,12 +2719,14 @@
    "table_token"
   ],
   "successStatus": 200,
-  "scopes": []
+  "scopes": [
+   "forms"
+  ]
  },
  "createTableView": {
   "operationId": "createTableView",
-  "summary": "创建表格视图",
-  "description": "为表格创建视图，参数与限制与创建表单视图相同（每用户每表格最多 100 个视图、name 最长 120 字、filter 不合法返回 422）。 token 对应的不是表格时返回 404（table cannot be found）。 view_type 可为 form（表单视图，对外填写页），规则见创建表单视图。 OAuth 令牌需要 scope：forms。",
+  "summary": "Create a view on a table",
+  "description": "Creates a view on a table, with the same parameters and limits as creating a form view (at most 100 views per user per table, name at most 120 characters, an invalid filter returns 422). Returns 404 (table cannot be found) when the token is not a table. view_type can be form (a form view, a public fill page); see creating a form view for the rules.",
   "tag": "Views",
   "method": "post",
   "path": "/tables/{table_token}/views",
@@ -2722,13 +2747,15 @@
    "param": "body"
   },
   "successStatus": 201,
-  "scopes": [],
+  "scopes": [
+   "forms"
+  ],
   "responseSchema": "FormView"
  },
  "getTableView": {
   "operationId": "getTableView",
-  "summary": "获取表格视图",
-  "description": "返回单个表格视图，只能读取调用者可见的视图。token 对应的不是表格时返回 404（table cannot be found）。 OAuth 令牌需要 scope：forms。",
+  "summary": "Show a view of a table",
+  "description": "Returns one table view; only views visible to the caller can be read. Returns 404 (table cannot be found) when the token is not a table.",
   "tag": "Views",
   "method": "get",
   "path": "/tables/{table_token}/views/{view_token}",
@@ -2749,13 +2776,15 @@
    "view_token"
   ],
   "successStatus": 200,
-  "scopes": [],
+  "scopes": [
+   "forms"
+  ],
   "responseSchema": "FormView"
  },
  "updateTableView": {
   "operationId": "updateTableView",
-  "summary": "更新表格视图",
-  "description": "更新表格视图配置，也接受 PUT，规则与更新表单视图相同：只有创建者可切换 visibility（否则 403），filter 或模型校验失败返回 422。 token 对应的不是表格时返回 404（table cannot be found）。 OAuth 令牌需要 scope：forms。",
+  "summary": "Update a view of a table",
+  "description": "Updates a table view's settings; PUT is also accepted. The rules are the same as for updating a form view: only the creator can change visibility (otherwise 403), and a filter or model validation failure returns 422. Returns 404 (table cannot be found) when the token is not a table.",
   "tag": "Views",
   "method": "patch",
   "path": "/tables/{table_token}/views/{view_token}",
@@ -2782,13 +2811,15 @@
    "param": "body"
   },
   "successStatus": 200,
-  "scopes": [],
+  "scopes": [
+   "forms"
+  ],
   "responseSchema": "FormView"
  },
  "deleteTableView": {
   "operationId": "deleteTableView",
-  "summary": "删除表格视图",
-  "description": "删除表格视图。预置视图、view_scope 为 form 的视图，以及调用者最后一个可见视图不能删除，返回 422。 token 对应的不是表格时返回 404（table cannot be found）。 删除表单视图需要可新增数据的预置角色（否则 403），删除后其填写链接立即失效，不可恢复。 OAuth 令牌需要 scope：forms。",
+  "summary": "Delete a view of a table",
+  "description": "Deletes a table view. Predefined views, views whose view_scope is form, and the caller's last visible view cannot be deleted; these return 422. Returns 404 (table cannot be found) when the token is not a table. Deleting a form view requires a predefined role that can add entries (otherwise 403); once deleted, its fill link stops working immediately, and this cannot be undone.",
   "tag": "Views",
   "method": "delete",
   "path": "/tables/{table_token}/views/{view_token}",
@@ -2809,12 +2840,14 @@
    "view_token"
   ],
   "successStatus": 200,
-  "scopes": []
+  "scopes": [
+   "forms"
+  ]
  },
  "listTableViewEntries": {
   "operationId": "listTableViewEntries",
-  "summary": "列出表格视图数据",
-  "description": "按表格视图的筛选与排序返回数据，每页最多 50 条，分页与字段规则与表单视图数据相同。 token 对应的不是表格时返回 404（table cannot be found）。 OAuth 令牌需要 scope：read_entries。",
+  "summary": "List a table view's entries",
+  "description": "Returns entries using the table view's filters and sort, at most 50 per page; pagination and the rules for which fields are returned are the same as for form view entries. Returns 404 (table cannot be found) when the token is not a table.",
   "tag": "Views",
   "method": "get",
   "path": "/tables/{table_token}/views/{view_token}/entries",
@@ -2847,13 +2880,15 @@
    "include_labels"
   ],
   "successStatus": 200,
-  "scopes": [],
+  "scopes": [
+   "read_entries"
+  ],
   "responseSchema": "EntryListResponse"
  },
  "listOpensearchQueries": {
   "operationId": "listOpensearchQueries",
-  "summary": "列出对外查询",
-  "description": "返回当前调用者创建的对外查询（账户级令牌视为账户所有者），按创建时间倒序，只含摘要字段。 传 form_token 时只返回该表单下的查询；form_token 不存在或调用者无权访问时返回 404，而不是忽略该参数。 OAuth 令牌需要 scope：forms。",
+  "summary": "List public queries",
+  "description": "Returns the public queries created by the current caller (an account access token counts as the account owner), newest first, with summary fields only. With form_token, returns only the queries under that form; returns 404 when form_token does not exist or the caller cannot access it, instead of ignoring the parameter.",
   "tag": "OpenSearch",
   "method": "get",
   "path": "/opensearch/queries",
@@ -2868,12 +2903,14 @@
    "form_token"
   ],
   "successStatus": 200,
-  "scopes": []
+  "scopes": [
+   "forms"
+  ]
  },
  "createOpensearchQuery": {
   "operationId": "createOpensearchQuery",
-  "summary": "创建对外查询",
-  "description": "为 form_token 指定的表单创建对外查询，创建者为当前调用者。调用者必须能管理该表单：无权访问返回 404，能读取但不能管理返回 403； 当前套餐不含对外查询功能返回 402。 search_field_rules 中引用的字段必须是该表单可查询的字段，display_field_rules 中的必须是可展示的字段，否则返回 400 并列出可用的 api_code； search_field_rules / display_field_rules 传入时不能为空数组；scope_conditions 需要套餐支持限定可查询数据范围。 保存后异步生成预览图。 OAuth 令牌需要 scope：forms。",
+  "summary": "Create a public query",
+  "description": "Creates a public query on the form given by form_token, with the current caller as its creator. The caller must be able to manage the form: no access returns 404, read but not manage returns 403; a plan without the public query feature returns 402. Fields referenced in search_field_rules must be searchable fields of the form, and those in display_field_rules must be displayable fields; otherwise returns 400 listing the available api_code values. search_field_rules / display_field_rules, when passed, cannot be empty arrays; scope_conditions requires a plan that supports limiting the range of searchable entries. A preview image is generated asynchronously after saving.",
   "tag": "OpenSearch",
   "method": "post",
   "path": "/opensearch/queries",
@@ -2886,13 +2923,15 @@
    "param": "body"
   },
   "successStatus": 201,
-  "scopes": [],
+  "scopes": [
+   "forms"
+  ],
   "responseSchema": "OpensearchQuery"
  },
  "getOpensearchQuery": {
   "operationId": "getOpensearchQuery",
-  "summary": "获取对外查询",
-  "description": "返回对外查询详情，含查询字段规则与展示字段规则。只能读取调用者自己创建的查询，其他用户的查询返回 404（opensearch query cannot be found）。 OAuth 令牌需要 scope：forms。",
+  "summary": "Show a public query",
+  "description": "Returns the public query details, including the search field rules and display field rules. The caller can read only queries it created; another user's query returns 404 (opensearch query cannot be found).",
   "tag": "OpenSearch",
   "method": "get",
   "path": "/opensearch/queries/{query_token}",
@@ -2907,13 +2946,15 @@
    "query_token"
   ],
   "successStatus": 200,
-  "scopes": [],
+  "scopes": [
+   "forms"
+  ],
   "responseSchema": "OpensearchQuery"
  },
  "updateOpensearchQuery": {
   "operationId": "updateOpensearchQuery",
-  "summary": "更新对外查询",
-  "description": "更新调用者自己创建的对外查询，也接受 PUT，只更新请求中出现的键。所属表单已被删除时返回 400。 字段规则校验与创建相同：引用了不可查询 / 不可展示的字段、规则为空数组、name 为空等均返回 400。 更新不再检查表单管理权限与对外查询套餐功能。 OAuth 令牌需要 scope：forms。",
+  "summary": "Update a public query",
+  "description": "Updates a public query the caller created; PUT is also accepted. Only the keys present in the request are updated. Returns 400 when the query's form has been deleted. Field rules are validated as on create: referencing a field that cannot be searched / displayed, an empty rule array, an empty name and the like all return 400. An update does not check form manage permission or whether the plan includes public queries.",
   "tag": "OpenSearch",
   "method": "patch",
   "path": "/opensearch/queries/{query_token}",
@@ -2934,13 +2975,15 @@
    "param": "body"
   },
   "successStatus": 200,
-  "scopes": [],
+  "scopes": [
+   "forms"
+  ],
   "responseSchema": "OpensearchQuery"
  },
  "listOpensearchQuerySuggestions": {
   "operationId": "listOpensearchQuerySuggestions",
-  "summary": "对外查询字段建议",
-  "description": "返回某表单上可用于对外查询的查询字段与展示字段，以及推荐的字段 api_code，用于构造 search_field_rules / display_field_rules。 调用者必须能管理该表单：无权访问返回 404，能读取但不能管理返回 403。不检查对外查询套餐功能。 OAuth 令牌需要 scope：forms。",
+  "summary": "Suggest fields for a public query",
+  "description": "Returns the search fields and display fields a form offers for public queries, plus the recommended field api_code values, for building search_field_rules / display_field_rules. The caller must be able to manage the form: no access returns 404, read but not manage returns 403. Whether the plan includes public queries is not checked.",
   "tag": "OpenSearch",
   "method": "get",
   "path": "/opensearch/query_suggestions",
@@ -2955,12 +2998,14 @@
    "form_token"
   ],
   "successStatus": 200,
-  "scopes": []
+  "scopes": [
+   "forms"
+  ]
  },
  "listFolders": {
   "operationId": "listFolders",
-  "summary": "获取文件夹列表",
-  "description": "列出当前用户拥有管理权限的文件夹（表单文件夹与表格文件夹都在内，用 `kind` 区分），按创建时间倒序。使用账号级凭证时返回账号所有者的文件夹。\n`limit` 缺省 50，取值会被限定在 1 到 100 之间；不支持翻页，`total` 为全部数量，`count` 为本次返回数量。",
+  "summary": "List folders",
+  "description": "Lists the folders the current user has manage permission on (form folders and table folders alike, told apart by `kind`), newest first. With an account-level credential, returns the account owner's folders.\n`limit` defaults to 50 and is clamped to 1 to 100; there is no paging: `total` is the full count, `count` the number returned this time.",
   "tag": "Folders",
   "method": "get",
   "path": "/folders",
@@ -2981,8 +3026,8 @@
  },
  "createFolder": {
   "operationId": "createFolder",
-  "summary": "创建文件夹",
-  "description": "以当前用户身份创建一个文件夹，创建者自动成为文件夹管理者。`kind` 决定文件夹放表单（`form`，缺省）还是表格（`table`）。\n`name` 为空时返回 400 `Name cannot be empty`；`kind` 不是 form / table 时返回 400 `Kind must be one of: form, table`；模型校验失败时返回 400，`error_description` 为校验信息。",
+  "summary": "Create a folder",
+  "description": "Creates a folder as the current user; the creator becomes the folder's manager. `kind` decides whether the folder holds forms (`form`, the default) or tables (`table`).\nReturns 400 `Name cannot be empty` when `name` is empty; returns 400 `Kind must be one of: form, table` when `kind` is not form / table; returns 400 when model validation fails, with the validation message in `error_description`.",
   "tag": "Folders",
   "method": "post",
   "path": "/folders",
@@ -3001,8 +3046,8 @@
  },
  "listPredefinedChoicesSets": {
   "operationId": "listPredefinedChoicesSets",
-  "summary": "获取预置选项集",
-  "description": "列出当前账号自定义（type 为 custom）的预置选项集，仅返回与当前请求语言一致的记录（以服务端实现为准）；系统内置的全局选项集不会返回。",
+  "summary": "List predefined choice sets",
+  "description": "Lists the current account's custom predefined choice sets (type custom), only those matching the locale of the current request (as the server implements it); the built-in global choice sets are not returned.",
   "tag": "Predefined Choices Sets",
   "method": "get",
   "path": "/predefined_choices_sets",
@@ -3010,13 +3055,13 @@
   "paramNames": [],
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ]
  },
  "createPredefinedChoicesSet": {
   "operationId": "createPredefinedChoicesSet",
-  "summary": "创建预置选项集",
-  "description": "在当前账号下创建一个自定义预置选项集。按 `label` 查找：账号内已有同名选项集时会直接覆盖其 `choices`（相当于更新），否则新建。\n\n请求体必须包裹在 `predefined_choices_set` 键下，缺少该键时返回 400。`choices` 中的空字符串会被过滤；`label` 与过滤后的 `choices` 都不能为空，否则返回 400，响应体为 `{ errors, status: \"failed\" }`。\n成功时返回 200（不是 201）。",
+  "summary": "Create a predefined choice set",
+  "description": "Creates a custom predefined choice set in the current account. It looks up by `label`: when the account already has a set with the same label, that set's `choices` are overwritten (in effect an update); otherwise a new set is created.\nThe request body must be wrapped under the `predefined_choices_set` key; returns 400 when the key is missing. Empty strings in `choices` are dropped; neither `label` nor the remaining `choices` may be empty, otherwise returns 400 with the body `{ errors, status: \"failed\" }`.\nReturns 200 on success (not 201).",
   "tag": "Predefined Choices Sets",
   "method": "post",
   "path": "/predefined_choices_sets",
@@ -3029,14 +3074,14 @@
   },
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ],
   "responseSchema": "PredefinedChoicesSet"
  },
  "updatePredefinedChoicesSet": {
   "operationId": "updatePredefinedChoicesSet",
-  "summary": "更新预置选项集",
-  "description": "更新当前账号的一个自定义预置选项集的 `label` 和 / 或 `choices`。也接受 PUT 方法，行为相同。\n\n只能更新 type 为 custom 且属于当前账号的选项集：全局选项集或其他账号的选项集返回 403 `{ errors: \"forbidden\", status: \"failed\" }`；ID 不存在返回 404 `{ errors: \"not found\", status: \"failed\" }`；校验失败返回 400 `{ errors, status: \"failed\" }`。",
+  "summary": "Update a predefined choice set",
+  "description": "Updates the `label` and / or `choices` of one of the current account's custom predefined choice sets. PUT is also accepted and behaves the same.\nOnly a set of type custom that belongs to the current account can be updated: a global set or another account's set returns 403 `{ errors: \"forbidden\", status: \"failed\" }`; an ID that does not exist returns 404 `{ errors: \"not found\", status: \"failed\" }`; a validation failure returns 400 `{ errors, status: \"failed\" }`.",
   "tag": "Predefined Choices Sets",
   "method": "patch",
   "path": "/predefined_choices_sets/{id}",
@@ -3057,14 +3102,14 @@
   },
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ],
   "responseSchema": "PredefinedChoicesSet"
  },
  "deletePredefinedChoicesSet": {
   "operationId": "deletePredefinedChoicesSet",
-  "summary": "删除预置选项集",
-  "description": "删除当前账号的一个自定义预置选项集，成功时返回 200 且无响应体。\n\n只能删除 type 为 custom 且属于当前账号的选项集：全局选项集或其他账号的选项集返回 403 `{ errors: \"forbidden\", status: \"failed\" }`；ID 不存在返回 404 `{ errors: \"not found\", status: \"failed\" }`。",
+  "summary": "Delete a predefined choice set",
+  "description": "Deletes one of the current account's custom predefined choice sets; returns 200 with no response body on success.\nOnly a set of type custom that belongs to the current account can be deleted: a global set or another account's set returns 403 `{ errors: \"forbidden\", status: \"failed\" }`; an ID that does not exist returns 404 `{ errors: \"not found\", status: \"failed\" }`.",
   "tag": "Predefined Choices Sets",
   "method": "delete",
   "path": "/predefined_choices_sets/{id}",
@@ -3080,13 +3125,13 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "form_setting。"
+   "form_setting"
   ]
  },
  "createTemplateUsage": {
   "operationId": "createTemplateUsage",
-  "summary": "用模板创建表单",
-  "description": "以当前用户身份选用一个模板市场的模板，复制出一张新表单，返回新表单的 token 与编辑页地址。\n\n模板通过 `id`（或 `template_id`）指定，接受模板 token 或 24 位十六进制 ID。可选参数：`tags`（标签，数组或逗号分隔字符串）、`tag_id` / `folder_id`（创建后归入的标签 / 文件夹）、`scene`（目标场景；模板字段超出该场景允许范围时回退为 form）、`frm`（来源标记，影响记录的 created_from）、`create_source`、`group_id`。\n付费相关的分支：\n- 付费模板且当前用户未购买：返回 200，响应体为 `{ template_url }`（模板购买页地址），不创建表单。\n- 模板使用了当前套餐不可用的付费功能：管理员且可开启功能试用时返回 403 `{ error: \"CAN_FEATURE_TRIAL\", target_plan, target_trial_type, ... }`；否则返回 403 `{ error: \"PAID_FEATURE_REQUIRED\", target_plan, template_url }`；来自渠道合作账号返回 403 `{ error: \"UNAVAILABLE_TO_TRIAL_OR_UPGRADE\" }`。\n- 传 `form_app_trial_alert` 且模板绑定了需购买 / 试用的表单应用时，返回 200 `{ error: \"CANNOT_FORM_APP_TRIAL\" | \"FORM_APP_TRIAL_REQUIRED\", ... }`，可用 `confirm_unbind_form_app` / `confirm_form_app_trial` 确认后重试。\n表单创建失败（含内容风控未通过）返回 400 `{ error }`。模板不存在时返回 404，响应为 HTML 页面而非 JSON。\n`mobile_editor_forbidden` 仅在移动端请求且新表单为卡片布局但当前套餐不能使用移动端编辑器时出现。",
+  "summary": "Create a form from a template",
+  "description": "Uses a template from the template market as the current user, copies it into a new form, and returns the new form's token and edit page URL.\nThe template is given by `id` (or `template_id`), which takes a template token or a 24-character hexadecimal ID. Optional parameters: `tags` (tags, an array or a comma-separated string), `tag_id` / `folder_id` (the tag / folder the new form goes into), `scene` (target scene; falls back to form when the template has fields the scene does not allow), `frm` (source marker; affects the recorded created_from), `create_source`, `group_id`.\nPayment-related branches:\n- Paid template the current user has not bought: returns 200 with the body `{ template_url }` (the template purchase page URL), and no form is created.\n- Template uses paid features the current plan does not offer: returns 403 `{ error: \"CAN_FEATURE_TRIAL\", target_plan, target_trial_type, ... }` when the caller is an admin and a feature trial can be started; otherwise returns 403 `{ error: \"PAID_FEATURE_REQUIRED\", target_plan, template_url }`; an account from a channel partner gets 403 `{ error: \"UNAVAILABLE_TO_TRIAL_OR_UPGRADE\" }`.\n- With `form_app_trial_alert` passed and the template bound to form apps that must be bought / tried: returns 200 `{ error: \"CANNOT_FORM_APP_TRIAL\" | \"FORM_APP_TRIAL_REQUIRED\", ... }`; confirm with `confirm_unbind_form_app` / `confirm_form_app_trial` and retry.\nWhen form creation fails (failing the content risk check included), returns 400 `{ error }`. When the template does not exist, returns 404 with an HTML page, not JSON.\n`mobile_editor_forbidden` appears only on a mobile request when the new form has the card layout and the current plan cannot use the mobile editor.",
   "tag": "Templates",
   "method": "post",
   "path": "/template_usages",
@@ -3099,13 +3144,13 @@
   },
   "successStatus": 200,
   "scopes": [
-   "forms。"
+   "forms"
   ]
  },
  "listContacts": {
   "operationId": "listContacts",
-  "summary": "获取联系人列表",
-  "description": "分页列出当前用户的联系人，按 ID 倒序，每页固定 50 条。使用账号级凭证时返回账号所有者的联系人。\n\n游标翻页：响应中的 `next` 为下一页第一条联系人的 ID，把它作为查询参数 `next` 传入即可获取下一页；没有更多数据时 `next` 为 null。",
+  "summary": "List contacts",
+  "description": "Lists the current user's contacts page by page, by ID descending, a fixed 50 per page. With an account-level credential, returns the account owner's contacts.\nCursor paging: `next` in the response is the ID of the first contact on the next page; pass it as the query parameter `next` to get that page. `next` is null when there is no more data.",
   "tag": "Contacts",
   "method": "get",
   "path": "/contacts",
@@ -3121,13 +3166,13 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "read_contacts。"
+   "read_contacts"
   ]
  },
  "getCurrentUser": {
   "operationId": "getCurrentUser",
-  "summary": "获取当前用户",
-  "description": "返回当前凭证对应的用户信息。使用账号级凭证（无具体用户）时返回账号所有者。",
+  "summary": "Show the current user",
+  "description": "Returns the user behind the current credential. With an account-level credential (no specific user), returns the account owner.",
   "tag": "Account",
   "method": "get",
   "path": "/me",
@@ -3135,14 +3180,14 @@
   "paramNames": [],
   "successStatus": 200,
   "scopes": [
-   "users。"
+   "users"
   ],
   "responseSchema": "CurrentUser"
  },
  "getBillingAccount": {
   "operationId": "getBillingAccount",
-  "summary": "获取当前账号",
-  "description": "返回当前凭证所属账号的信息：套餐、当月用量与配额、功能试用状态，以及已绑定的收款商户 / 微信支付 / 支付宝账户。\n\n`usage` 在账号尚无当月用量记录时为 null；每项增值服务的配额为无限时只返回 `unit`、`unlimited: true`、`consumed_quota`。",
+  "summary": "Show the current account",
+  "description": "Returns the account the current credential belongs to: plan, this month's usage and quota, feature trial status, and the bound payment merchant / WeChat Pay / Alipay accounts.\n`usage` is null when the account has no usage record for this month yet; for an add-on service with unlimited quota, only `unit`, `unlimited: true` and `consumed_quota` are returned.",
   "tag": "Account",
   "method": "get",
   "path": "/billing_account",
@@ -3150,14 +3195,14 @@
   "paramNames": [],
   "successStatus": 200,
   "scopes": [
-   "users。"
+   "users"
   ],
   "responseSchema": "BillingAccount"
  },
  "listBillingAccountUsers": {
   "operationId": "listBillingAccountUsers",
-  "summary": "获取账号成员",
-  "description": "列出当前账号下的成员（含已停用成员），先按状态升序（active 在前）、再按创建时间倒序。\n\n`limit` 缺省 50，取值会被限定在 1 到 100 之间；不支持翻页，`total` 为成员总数，`count` 为本次返回数量。",
+  "summary": "List account members",
+  "description": "Lists the members of the current account (deactivated members included), by status ascending (active first), then by creation time, newest first.\n`limit` defaults to 50 and is clamped to 1 to 100; there is no paging: `total` is the total number of members, `count` the number returned this time.",
   "tag": "Account",
   "method": "get",
   "path": "/billing_account/users",
@@ -3173,13 +3218,13 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "users。"
+   "users"
   ]
  },
  "listBillingAccountInvoices": {
   "operationId": "listBillingAccountInvoices",
-  "summary": "获取账号发票",
-  "description": "列出当前账号申请过的电子发票（按申请时间倒序，一次全部返回，不分页），以及可开票但尚未开票的消费金额。\n只有账号管理员可以读取：非管理员成员返回 403（`Only an account admin can read this.`）；使用账号级凭证（无具体用户）时视为账号所有者。",
+  "summary": "List account e-invoices",
+  "description": "Lists the e-invoices the current account has requested (newest request first, all at once, no paging), and the spending that can be invoiced but has not been yet.\nOnly an account admin can read it: a non-admin member gets 403 (`Only an account admin can read this.`); an account-level credential (no specific user) is treated as the account owner.",
   "tag": "Account",
   "method": "get",
   "path": "/billing_account/invoices",
@@ -3187,14 +3232,14 @@
   "paramNames": [],
   "successStatus": 200,
   "scopes": [
-   "users。"
+   "users"
   ],
   "responseSchema": "BillingAccountInvoicesResponse"
  },
  "listBillingAccountPaymentHistories": {
   "operationId": "listBillingAccountPaymentHistories",
-  "summary": "获取账号消费记录",
-  "description": "列出当前账号在金数据的充值与消费记录（购买套餐、短信、AI 点数、附件空间等账户余额流水），按时间倒序。\n这里是账号自己花了什么，不含收款表单收到的款项。\n只有账号管理员可以读取：非管理员成员返回 403（`Only an account admin can read this.`）；使用账号级凭证（无具体用户）时视为账号所有者。\n不支持翻页：`limit` 缺省 50，取值会被限定在 1 到 1000 之间；`total_records` 为满足条件的记录总数，`returned_records` 为本次返回数量。\n`include_balance=true` 时附带 `current_balance`（账户余额与各项配额余量）；本次有返回记录时附带 `statistics`（只统计本次返回的记录）。",
+  "summary": "List account payment history",
+  "description": "Lists the current account's top-ups and spending on Jinshuju (account balance transactions such as buying plans, SMS, AI points and attachment storage), newest first.\nThis is what the account itself spent; money received through payment forms is not included.\nOnly an account admin can read it: a non-admin member gets 403 (`Only an account admin can read this.`); an account-level credential (no specific user) is treated as the account owner.\nThere is no paging: `limit` defaults to 50 and is clamped to 1 to 1000; `total_records` is the number of matching records, `returned_records` the number returned this time.\nWith `include_balance=true`, `current_balance` is included (account balance and the remaining quota of each item); when records are returned, `statistics` is included (counting only the returned records).",
   "tag": "Account",
   "method": "get",
   "path": "/billing_account/payment_histories",
@@ -3234,14 +3279,14 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "users。"
+   "users"
   ],
   "responseSchema": "BillingAccountPaymentHistoriesResponse"
  },
  "getTradeMerchant": {
   "operationId": "getTradeMerchant",
-  "summary": "获取小金商户信息",
-  "description": "返回当前账号的小金商户（由金数据代收款的商户）及其入驻进度：商户资料、主体与联系信息、余额、结算信息、支付渠道授权情况、冻结状态、已绑定的收款表单，以及下一步操作的入口地址。\n- 账号还没有小金商户时同样返回 200：`merchant_stage` 说明入驻申请走到了哪一步，`merchant` / `subject` / `contact` / `balance` / `settlement` / `freeze` 为 null，`channels` 为空数组。\n- 通过自有微信支付 / 支付宝商户收款（直连）的账号在金数据没有费率、结算账户、余额和入驻状态，这里不会给出这些信息。\n- 银行卡号、手机号、邮箱、证件号等敏感字段按产品「资金账户信息」页的规则打码返回：保留首尾各 4 位（手机号保留前 3 位、后 4 位），中间以 `*` 代替。\n- `payment_form_tokens` 只含当前身份可访问的收款表单（含快速支付）；使用账号级凭证时按账号所有者计算。\n- `balance` 在余额查询失败时为 null，此时不代表余额为 0。",
+  "summary": "Show the 小金商户",
+  "description": "Returns the current account's 小金商户 (the merchant Jinshuju collects payments for) and its onboarding progress: merchant profile, legal entity and contact details, balance, settlement details, payment channel authorization, freeze status, bound payment forms, and the URL for the next step.\n- When the account has no 小金商户 yet, it still returns 200: `merchant_stage` says how far the onboarding application has got, `merchant` / `subject` / `contact` / `balance` / `settlement` / `freeze` are null, and `channels` is an empty array.\n- An account that collects payments through its own WeChat Pay / Alipay merchant (direct connection) has no rate, settlement account, balance or onboarding status on Jinshuju, and none of these is given here.\n- Sensitive fields such as bank card numbers, mobile numbers, emails and ID numbers are masked by the rules of the product's \"Fund account information\" page: 4 characters are kept at each end (mobile numbers keep the first 3 and last 4), and the middle is replaced with `*`.\n- `payment_form_tokens` holds only the payment forms the current identity can access (quick payment forms included); with an account-level credential, it is computed for the account owner.\n- `balance` is null when the balance lookup fails; that does not mean the balance is 0.",
   "tag": "Trade",
   "method": "get",
   "path": "/trade/merchant",
@@ -3255,8 +3300,8 @@
  },
  "listTradeTransactions": {
   "operationId": "listTradeTransactions",
-  "summary": "获取收款订单列表",
-  "description": "列出小金商户的收款订单（客户在收款表单上支付产生的订单），按下单时间倒序。只含小金商户的订单：直连收款的订单、模拟支付的订单，以及快速支付中未支付的记录都不在其中。\n- 日期范围按下单时间筛选，按北京时间计，`start_date` / `end_date` 均包含当天且必须同时传。不传时默认最近 90 天；传了 `order_no` 且不传日期时不限时间。响应的 `queried_range` 给出实际使用的范围（不限时间时两端为 null）。\n- 明细上限：日期范围最多 90 天，且匹配的订单最多 200 条。超出任一上限时不返回明细：`transactions` 为 null，`detail_limit` 说明原因，`stats` 给出该范围的交易金额、成交量与订单量，请缩小范围后再查。\n- 分页：`limit` 为每页条数（缺省且最大 50），`next` 为页码。还有下一页时响应带 `next`（下一页的页码），原样回传即可；`page_info.total` 为匹配的订单总数。\n- 账号没有小金商户时返回 404。",
+  "summary": "List payment orders",
+  "description": "Lists the payment orders of the 小金商户 (orders customers place by paying on payment forms), newest order first. Only 小金商户 orders are included: orders collected through a direct connection, simulated-payment orders, and unpaid quick payment records are all left out.\n- The date range filters on order time, in Beijing time (UTC+8); `start_date` / `end_date` are both inclusive and must be passed together. Without them, it defaults to the last 90 days; with `order_no` and no dates, there is no time limit. `queried_range` in the response gives the range actually used (both ends null when there is no time limit).\n- Detail limits: the date range spans at most 90 days, and at most 200 orders match. Past either limit, no details are returned: `transactions` is null, `detail_limit` says why, and `stats` gives the transaction amount, paid count and order count for the range; narrow the range and query again.\n- Paging: `limit` is the page size (default and maximum 50), and `next` is a page number. When there is another page, the response carries `next` (the next page number); pass it back as is. `page_info.total` is the total number of matching orders.\n- Returns 404 when the account has no 小金商户.",
   "tag": "Trade",
   "method": "get",
   "path": "/trade/transactions",
@@ -3321,8 +3366,8 @@
  },
  "aggregateTradeTransactions": {
   "operationId": "aggregateTradeTransactions",
-  "summary": "统计收款订单",
-  "description": "统计一段日期范围内小金商户收款订单的交易金额、成交量与订单量，可按一个维度分组。口径与「获取收款订单列表」一致（只含小金商户的订单，不含模拟支付与快速支付中未支付的记录）；统计覆盖整个范围，不受明细上限约束。\n- 日期范围按下单时间筛选，按北京时间计，两端包含当天且必须同时传；不传时默认最近 30 天。范围最多 366 天，超出返回 400。\n- `transactions_amount`（交易金额）：已支付类订单的金额减去各自的成功退款，计入订单下单的那一天；已退款、未支付的订单贡献 0。`transactions_count`（成交量）：已支付、部分退款、退款中的订单数。`orders_count`（订单量）：全部匹配的订单数，含未支付。\n- `group_by=time` 按时间分组：范围不足 90 天按日、90 天及以上按周、365 天及以上按月，`granularity` 给出粒度，没有订单的时段补零。`paid_status` / `payment_channel` 每个取值一组，`payment_channel` 为 null 的一组是尚未发起支付的订单。各组在相同筛选下累加等于总计。\n- 账号没有小金商户时返回 404。",
+  "summary": "Aggregate payment orders",
+  "description": "Totals the transaction amount, paid count and order count of the 小金商户 payment orders over a date range, optionally grouped by one dimension. Orders are counted as in \"List payment orders\" (only 小金商户 orders; no simulated payments and no unpaid quick payment records); the totals cover the whole range and are not bound by the detail limits.\n- The date range filters on order time, in Beijing time (UTC+8); both ends are inclusive and must be passed together. Without them, it defaults to the last 30 days. The range spans at most 366 days; a longer one returns 400.\n- `transactions_amount` (transaction amount): the amount of paid-type orders minus each order's successful refunds, counted on the day the order was placed; refunded and unpaid orders contribute 0. `transactions_count` (paid count): the number of paid, partially refunded and refunding orders. `orders_count` (order count): the number of all matching orders, unpaid included.\n- `group_by=time` groups by time: by day for a range under 90 days, by week from 90 days, by month from 365 days; `granularity` gives the granularity, and periods without orders are filled with zero. `paid_status` / `payment_channel` make one group per value; the group whose `payment_channel` is null holds orders that have not started payment. Under the same filters, the groups add up to the total.\n- Returns 404 when the account has no 小金商户.",
   "tag": "Trade",
   "method": "get",
   "path": "/trade/transactions/aggregate",
@@ -3375,8 +3420,8 @@
  },
  "listTradeRefunds": {
   "operationId": "listTradeRefunds",
-  "summary": "获取退款列表",
-  "description": "列出小金商户向客户发起的退款，并给出统计。退款按发起时间筛选和倒序排列，而不是按订单的下单时间或退款到账时间。只有小金商户有退款记录，直连收款的账号在这里没有数据。\n- 日期范围按北京时间计，两端包含当天且必须同时传。不传时默认最近 90 天；传了 `refund_no` 且不传日期时不限时间。`queried_range` 给出实际使用的范围。\n- `include` 决定返回内容：`both`（缺省）同时返回 `stats` 与 `refunds`，`stats` 只返回统计，`records` 只返回记录。\n- 明细上限与「获取收款订单列表」相同（最多 90 天、200 条）：超出时 `refunds` 为 null，`detail_limit` 说明原因，`stats` 照常返回。\n- `stats`：全部匹配退款的条数与金额、按状态拆分的条数与金额、退款成功涉及的订单数（去重），以及按退款发起日期的趋势（有日期范围时才有；不足 90 天按日、90 天及以上按周、365 天及以上按月，无退款的时段补零）。趋势中每个时段的订单数在该时段内去重，各时段之和可能大于总的订单数。\n- 分页同「获取收款订单列表」；`include=stats` 时不返回 `next`。\n- 账号没有小金商户时返回 404。",
+  "summary": "List refunds",
+  "description": "Lists the refunds the 小金商户 issued to customers, with statistics. Refunds are filtered and sorted newest first by the time they were issued, not by the order time or the time the refund arrived. Only a 小金商户 has refund records; an account collecting payments through a direct connection has no data here.\n- The date range is in Beijing time (UTC+8); both ends are inclusive and must be passed together. Without them, it defaults to the last 90 days; with `refund_no` and no dates, there is no time limit. `queried_range` gives the range actually used.\n- `include` decides what is returned: `both` (default) returns `stats` and `refunds` together, `stats` returns the statistics alone, `records` returns the records alone.\n- The detail limits are those of \"List payment orders\" (at most 90 days, 200 records): past them, `refunds` is null, `detail_limit` says why, and `stats` is returned as usual.\n- `stats`: the count and amount of all matching refunds, the count and amount per status, the number of distinct orders with a successful refund, and the trend by refund issue date (only when there is a date range; by day under 90 days, by week from 90 days, by month from 365 days, periods without refunds filled with zero). In the trend, order counts are deduplicated within each period, so the sum over periods can exceed the total order count.\n- Paging works as in \"List payment orders\"; with `include=stats`, `next` is not returned.\n- Returns 404 when the account has no 小金商户.",
   "tag": "Trade",
   "method": "get",
   "path": "/trade/refunds",
@@ -3434,8 +3479,8 @@
  },
  "listTradePayouts": {
   "operationId": "listTradePayouts",
-  "summary": "获取提现列表",
-  "description": "列出小金商户从金数据余额提现到自有银行账户的记录，并给出统计。提现按申请时间筛选和倒序排列；每条记录带本次提现覆盖的结算日期范围，但不能按它筛选。只有小金商户有提现记录，直连收款的账号在这里没有数据。\n- 日期范围按北京时间计，两端包含当天且必须同时传；不传时默认最近 90 天。`queried_range` 给出实际使用的范围。\n- `include` 决定返回内容：`both`（缺省）同时返回 `stats` 与 `payouts`，`stats` 只返回统计，`records` 只返回记录。\n- 明细上限与「获取收款订单列表」相同（最多 90 天、200 条）：超出时 `payouts` 为 null，`detail_limit` 说明原因，`stats` 照常返回。\n- `stats`：全部匹配提现的条数与金额，以及按状态拆分的条数与金额。\n- 分页同「获取收款订单列表」；`include=stats` 时不返回 `next`。\n- 待提现余额与结算周期见「获取小金商户信息」。账号没有小金商户时返回 404。",
+  "summary": "List payouts",
+  "description": "Lists the payouts the 小金商户 made from its Jinshuju balance to its own bank account, with statistics. Payouts are filtered and sorted newest first by request time; each record carries the settlement date range the payout covers, but it cannot be filtered on. Only a 小金商户 has payout records; an account collecting payments through a direct connection has no data here.\n- The date range is in Beijing time (UTC+8); both ends are inclusive and must be passed together. Without them, it defaults to the last 90 days. `queried_range` gives the range actually used.\n- `include` decides what is returned: `both` (default) returns `stats` and `payouts` together, `stats` returns the statistics alone, `records` returns the records alone.\n- The detail limits are those of \"List payment orders\" (at most 90 days, 200 records): past them, `payouts` is null, `detail_limit` says why, and `stats` is returned as usual.\n- `stats`: the count and amount of all matching payouts, and the count and amount per status.\n- Paging works as in \"List payment orders\"; with `include=stats`, `next` is not returned.\n- For the balance awaiting payout and the settlement cycle, see \"Show the 小金商户\". Returns 404 when the account has no 小金商户.",
   "tag": "Trade",
   "method": "get",
   "path": "/trade/payouts",
@@ -3487,8 +3532,8 @@
  },
  "listSmsAuditStatuses": {
   "operationId": "listSmsAuditStatuses",
-  "summary": "获取短信签名审核状态",
-  "description": "列出当前用户申请的短信签名及各签名下的短信模板，带审核状态与未通过原因，按签名创建时间倒序。\n只返回当前用户自己的签名，不含账号内其他成员的；使用账号级凭证时返回账号所有者的签名。任何成员都可调用，不要求管理员。",
+  "summary": "Show SMS signature review status",
+  "description": "Lists the SMS signatures the current user applied for and the SMS templates under each signature, with review status and the reason a review failed, newest signature first.\nReturns only the current user's own signatures, not those of other members of the account; with an account-level credential, returns the account owner's signatures. Any member can call it; admin is not required.",
   "tag": "Account",
   "method": "get",
   "path": "/sms/audit_statuses",
@@ -3502,8 +3547,8 @@
  },
  "verifyRedirectParams": {
   "operationId": "verifyRedirectParams",
-  "summary": "校验跳转参数",
-  "description": "供「提交成功后跳转到外部地址」的接收方校验跳转参数未被篡改。此接口不需要任何 API 凭证。\n表单开启提交成功跳转并配置了「跳转时携带的字段」后，金数据在跳转 URL 中附加所选字段的值以及签名参数 `jamr_h`（对表单 token、数据 token 和 10 分钟有效期签名）。接收方把收到的 `jamr_h` 与全部字段参数原样转发到本接口：服务端解签后找到对应表单与数据，逐一比对配置中每个字段的当前值与传入参数值（数组值须整体相等，其他值按字符串比较）。\n全部一致返回 200 `{ status: \"SUCCESS\", message: \"验证成功\" }`；`jamr_h` 签名无效或已过期返回 400 `{ status: \"FAIL\", message: \"无效Token或者过期\" }`；表单 / 数据不存在、字段值不一致或缺少某个字段参数返回 400 `{ status: \"FAIL\", message: \"验证失败\" }`。文案随请求语言变化。",
+  "summary": "Verify redirect parameters",
+  "description": "Lets the receiver of a \"redirect to an external URL after submission\" verify that the redirect parameters have not been tampered with. This endpoint needs no API credentials.\nWhen a form has redirect after submission turned on and \"Fields to carry on redirect\" configured, Jinshuju appends the values of the selected fields to the redirect URL, plus the signature parameter `jamr_h` (signed over the form token, the entry token and a 10-minute validity period). The receiver forwards the received `jamr_h` and all field parameters to this endpoint unchanged: the server verifies the signature, finds the form and entry, and compares the current value of each configured field with the passed parameter value (array values must be equal as a whole; other values are compared as strings).\nReturns 200 `{ status: \"SUCCESS\", message: \"验证成功\" }` when all match; 400 `{ status: \"FAIL\", message: \"无效Token或者过期\" }` when the `jamr_h` signature is invalid or expired; 400 `{ status: \"FAIL\", message: \"验证失败\" }` when the form / entry does not exist, a field value does not match, or a field parameter is missing. The message text follows the request language.",
   "tag": "Utilities",
   "method": "get",
   "path": "/jamr_v",
@@ -3528,8 +3573,8 @@
  },
  "listFieldTypes": {
   "operationId": "listFieldTypes",
-  "summary": "获取字段类型列表",
-  "description": "返回创建 / 编辑表单（或表格）时可用的全部字段类型，以及每种类型接受的校验开关与专属设置，用于构造 `fields` 中的 `type` 与类型专属参数。\n与创建接口实际接受的类型和参数保持一致。",
+  "summary": "List field types",
+  "description": "Returns every field type available when creating / editing a form (or table), with the validation switches and type-specific settings each type accepts, for building `type` and the type-specific parameters in `fields`.\nKept in line with the types and parameters the create endpoints actually accept.",
   "tag": "Forms",
   "method": "get",
   "path": "/field_types",
@@ -3545,14 +3590,14 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "forms。"
+   "forms"
   ],
   "responseSchema": "FieldTypeListResponse"
  },
  "getFieldType": {
   "operationId": "getFieldType",
-  "summary": "获取单个字段类型",
-  "description": "返回一种字段类型接受的校验开关与专属设置，结构同 `GET /field_types` 列表中的一项。\n类型名不存在，或不属于 `kind` 对应的可用类型（如 `kind=table` 时查询表格不支持的类型）时返回 404，并在 `error_description` 中列出可用类型。",
+  "summary": "Show a field type",
+  "description": "Returns the validation switches and type-specific settings one field type accepts, shaped like one item of the `GET /field_types` list.\nReturns 404, listing the available types in `error_description`, when the type name does not exist or is not among the types available for `kind` (e.g. querying a type tables do not support with `kind=table`).",
   "tag": "Forms",
   "method": "get",
   "path": "/field_types/{type}",
@@ -3574,14 +3619,14 @@
   ],
   "successStatus": 200,
   "scopes": [
-   "forms。"
+   "forms"
   ],
   "responseSchema": "FieldTypeDescription"
  },
  "countEntriesAcrossForms": {
   "operationId": "countEntriesAcrossForms",
-  "summary": "批量统计多个表单的数据条数",
-  "description": "一次统计最多 10 个表单 / 表格各自满足条件的数据条数，以及它们的合计。\n- 无法访问的 token（不存在、不属于当前身份）不会让整个请求失败，而是在该行返回 `unavailable` 说明原因；合计只累加可统计的行。\n- 各表单的字段 api_code 含义不同，因此 `filters` 只能使用 `created_at` / `updated_at` / `creator_id` 三个与表单无关的条件，其他字段返回 400。\n- 不支持 `keyword`（传入返回 400）；需要按关键字查多个表单时使用 `GET /entries/search`。",
+  "summary": "Count entries across several forms",
+  "description": "Counts, in one call, the entries matching the filters in each of up to 10 forms / tables, plus their total.\n- A token that cannot be accessed (does not exist, or does not belong to the caller) does not fail the whole request; its row returns `unavailable` with the reason instead. The total adds up only the rows that could be counted.\n- Field api_codes mean different things in each form, so `filters` can use only the three form-independent conditions `created_at` / `updated_at` / `creator_id`; any other field returns 400.\n- `keyword` is not supported (passing it returns 400); to search several forms by keyword, use `GET /entries/search`.",
   "tag": "Entries",
   "method": "get",
   "path": "/entries/count",
@@ -3609,8 +3654,8 @@
  },
  "searchEntriesAcrossForms": {
   "operationId": "searchEntriesAcrossForms",
-  "summary": "跨表单搜索数据",
-  "description": "用同一个关键字在多个表单 / 表格中做全文搜索，按表单返回匹配条数与部分数据序号（每个表单最多 50 个），不返回数据内容。\n- 搜索范围：传 `form_tokens` 时为这些表单；不传时为当前身份可访问的全部表单与表格（企业 Access Token 为企业账户下全部表单与表格）。\n  两种方式都再经 `filters` 过滤；未在 `filters` 中指定 `entries_count` 时默认只搜索有数据的表单（`entries_count > 0`）。\n- 范围内最多 10 个表单，超过时返回 400，需用 `filters` 缩小范围或直接指定 `form_tokens`。\n- 没有匹配的表单不出现在结果中；无法访问、角色不允许读取数据、搜索超时或搜索服务未响应的表单会列出并带 `unavailable` 说明原因（此时不代表没有匹配）。",
+  "summary": "Search entries across forms",
+  "description": "Runs one keyword as a full-text search across several forms / tables and returns, per form, the match count and some of the matching serial numbers (at most 50 per form), without entry content.\n- Search scope: the forms in `form_tokens` when given; otherwise every form and table the caller can access (for an account access token, every form and table in the account).\n  Either way, `filters` then narrows the scope; unless `filters` specifies `entries_count`, only forms with entries are searched by default (`entries_count > 0`).\n- The scope holds at most 10 forms; beyond that it returns 400: narrow it with `filters`, or pass `form_tokens` directly.\n- Forms with no match are left out of the result; forms that cannot be accessed, where the caller's role does not allow reading entries, whose search timed out or whose search service did not respond are listed with `unavailable` giving the reason (this does not mean there was no match).",
   "tag": "Entries",
   "method": "get",
   "path": "/entries/search",
@@ -3644,8 +3689,8 @@
  },
  "getEntryStats": {
   "operationId": "getEntryStats",
-  "summary": "按日期范围统计各表单提交量",
-  "description": "统计当前身份可访问的全部表单 / 表格（企业 Access Token 为企业账户下全部表单与表格）在日期范围内收到的提交次数：返回总数，以及有提交的表单按提交次数降序排列的列表。\n- 日期按北京时间计，`from` / `to` 均包含当天。\n- 统计的是提交发生时的次数：导入的数据计在导入当天，删除的数据不会扣减，因此与按数据 `created_at` 统计的结果不一定一致。\n- 列表最多 `limit` 行，超出时 `truncated` 为 true，`total` 与 `forms_with_data` 仍覆盖全部表单。\n- 传 `by`（`day` / `week` / `month`）时响应另带 `buckets`：范围内每个时间段各一份同样结构的统计（没有提交的时间段也返回），周从周一起算，首尾两段按范围裁剪。范围最多覆盖 92 天 / 53 周 / 24 个月，超过返回 400 并提示改用更粗的粒度或去掉 `by`。",
+  "summary": "Count submissions per form over a date range",
+  "description": "Counts the submissions received within a date range by every form / table the caller can access (for an account access token, every form and table in the account): returns the total, and a list of the forms that received submissions, most submissions first.\n- Dates are in Beijing time (UTC+8); `from` / `to` are both inclusive.\n- It counts submissions as they happened: imported entries count on the day of the import, and deleted entries are not subtracted, so the result may differ from a count by entry `created_at`.\n- The list has at most `limit` rows; when there are more, `truncated` is true, and `total` and `forms_with_data` still cover every form.\n- With `by` (`day` / `week` / `month`), the response also carries `buckets`: one count of the same shape for each period in the range (periods with no submissions included); weeks start on Monday, and the first and last periods are clipped to the range. The range covers at most 92 days / 53 weeks / 24 months; beyond that it returns 400, suggesting a coarser granularity or dropping `by`.",
   "tag": "Entries",
   "method": "get",
   "path": "/entries/stats",
@@ -3691,8 +3736,8 @@
  },
  "listMyFilledForms": {
   "operationId": "listMyFilledForms",
-  "summary": "获取我填写过的表单",
-  "description": "返回当前用户作为填写者提交过数据的表单（不含快速支付），按最近一次提交时间倒序。这些表单不必是当前用户创建或被共享的；\n每行给出的是当前用户自己的提交次数与最近提交时间，而不是表单的全部数据量。已删除的表单不出现在 `data` 中（`total` 仍计入）。\n- 分页：`next` 为行偏移量，原样回传取下一页；`skip` 与 `next` 不能同时传。每页默认 50 条，可用 `limit` 调整（最大 1000）。\n- 企业 Access Token 没有「当前用户」，调用返回 400。",
+  "summary": "List the forms I have submitted to",
+  "description": "Returns the forms the current user has submitted entries to as a submitter (quick payment forms excluded), most recent submission first. These forms need not be created by or shared with the current user;\neach row gives the current user's own submission count and latest submission time, not the form's total entry count. Deleted forms do not appear in `data` (`total` still counts them).\n- Pagination: `next` is a row offset, passed back as is for the next page; `skip` and `next` cannot be combined. 50 rows per page by default, adjustable with `limit` (at most 1000).\n- An account access token has no \"current user\"; calling with one returns 400.",
   "tag": "Forms",
   "method": "get",
   "path": "/my/forms",
@@ -3726,8 +3771,8 @@
  },
  "listMySubmittedEntries": {
   "operationId": "listMySubmittedEntries",
-  "summary": "获取我在某表单提交的数据",
-  "description": "返回当前用户在指定表单中自己提交的数据，按提交时间倒序。表单不必是当前用户创建或被共享的：只返回本人提交的数据，\n且只包含表单对填写者公开的字段（隐藏字段既不返回，也不能用于筛选或搜索）。没有提交过时返回空列表。\n- `fields` 只保留指定的公开字段，未知或非公开的 api_code 直接略过（不报错）。\n- `filters` 语义与数据列表相同，但不能按 `creator_id` 筛选（结果已限定为本人），也不能筛选非公开字段，否则返回 400。\n- `keyword` 只在本人的数据中搜索，不受表单数据量上限限制。\n- 分页：`next` 为行偏移量；`skip` 与 `next` 不能同时传。每页默认 50 条，可用 `limit` 调整（最大 1000）。\n- 企业 Access Token 没有「当前用户」，调用返回 400；表单不存在返回 404。",
+  "summary": "List my entries in a form",
+  "description": "Returns the entries the current user submitted to the given form, newest first. The form need not be created by or shared with the current user: only the user's own entries are returned,\nwith only the fields the form makes public to submitters (hidden fields are neither returned nor usable for filtering or searching). Returns an empty list when the user has not submitted.\n- `fields` keeps only the given public fields; unknown or non-public api_codes are skipped (no error).\n- `filters` works as in the entry list, but cannot filter by `creator_id` (results are already limited to the user's own) or on non-public fields; doing so returns 400.\n- `keyword` searches only the user's own entries and is not subject to the form's entry-count limit.\n- Pagination: `next` is a row offset; `skip` and `next` cannot be combined. 50 rows per page by default, adjustable with `limit` (at most 1000).\n- An account access token has no \"current user\"; calling with one returns 400. Returns 404 when the form does not exist.",
   "tag": "Entries",
   "method": "get",
   "path": "/my/forms/{form_token}/entries",
@@ -3791,8 +3836,8 @@
  },
  "searchMySubmittedEntries": {
   "operationId": "searchMySubmittedEntries",
-  "summary": "在我提交的数据中搜索",
-  "description": "用同一个关键字搜索当前用户在各表单中自己提交的数据（只搜索表单对填写者公开的字段），返回每个命中表单的命中数与序号。\n- `keyword` 必填，为空返回 400。\n- 默认搜索当前用户填写过的全部表单（不含快速支付）；`form_tokens` 可限定为其中一部分，不在填写记录中的 token 会被忽略。\n  参与搜索的表单超过 20 个时返回 400，需用 `form_tokens` 缩小范围。\n- 没有命中的表单不出现在结果中；某个表单无法搜索时（如关键字过长）该表单返回 `unavailable` 说明，其余表单照常返回。\n- 每个表单最多返回 50 个序号，`matched` 为该表单的实际命中总数。\n- 企业 Access Token 没有「当前用户」，调用返回 400。",
+  "summary": "Search my entries",
+  "description": "Searches the current user's own entries across forms with one keyword (only fields the form makes public to submitters are searched), and returns the match count and serial numbers for each matching form.\n- `keyword` is required; returns 400 when empty.\n- By default, searches every form the current user has submitted to (quick payment forms excluded); `form_tokens` limits it to some of them, and tokens not in the user's submission history are ignored.\n  Returns 400 when more than 20 forms are in the search; narrow them with `form_tokens`.\n- Forms with no match are left out of the result; when a form cannot be searched (e.g. the keyword is too long), that form returns `unavailable` with an explanation and the other forms return as usual.\n- At most 50 serial numbers are returned per form; `matched` is the form's actual total match count.\n- An account access token has no \"current user\"; calling with one returns 400.",
   "tag": "Entries",
   "method": "get",
   "path": "/my/search",
@@ -3820,8 +3865,8 @@
  },
  "getFillFormPage": {
   "operationId": "getFillFormPage",
-  "summary": "读取表单填写页",
-  "description": "按填写链接（`/f/<token>`）读取填写页：标题、说明、要填的字段，以及当前用户此刻能不能提交。\n调用者以拿到链接的填写者身份读取，不要求对表单或表格有任何权限；返回的只有填写页上看得到的内容。\n- `fields` 按填写页顺序列出公开字段，形态同读取表单时的 `fields`；表单视图的列名、说明、必填已按视图设置生效。\n- `status.key` 为 `open` 才能提交；其他取值（如 `not_opened`、`closed`、`password_required`、`unauthorized`、`submission_prevented`、\n  `fill_frequency_limited`：当前用户已填满填写页允许的次数）的说明在 `status.message`；未开放或按时间关闭时 `status.open_info` 给出开放时间。\n- `blockers` 列出只有填写者本人在页面上才能完成的要求（验证码、短信验证、微信身份、付款等）；不为空时提交会被拒绝，需在浏览器中填写。\n- `manageable` 只在当前用户本来就能读取背后的表单或表格时返回，给出它的 token 与名称。\n- 企业 Access Token 没有「当前用户」，调用返回 400。",
+  "summary": "Show a form's fill page",
+  "description": "Reads the fill page behind a fill link (`/f/<token>`): its title, description, the fields to fill in, and whether the current user can submit right now.\nThe caller reads it as a submitter holding the link and needs no permission on the form or table; only what the fill page shows is returned.\n- `fields` lists the public fields in fill-page order, shaped like `fields` when reading a form; for a form view, column names, descriptions and required flags already follow the view's settings.\n- Submission is possible only when `status.key` is `open`; other values (such as `not_opened`, `closed`, `password_required`, `unauthorized`, `submission_prevented`,\n  `fill_frequency_limited`: the current user has used up the submissions the fill page allows) are explained in `status.message`; when the page is not yet open or has closed on schedule, `status.open_info` gives the open period.\n- `blockers` lists requirements only the submitter can complete on the page (captcha, SMS verification, WeChat identity, payment, etc.); when it is not empty, submission is refused and the form must be filled in a browser.\n- `manageable` is returned only when the current user can already read the underlying form or table, and gives its token and name.\n- An account access token has no \"current user\"; calling with one returns 400.",
   "tag": "Fill",
   "method": "get",
   "path": "/fill/f/{form_token}",
@@ -3843,8 +3888,8 @@
  },
  "createFillFormEntry": {
   "operationId": "createFillFormEntry",
-  "summary": "按表单填写页提交数据",
-  "description": "以当前用户的身份，按填写页提交一条数据，与在页面上点「提交」一致：只接受填写页上可见的字段，按填写页的必填设置校验，\n提交人记为当前用户（会出现在「我提交的」里），表单视图提交的数据记录来自哪个视图。\n- 填写页未开放返回 403，`status` 为原因；`blockers` 不为空返回 422 并列出原因。\n- 字段值不合法返回 422，`errors` 按字段 api_code 给出说明。\n- 每个用户每小时最多提交 30 次，超出返回 429。\n- 企业 Access Token 没有「当前用户」，调用返回 400。",
+  "summary": "Submit an entry through a form's fill page",
+  "description": "Submits one entry through the fill page as the current user, the same as clicking \"Submit\" on the page: only fields visible on the fill page are accepted, required fields are checked as the fill page sets them,\nthe submitter is recorded as the current user (the entry shows up in \"My submissions\"), and an entry submitted through a form view records which view it came from.\n- Returns 403 when the fill page is not open, with the reason in `status`; returns 422 listing the reasons when `blockers` is not empty.\n- Returns 422 when a field value is invalid, with `errors` explaining each by field api_code.\n- Each user can submit at most 30 times per hour; beyond that returns 429.\n- An account access token has no \"current user\"; calling with one returns 400.",
   "tag": "Fill",
   "method": "post",
   "path": "/fill/f/{form_token}/entries",
@@ -3871,8 +3916,8 @@
  },
  "getFillViewPage": {
   "operationId": "getFillViewPage",
-  "summary": "读取表单视图填写页",
-  "description": "按填写链接（`/v/<token>`）读取填写页：标题、说明、要填的字段，以及当前用户此刻能不能提交。\n调用者以拿到链接的填写者身份读取，不要求对表单或表格有任何权限；返回的只有填写页上看得到的内容。\n- `fields` 按填写页顺序列出公开字段，形态同读取表单时的 `fields`；表单视图的列名、说明、必填已按视图设置生效。\n- `status.key` 为 `open` 才能提交；其他取值（如 `not_opened`、`closed`、`password_required`、`unauthorized`、`submission_prevented`、\n  `fill_frequency_limited`：当前用户已填满填写页允许的次数）的说明在 `status.message`；未开放或按时间关闭时 `status.open_info` 给出开放时间。\n- `blockers` 列出只有填写者本人在页面上才能完成的要求（验证码、短信验证、微信身份、付款等）；不为空时提交会被拒绝，需在浏览器中填写。\n- `manageable` 只在当前用户本来就能读取背后的表单或表格时返回，给出它的 token 与名称。\n- 企业 Access Token 没有「当前用户」，调用返回 400。",
+  "summary": "Show a form view's fill page",
+  "description": "Reads the fill page behind a fill link (`/v/<token>`): its title, description, the fields to fill in, and whether the current user can submit right now.\nThe caller reads it as a submitter holding the link and needs no permission on the form or table; only what the fill page shows is returned.\n- `fields` lists the public fields in fill-page order, shaped like `fields` when reading a form; for a form view, column names, descriptions and required flags already follow the view's settings.\n- Submission is possible only when `status.key` is `open`; other values (such as `not_opened`, `closed`, `password_required`, `unauthorized`, `submission_prevented`,\n  `fill_frequency_limited`: the current user has used up the submissions the fill page allows) are explained in `status.message`; when the page is not yet open or has closed on schedule, `status.open_info` gives the open period.\n- `blockers` lists requirements only the submitter can complete on the page (captcha, SMS verification, WeChat identity, payment, etc.); when it is not empty, submission is refused and the form must be filled in a browser.\n- `manageable` is returned only when the current user can already read the underlying form or table, and gives its token and name.\n- An account access token has no \"current user\"; calling with one returns 400.",
   "tag": "Fill",
   "method": "get",
   "path": "/fill/v/{view_token}",
@@ -3894,8 +3939,8 @@
  },
  "createFillViewEntry": {
   "operationId": "createFillViewEntry",
-  "summary": "按表单视图填写页提交数据",
-  "description": "以当前用户的身份，按填写页提交一条数据，与在页面上点「提交」一致：只接受填写页上可见的字段，按填写页的必填设置校验，\n提交人记为当前用户（会出现在「我提交的」里），表单视图提交的数据记录来自哪个视图。\n- 填写页未开放返回 403，`status` 为原因；`blockers` 不为空返回 422 并列出原因。\n- 字段值不合法返回 422，`errors` 按字段 api_code 给出说明。\n- 每个用户每小时最多提交 30 次，超出返回 429。\n- 企业 Access Token 没有「当前用户」，调用返回 400。",
+  "summary": "Submit an entry through a form view's fill page",
+  "description": "Submits one entry through the fill page as the current user, the same as clicking \"Submit\" on the page: only fields visible on the fill page are accepted, required fields are checked as the fill page sets them,\nthe submitter is recorded as the current user (the entry shows up in \"My submissions\"), and an entry submitted through a form view records which view it came from.\n- Returns 403 when the fill page is not open, with the reason in `status`; returns 422 listing the reasons when `blockers` is not empty.\n- Returns 422 when a field value is invalid, with `errors` explaining each by field api_code.\n- Each user can submit at most 30 times per hour; beyond that returns 429.\n- An account access token has no \"current user\"; calling with one returns 400.",
   "tag": "Fill",
   "method": "post",
   "path": "/fill/v/{view_token}/entries",
@@ -3922,8 +3967,8 @@
  },
  "moveTableToFolder": {
   "operationId": "moveTableToFolder",
-  "summary": "移动表格到文件夹",
-  "description": "将表格移入指定文件夹，或移出文件夹（`folder_token` 传 null）；同时接受 PUT。移动仅影响当前调用用户的文件夹归属。\n\n- 请求体必须包含 `folder_token` 键（值可为 null），否则 400。\n- `folder_token` 只接受文件夹 token（不接受 id）；文件夹不存在或当前用户无管理权限返回 404。\n- 目标文件夹的 kind 必须是 table，否则 400。\n- token 对应的不是表格时返回 404 `table cannot be found`。",
+  "summary": "Move a table into a folder",
+  "description": "Moves a table into a folder, or out of its folder (`folder_token` set to null); PUT is also accepted. The move affects only the calling user's folder placement.\n- The request body must include the `folder_token` key (its value may be null); otherwise 400.\n- `folder_token` accepts only a folder token (not an id); returns 404 when the folder does not exist or the current user lacks manage permission on it.\n- The target folder's kind must be table; otherwise 400.\n- Returns 404 `table cannot be found` when the token is not a table's.",
   "tag": "Tables",
   "method": "patch",
   "path": "/tables/{table_token}/folder",
@@ -3944,7 +3989,7 @@
   },
   "successStatus": 200,
   "scopes": [
-   "forms。"
+   "forms"
   ],
   "responseSchema": "TableFolderMoveResult"
  }

@@ -93,14 +93,14 @@ openapi.yaml 与线上实现偶有出入时，一次成功的 API 调用不应�
 | 输入                                                                          | 产物                                                                                                                                 |
 | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `operationId`（camelCase）                                                    | 工具名 snake_case；overlay 可改名                                                                                                    |
-| `summary` + `description`                                                     | `title` + `description`；「OAuth 令牌需要 scope」那行抽成 `_meta` 的 scopes                                                          |
+| `summary` + `description`                                                     | `title` + `description`；`OAuth scope: …` 那行抽进 `scopes`，不留在描述里                                                            |
 | path / query 参数                                                             | `inputSchema.properties` 顶层键；path 参数必填                                                                                       |
 | `requestBody`                                                                 | 缺省 flatten：请求体属性提升到入参顶层（运行时按参数名拆回）；数据本身（`entry`）和整个请求体是指针的操作嵌在一个键下（`bodyParam`） |
 | `projections`                                                                 | 一个工具 = 某操作请求体的一个子键，子键属性提升到顶层，发出时包回 `{ 子键: … }`                                                      |
 | `composites`                                                                  | 入参由主操作 + 场景设置操作的 schema 拼成，编排在 `composites.ts`                                                                    |
 | `multipart/form-data` 的 `file`                                               | `file_base64` + `file_name` + `content_type`                                                                                         |
 | HTTP 方法                                                                     | annotations：GET 只读幂等；DELETE 破坏性幂等；PUT/PATCH 幂等；POST 其它                                                              |
-| 2xx 响应 schema                                                               | 压缩后 ≤ `outputSchemaMaxChars` 才随 tools/list 下发，否则描述里留「返回结构见 schema「X」」                                         |
+| 2xx 响应 schema                                                               | 压缩后 ≤ `outputSchemaMaxChars` 才随 tools/list 下发，否则描述里留一句 `Returns schema "X"`                                          |
 | `pointerSchemas` 里的 `$ref`                                                  | 不内联，换成一句指向 `get_schema` / `jinshuju://schemas/{name}` 的说明                                                               |
 | `omitSchemas` 里的 `$ref`                                                     | 整个去掉（只给服务端校验用的 if/then 组合约束，对模型没有信息量）                                                                    |
 | 内联的 `oneOf` / `anyOf`，分支都有 `title` 且 ≥ `collapseVariantsMinBranches` | 折叠：只留公共属性，分支名写进描述（表格列 11 种从 12k 字符降到几百）                                                                |

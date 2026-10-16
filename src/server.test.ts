@@ -80,13 +80,13 @@ test('tools/call：多传了键时点名多余的参数并列出可用参数', a
   assert.equal(result.isError, true);
   assert.equal(calls.length, 0);
   const text = (result.content[0] as { text: string }).text;
-  assert.match(text, /不存在的参数：scene、report/);
-  assert.match(text, /只接受：.*name.*fields.*evaluation_setting/);
+  assert.match(text, /Unknown arguments: scene, report/);
+  assert.match(text, /accepts only: .*name.*fields.*evaluation_setting/);
   assert.doesNotMatch(text, /additional properties/);
 
   const typed = await client.callTool({ name: 'list_entries', arguments: { form_token: 'AbCdEf', limit: 'ten' } });
   assert.equal(typed.isError, true);
-  assert.match((typed.content[0] as { text: string }).text, /: limit：Instance type "string" is invalid/);
+  assert.match((typed.content[0] as { text: string }).text, /: limit: Instance type "string" is invalid/);
   await close();
 });
 
@@ -161,7 +161,7 @@ test('组合工具：create_exam_form 先建表单再写设置；edit_exam_form 
   assert.equal(calls[1].method, 'PATCH');
   assert.equal(calls[1].url, 'https://api.test/api/v1/forms/NewTok/exam_setting');
   assert.equal(calls[1].body, '{"limited_time":45}');
-  assert.match((created.content[0] as { text: string }).text, /考试设置已更新/);
+  assert.match((created.content[0] as { text: string }).text, /Exam settings updated/);
 
   calls.length = 0;
   await client.callTool({
@@ -233,7 +233,7 @@ test('组合工具：create_exam_form 的设置被拒绝时说明表单已创建
   });
   assert.equal(result.isError, true);
   const text = (result.content[0] as { text: string }).text;
-  assert.match(text, /表单已创建（token=NewTok）/);
+  assert.match(text, /The form was created \(token=NewTok\)/);
   assert.match(text, /not an exam form/);
   await close();
 });
@@ -252,7 +252,7 @@ test('tools/call：请求体用 overlay 的键名发出，429 带 Retry-After �
   assert.equal(calls[0].method, 'POST');
   assert.equal(calls[0].body, '{"field_1":"张三"}');
   assert.equal(result.isError, true);
-  assert.match((result.content[0] as { text: string }).text, /30 秒后重试/);
+  assert.match((result.content[0] as { text: string }).text, /retry in 30 seconds/);
   await close();
 });
 
@@ -262,7 +262,7 @@ test('tools/call：超长结果被截断并提示分页', async () => {
   const { client, close } = await connect(fetchImpl, 2000);
   const result = await client.callTool({ name: 'list_entries', arguments: { form_token: 'AbCdEf' } });
   const text = (result.content[0] as { text: string }).text;
-  assert.match(text, /结果已截断/);
+  assert.match(text, /Result truncated/);
   assert.ok(text.length < 2500);
   const spec = TOOLS.find((t) => t.name === 'list_entries')!;
   if (spec.outputSchema) assert.equal((result.structuredContent as { truncated: boolean }).truncated, true);

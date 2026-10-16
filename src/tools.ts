@@ -58,7 +58,7 @@ export function registerGeneratedTools(server: McpServer, runtime: ToolRuntime):
         } catch (error) {
           runtime.onError?.(error, tool.name);
           if (error instanceof TransportError) {
-            return { isError: true, content: [{ type: 'text', text: `${error.message}，请稍后重试。` }] };
+            return { isError: true, content: [{ type: 'text', text: `${error.message}. Retry later.` }] };
           }
           throw error;
         }
@@ -76,17 +76,16 @@ export function registerSchemaTools(server: McpServer, pointerSchemas: string[])
   server.registerTool(
     'get_schema',
     {
-      title: '查看数据结构定义',
+      title: 'Show a schema',
       description:
-        '返回 openapi.yaml 里某个 schema 的完整 JSON Schema。工具入参 / 返回说明里写着「结构见 schema「X」」的地方，' +
-        `用它查 X 的定义；按 type 分支的 schema（如 FieldInput）会带 x-variants，列出每个分支对应的 schema 名。常用：${pointerSchemas
-          .slice(0, 6)
-          .join('、')}。`,
+        'Returns the full JSON Schema of a schema in openapi.yaml. Where a tool input or result says `Shape: schema "X"` or ' +
+        '`Returns schema "X"`, look X up here; a schema that branches on type (such as FieldInput) carries x-variants, ' +
+        `which names the schema of each branch. Common ones: ${pointerSchemas.slice(0, 6).join(', ')}.`,
       inputSchema: fromJsonSchema<{ name: string }>(
         {
           type: 'object',
           properties: {
-            name: { type: 'string', description: 'schema 名，如 FieldInput、TextFieldInput、FormSettingWriteInput' }
+            name: { type: 'string', description: 'Schema name, e.g. FieldInput, TextFieldInput, FormSettingWriteInput' }
           },
           required: ['name'],
           additionalProperties: false
@@ -106,7 +105,7 @@ export function registerSchemaTools(server: McpServer, pointerSchemas: string[])
           content: [
             {
               type: 'text',
-              text: `没有名为 ${name} 的 schema。${candidates.length ? `相近的有：${candidates.join('、')}` : ''}`
+              text: `No schema named ${name}.${candidates.length ? ` Similar names: ${candidates.join(', ')}` : ''}`
             }
           ]
         };

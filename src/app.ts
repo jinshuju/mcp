@@ -193,7 +193,10 @@ export function createApp(options: AppOptions = {}): Hono {
       console.error('token verification failed:', error);
       captureException(error);
       return new Response(
-        JSON.stringify({ error: 'server_error', error_description: '无法校验令牌：金数据 API 暂时不可达' }),
+        JSON.stringify({
+          error: 'server_error',
+          error_description: 'Cannot verify the token: the Jinshuju API is unreachable for now'
+        }),
         {
           status: 503,
           headers: { 'Content-Type': 'application/json', 'Retry-After': '5' }

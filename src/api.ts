@@ -38,7 +38,7 @@ export function buildUrl(baseUrl: string, op: OperationSpec, args: Args): URL {
   for (const p of op.params) {
     if (p.in !== 'path') continue;
     const value = args[p.name];
-    if (value === undefined || value === null || value === '') throw new Error(`缺少路径参数 ${p.name}`);
+    if (value === undefined || value === null || value === '') throw new Error(`Missing path parameter ${p.name}`);
     path = path.replace(`{${p.name}}`, encodeURIComponent(String(value).trim()));
   }
   const url = new URL(baseUrl.replace(/\/$/, '') + path);
@@ -154,9 +154,9 @@ export class JinshujuApi {
     try {
       res = await this.fetchImpl(url, { method, headers, body, signal: controller.signal });
     } catch (error) {
-      const reason = controller.signal.aborted ? '请求超时' : '无法连接金数据 API';
-      const detail = error instanceof Error ? `：${error.message}` : '';
-      throw new TransportError(`${reason}（${method} ${url.pathname}）${detail}`, { cause: error });
+      const reason = controller.signal.aborted ? 'Request timed out' : 'Could not reach the Jinshuju API';
+      const detail = error instanceof Error ? `: ${error.message}` : '';
+      throw new TransportError(`${reason} (${method} ${url.pathname})${detail}`, { cause: error });
     } finally {
       clearTimeout(timer);
     }

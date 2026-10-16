@@ -65,7 +65,7 @@ test('令牌校验时 API 不可达：503 而不是裸 500', async () => {
     body: '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
   });
   assert.equal(res.status, 503);
-  assert.match(((await res.json()) as { error_description: string }).error_description, /不可达/);
+  assert.match(((await res.json()) as { error_description: string }).error_description, /unreachable/);
 });
 
 test('路径前缀部署：对外地址含前缀时，质询与 PRM 都按前缀给出', async () => {
