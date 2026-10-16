@@ -1,6 +1,6 @@
 # Architecture
 
-How `@jinshuju/mcp` fits together, and why. The README says what it does; this says how, for the next person who changes it.
+How `@jinshuju/mcp` fits together, and why. The README says what it does and [DEVELOPMENT.md](DEVELOPMENT.md) how to build and run it; this says how it works, for the next person who changes it.
 
 ## Principles
 
@@ -75,16 +75,16 @@ when openapi.yaml and the live implementation disagree now and then, a successfu
 
 ## Usage analytics (analytics.ts)
 
-What is collected follows the built-in MCP's `TrackMCPEventService` (jinshuju.net/mcp), so data from both can be read together in PostHog:
+What is collected:
 
 - Only `$mcp_initialize` and `$mcp_tool_call` are kept; every other event (`$mcp_tools_list`, `$mcp_resources_*`, `$identify`, `$exception`) is dropped in `beforeSend`;
   `$mcp_parameters` / `$mcp_response` / `$mcp_tool_description`, which the SDK adds by default, are removed too — only argument names are recorded (`$mcp_input_keys`), not values or results.
   The SDK cannot read the declarations in what `fromJsonSchema` produces, so the full set of argument names comes from `tools.json`; key names the model makes up are recorded as `[redacted]`.
-- Intent: the SDK injects `context` into every tool's inputSchema (asked the same way as the built-in MCP), and `tools/call` strips it before validation and before the handler;
+- Intent: the SDK injects `context` into every tool's inputSchema, and `tools/call` strips it before validation and before the handler;
   `context` still arrives when collection is off or the client uses a cached tool list, so `validation.ts` always accepts and discards it, and it never reaches the API.
   The SDK's other injections (`llm_model`, `conversation_id`, `get_more_tools`, `send_feedback`) are all off.
 - Identity and sessions: `identify` uses the user id from `GET /me`; `$session_id` is not the one the SDK opens per request but `ses_…` derived from the token's SHA-256
-  (one session per token, the same idea as the built-in MCP's md5(token)), so even clients on 2026-07-28 with no handshake have their calls grouped together.
+  (one session per token), so even clients on 2026-07-28 with no handshake have their calls grouped together.
   `initialize` is reported once a day per session (deduplicated in process; best effort across Workers instances).
 - Sending: posthog-node batches. On Workers, `flush()` goes into `executionCtx.waitUntil` at the end of each request; on Node a timer does it, with `shutdown()` on SIGTERM.
   Tools send no mid-call notifications, and both legs assemble the response only after the handler finishes, so events are always queued before the flush.
@@ -137,8 +137,8 @@ over twenty thousand tokens; as one line plus a `get_schema` tool, the model rea
 
 ## Evals (evals/)
 
-`evals/` is not published; it is a regression test for how well models get on with the tools: the same tasks and the same models, connected to this repository's MCP (in-process `buildServer`)
-and to the built-in MCP (Streamable HTTP), scored by assertions. The referee (fixture setup, state checks, writing results) goes straight to the open API (reusing `src/api.ts` and the operation table),
+`evals/` is not published; it is a regression test for how well models get on with the tools: fixed tasks run by several models against this repository's MCP (in-process `buildServer`, or a deployment over Streamable HTTP),
+scored by assertions. The referee (fixture setup, state checks, writing results) goes straight to the open API (reusing `src/api.ts` and the operation table),
 never through an MCP under test. Design, task format and metrics are in [evals/README.md](evals/README.md); `evals.yml` runs on release, on openapi.yaml changes and every Monday.
 
 ## Release and sync

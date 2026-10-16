@@ -2,7 +2,7 @@
  * PostHog MCP analytics (@posthog/mcp): the HTTP deployment reports how the tools are used. stdio runs on the user's
  * own machine and reports nothing.
  *
- * What is captured matches goldendata's built-in MCP (TrackMCPEventService):
+ * What is captured:
  * - only $mcp_initialize and $mcp_tool_call; tools/list, resources/*, $identify and $exception are all dropped;
  * - a tool call records only argument names ($mcp_input_keys), never argument values or the result; a failure records
  *   its category and the truncated error;
@@ -27,7 +27,7 @@ import type { Config } from './config.js';
 import { TOOLS } from './tools.js';
 import { CONTEXT_ARGUMENT } from './validation.js';
 
-/** Asks the model the same question as goldendata's built-in MCP, so $mcp_intent is comparable across the two. */
+/** The question the model answers in the context argument; it becomes $mcp_intent. */
 export const CONTEXT_DESCRIPTION = "Why are you calling this tool? Briefly describe the user's goal.";
 export const CONTEXT_INSTRUCTIONS =
   `Every tool takes a \`${CONTEXT_ARGUMENT}\` argument: say what the user is actually trying to get done, ` +

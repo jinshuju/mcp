@@ -1,5 +1,4 @@
-# 导入 (import): the user pastes spreadsheet content. The built-in MCP uploads through a presigned URL (prepare_import_file_upload), the new MCP as base64 (upload_import_file),
-# and a model may write with create_entries instead; scoring only checks that the entries land correctly, and the path taken shows in the tool sequence.
+# 导入 (import): the user pastes spreadsheet content. The file goes up as base64 (upload_import_file), and a model may write with create_entries instead; scoring only checks that the entries land correctly, and the path taken shows in the tool sequence.
 - id: import-01
   category: 导入
   title: Import CSV text
@@ -16,7 +15,7 @@
   max_turns: 8
   expect:
     tools:
-      any_of: [import_entries_from_file, create_entries, upload_import_file, prepare_import_file_upload]
+      any_of: [import_entries_from_file, create_entries, upload_import_file]
     state:
       - check: entry_count
         fixture: orders
@@ -51,7 +50,7 @@
   max_turns: 8
   expect:
     tools:
-      any_of: [import_entries_from_file, create_entries, upload_import_file, prepare_import_file_upload]
+      any_of: [import_entries_from_file, create_entries, upload_import_file]
     state:
       - check: entry_count
         fixture: signup
@@ -76,7 +75,7 @@
   max_turns: 10
   expect:
     tools:
-      any_of: [import_entries_from_file, create_entries, create_entry, upload_import_file, prepare_import_file_upload]
+      any_of: [import_entries_from_file, create_entries, create_entry, upload_import_file]
     state:
       - check: entry_count
         fixture: employees

@@ -1,6 +1,6 @@
 /**
  * A minimal agent loop: system prompt + task → model → tool calls → results fed back → … → final answer.
- * Both MCPs get the same treatment: the same system prompt (plus each one's instructions), the same result truncation, the same turn limit.
+ * Every model gets the same treatment: the same system prompt (plus the server's instructions), the same result truncation, the same turn limit.
  * Everything the model under test reads from the harness (the system prompt, tool-call errors, the truncation note) stays in
  * Chinese: the tasks are Chinese users' requests, and rewording any of it would break comparison with past rounds.
  */

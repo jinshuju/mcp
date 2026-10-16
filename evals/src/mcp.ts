@@ -1,7 +1,6 @@
 /**
  * The MCPs under test, connected by name:
  * - new:       this repo's MCP; by default buildServer in process (so it evaluates the current checkout), or over HTTP when EVAL_NEW_MCP_URL is set.
- * - builtin:   Jinshuju's built-in MCP (https://jinshuju.net/mcp).
  * - name=url:  any other HTTP deployment.
  * Every target uses the same credential (JINSHUJU_ACCESS_TOKEN or ~/.jinshuju/config.json), so they all see the same account's data.
  */
@@ -37,10 +36,9 @@ export function parseTargets(specs: string[], cfg: EvalConfig): McpTarget[] {
     if (s === 'new') {
       return cfg.newMcpUrl ? { name: 'new', kind: 'http', url: cfg.newMcpUrl } : { name: 'new', kind: 'inprocess' };
     }
-    if (s === 'builtin') return { name: 'builtin', kind: 'http', url: cfg.builtinMcpUrl };
     const eq = s.indexOf('=');
     if (eq > 0) return { name: s.slice(0, eq), kind: 'http', url: s.slice(eq + 1) };
-    throw new Error(`Unknown MCP target: ${s} (use new / builtin / name=url)`);
+    throw new Error(`Unknown MCP target: ${s} (use new / name=url)`);
   });
 }
 
