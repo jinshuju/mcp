@@ -33,7 +33,7 @@ evals/
 #    LLM_BASE_URL=https://<gateway>/v1
 #    LLM_API_KEY=sk-...
 #    EVAL_MODELS=anthropic-claude-sonnet-5-5,anthropic-claude-haiku-5-5,qwen3.7-plus,deepseek-v4.1-flash
-#    EVAL_JUDGE_MODEL=anthropic-claude-haiku-5-5
+#    EVAL_JUDGE_MODEL=anthropic-claude-sonnet-5-5
 
 npm run eval -- seed            # 在测评账户里建夹具表单并灌数据（幂等；--reset 强制重灌）
 npm run eval -- catalog         # 看两个 MCP 的版本、工具数、tools/list 大小
