@@ -31,8 +31,7 @@ export interface EvalConfig {
   /** Models under test by default */
   models: string[];
   judgeModel: string;
-  builtinMcpUrl: string;
-  /** HTTP address of a deployed new MCP; unset, buildServer is connected in process */
+  /** HTTP address of a deployment to test as `new`; unset, buildServer is connected in process */
   newMcpUrl?: string;
   stateDir: string;
   resultsDir: string;
@@ -41,7 +40,7 @@ export interface EvalConfig {
   llmTimeoutMs: number;
   /** Timeout of one tool call */
   toolTimeoutMs: number;
-  /** Most characters of a tool result passed to the model (the same for both MCPs; defaults to the new MCP's own truncation threshold) */
+  /** Most characters of a tool result passed to the model (defaults to the server's own truncation threshold) */
   maxToolResultChars: number;
 }
 
@@ -71,7 +70,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       'deepseek-v4.1-flash'
     ]),
     judgeModel: env.EVAL_JUDGE_MODEL ?? 'anthropic-claude-sonnet-5-5',
-    builtinMcpUrl: env.EVAL_BUILTIN_MCP_URL ?? 'https://jinshuju.net/mcp',
     newMcpUrl: env.EVAL_NEW_MCP_URL || undefined,
     stateDir: env.EVAL_STATE_DIR ?? resolve(EVALS_DIR, 'state'),
     resultsDir: env.EVAL_RESULTS_DIR ?? resolve(EVALS_DIR, 'results'),

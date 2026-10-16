@@ -15,9 +15,9 @@ on:
         required: false
         default: ''
       mcp:
-        description: MCPs under test (new,builtin or name=url)
+        description: MCPs under test (new, or name=url for a deployment)
         required: false
-        default: new,builtin
+        default: new
       tasks:
         description: Run only these task ids (comma-separated)
         required: false
@@ -75,7 +75,7 @@ jobs:
         run: npm run eval -- seed --reset
       - name: Run matrix
         run: |
-          args=(--mcp "${{ inputs.mcp || 'new,builtin' }}" --repeat "${{ inputs.repeat || '1' }}" --run-id "gha-${{ github.run_number }}")
+          args=(--mcp "${{ inputs.mcp || 'new' }}" --repeat "${{ inputs.repeat || '1' }}" --run-id "gha-${{ github.run_number }}")
           [ -n "${{ inputs.tasks }}" ] && args+=(--tasks "${{ inputs.tasks }}")
           [ -n "${{ inputs.category }}" ] && args+=(--category "${{ inputs.category }}")
           npm run eval -- run "${args[@]}"
