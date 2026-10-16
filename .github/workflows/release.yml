@@ -1,6 +1,13 @@
 name: Release
 
-# Two-step release, same as jinshuju/cli: release-please keeps a release PR open; merging it publishes to npm (OIDC trusted publishing).
+# Two-step release, same as jinshuju/cli: release-please keeps a release PR open; merging it publishes to npm.
+#
+# Publishing uses npm trusted publishing (OIDC), so there is no NPM_TOKEN. npm will not let you configure a
+# trusted publisher for a package that does not exist yet, so the first version is published by hand and
+# everything after it is automatic.
+#
+# Commit subjects must be plain conventional commits: `#T17067 feat: ...` does not parse and the release
+# silently never happens. Put the ticket in a `Refs:` footer.
 on:
   push:
     branches: [main]
@@ -23,12 +30,16 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+          # PRs opened with GITHUB_TOKEN do not trigger CI; a RELEASE_PLEASE_TOKEN (fine-grained PAT with
+          # contents and pull-requests write) makes the release PR show checks.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
   publish:
     name: Publish to npm
@@ -37,6 +48,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Lets npm verify this workflow over OIDC. npm attaches provenance on its own for a public repo and
+      # package; do not add --provenance, which is for token-based publishing.
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -44,9 +57,32 @@ jobs:
           ref: ${{ needs.release-please.outputs.tag_name }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22.x
+          node-version: 24
           registry-url: https://registry.npmjs.org
           cache: npm
+      # Trusted publishing needs npm >= 11.5.1, newer than what the runner image bundles.
+      - name: Use an npm that speaks OIDC
+        run: |
+          npm install -g npm@^11.5.1
+          npm --version
       - run: npm ci
       - run: npm test
-      - run: npm publish --provenance --access public
+      - name: Verify npm publishes the manifest as written
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$(npm publish --dry-run 2>&1)"
+          echo "${out}"
+          if grep -q "auto-corrected" <<<"${out}"; then
+            echo "::error::npm would rewrite package.json at publish time. Run 'npm pkg fix' and commit the result."
+            exit 1
+          fi
+      - run: npm publish --access public
+      - name: Summary
+        run: |
+          {
+            echo "### Published \`@jinshuju/mcp@${{ needs.release-please.outputs.version }}\`"
+            echo
+            echo "- tag: \`${{ needs.release-please.outputs.tag_name }}\`"
+            echo "- https://www.npmjs.com/package/@jinshuju/mcp"
+          } >> "$GITHUB_STEP_SUMMARY"
