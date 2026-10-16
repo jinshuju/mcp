@@ -70,7 +70,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       'qwen3.7-plus',
       'deepseek-v4.1-flash'
     ]),
-    judgeModel: env.EVAL_JUDGE_MODEL ?? 'anthropic-claude-haiku-5-5',
+    judgeModel: env.EVAL_JUDGE_MODEL ?? 'anthropic-claude-sonnet-5-5',
     builtinMcpUrl: env.EVAL_BUILTIN_MCP_URL ?? 'https://jinshuju.net/mcp',
     newMcpUrl: env.EVAL_NEW_MCP_URL || undefined,
     stateDir: env.EVAL_STATE_DIR ?? resolve(EVALS_DIR, 'state'),
