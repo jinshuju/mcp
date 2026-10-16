@@ -30,28 +30,28 @@ function errorLines(res: ApiResponse): string[] {
 function hint(status: number, res: ApiResponse): string {
   switch (status) {
     case 400:
-      return '参数或数据校验失败：按上面的说明修正后重试。';
+      return 'Arguments or data failed validation: fix them as described above and retry.';
     case 401:
-      return '凭证无效或已过期：请重新授权 / 更换 Access Token。';
+      return 'The credential is invalid or expired: re-authorize, or use another access token.';
     case 402:
-      return '当前套餐不包含 API v1 能力。';
+      return 'The current plan does not include API v1.';
     case 403:
-      return '无权限、配额已满或 OAuth scope 不足。';
+      return 'No permission, a quota is used up, or the OAuth scope is insufficient.';
     case 404:
-      return '资源不存在或当前凭证不可访问（检查 token / 序号是否正确）。';
+      return 'The resource does not exist or this credential cannot access it (check the token / serial number).';
     case 415:
-      return '请求体必须是 JSON。';
+      return 'The request body must be JSON.';
     case 422:
-      return '批量操作全部失败，见上面的逐条原因。';
+      return 'Rejected; see the reasons above. A batch returns 422 only when every item failed.';
     case 429:
-      return `超过速率限制${res.retryAfter ? `，${res.retryAfter} 秒后重试` : '，稍后重试'}。`;
+      return `Rate limit exceeded; retry ${res.retryAfter ? `in ${res.retryAfter} seconds` : 'later'}.`;
     default:
-      return status >= 500 ? '金数据服务端错误，稍后重试；若持续出现请反馈。' : '';
+      return status >= 500 ? 'Jinshuju server error; retry later, and report it if it keeps happening.' : '';
   }
 }
 
 export function toToolResult(tool: ToolSpec, res: ApiResponse, maxResultChars: number): CallToolResult {
-  const note = res.warnings ? `\n⚠ 服务端参数提示（X-API-Input-Warnings）：${res.warnings}` : '';
+  const note = res.warnings ? `\n⚠ Server warnings about the arguments (X-API-Input-Warnings): ${res.warnings}` : '';
   if (res.status >= 200 && res.status < 300) {
     const payload = res.json;
     let text = payload === undefined ? (res.text ?? '') : JSON.stringify(payload);
@@ -59,8 +59,8 @@ export function toToolResult(tool: ToolSpec, res: ApiResponse, maxResultChars: n
     if (text.length > maxResultChars) {
       truncated = true;
       text =
-        `${text.slice(0, maxResultChars)}\n…（结果已截断：共 ${text.length} 字符。` +
-        '请用 fields / limit / filters / keyword 缩小范围，或按 next 分页读取。）';
+        `${text.slice(0, maxResultChars)}\n… (Result truncated: ${text.length} characters in all. ` +
+        'Narrow it with fields / limit / filters / keyword, or page through it with next.)';
     }
     const result: CallToolResult = { content: [{ type: 'text', text: text + note }] };
     if (tool.outputSchema) {
@@ -75,7 +75,7 @@ export function toToolResult(tool: ToolSpec, res: ApiResponse, maxResultChars: n
     }
     return result;
   }
-  const lines = [`HTTP ${res.status}：${tool.name} 失败。`, ...errorLines(res)];
+  const lines = [`HTTP ${res.status}: ${tool.name} failed.`, ...errorLines(res)];
   const h = hint(res.status, res);
   if (h) lines.push(h);
   return { isError: true, content: [{ type: 'text', text: lines.join('\n') + note }] };

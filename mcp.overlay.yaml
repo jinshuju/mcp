@@ -73,10 +73,10 @@ projections:
   edit_field_rules:
     operationId: updateForm
     bodyKey: field_rules
-    title: 编辑字段规则
+    title: Edit field rules
     description: >-
-      增量编辑表单的字段显示规则（逻辑跳转）：add 追加、update / remove 按 get_field_rules 返回的 0 起 index 定位，
-      其它规则不受影响。等价于 edit_form 只传 field_rules。
+      Edits a form's field display rules (logic jumps) incrementally and leaves the other rules unchanged; the index is the one
+      get_field_rules returns. Same as edit_form with only field_rules.
 
 # ---- 3. 组合工具：一次调用发两个请求（考试 / 测评表单的建与改、多表单计数） ----
 composites:
@@ -85,50 +85,51 @@ composites:
     scene: exam
     settingOperation: updateExamSetting
     settingKey: exam_setting
-    title: 创建考试表单
+    title: Create an exam form
     description: >-
-      创建在线考试表单（scene=exam，自动判分）。用户要的是考试 / 测验 / 考核 / quiz 时用它，不要用 create_form；
-      心理测试 / 能力评估 / 自测问卷 / 培训反馈这类「测评」用 create_evaluation_form。
-      题目必须用考试题型（SingleSelect / MultiSelect / TrueOrFalse / DropDownSelect / FillInBlank / ShortAnswer / FillInNumber），
-      每题带 answers（正确答案与分值；缺省 absolute 模式只有一条正确答案，全对才得分）。
-      先建表单，再用 exam_setting 更新考试设置；设置被拒绝时表单已创建，结果里会说明。
+      Creates an online exam form (scene=exam, scored automatically). Use it, not create_form, when the user wants an exam, test or quiz;
+      an evaluation such as a psychological test, ability assessment, self-assessment questionnaire or training feedback uses create_evaluation_form.
+      Questions must use exam question types (SingleSelect / MultiSelect / TrueOrFalse / DropDownSelect / FillInBlank / ShortAnswer / FillInNumber),
+      each with answers (the correct answer and its score; the default absolute mode has one correct answer and scores only a fully correct response).
+      Creates the form first, then applies exam_setting; if the settings are rejected, the form already exists and the result says so.
   edit_exam_form:
     kind: scene_form_update
     scene: exam
     settingOperation: updateExamSetting
     settingKey: exam_setting
-    title: 编辑考试表单
+    title: Edit an exam form
     description: >-
-      编辑考试场景表单：名称 / 描述 / 题目增删改 / 通用设置，以及 exam_setting 考试设置。
-      先更新考试设置（非考试表单会被拒绝，此时不改动其它内容），再更新表单本身。
+      Edits an exam form: name / description / adding, removing and changing questions / general settings, plus the exam settings in exam_setting.
+      Updates the exam settings first (a form that is not an exam is refused, and nothing else changes), then the form itself.
   create_evaluation_form:
     kind: scene_form_create
     scene: evaluation
     settingOperation: updateEvaluationSetting
     settingKey: evaluation_setting
-    title: 创建测评表单
+    title: Create an evaluation form
     description: >-
-      创建测评表单（scene=evaluation）。用户要的是测评 / 心理测试 / 能力评估 / 自测问卷 / 培训反馈时用它，
-      不要用 create_form，也不要用 create_exam_form（那是有标准答案的考试）。
-      计分测评用 SingleSelect / MultiSelect / DropDownSelect / Rating / Nps：每题在 answers 里列出每个选项及其分值，
-      并设 answer_setting_mode=relative（每个选项都计分、没有对错；缺省的 absolute 只认一条正确答案，选其它选项得 0 分），
-      不要用普通单选的 calculable / operand_value 来计分。反馈问卷用普通字段（RatingField / MatrixScaleField / TextArea 等），不带分值。
-      先建表单，再用 evaluation_setting 更新测评设置（提交后的报告、总分区间评语、维度）。
+      Creates an evaluation form (scene=evaluation). Use it when the user wants an evaluation, psychological test, ability assessment,
+      self-assessment questionnaire or training feedback; not create_form, and not create_exam_form (an exam with correct answers).
+      A scored evaluation uses SingleSelect / MultiSelect / DropDownSelect / Rating / Nps: each question lists every choice with its score in answers
+      and sets answer_setting_mode=relative (every choice scores, none is right or wrong; the default absolute accepts one correct answer and scores any other choice 0).
+      Do not score with a regular choice field's calculable / operand_value. A feedback questionnaire uses regular fields (RatingField / MatrixScaleField / TextArea, etc.) without scores.
+      Creates the form first, then applies evaluation_setting (the report after submission, comments by total score range, dimensions).
   edit_evaluation_form:
     kind: scene_form_update
     scene: evaluation
     settingOperation: updateEvaluationSetting
     settingKey: evaluation_setting
-    title: 编辑测评表单
+    title: Edit an evaluation form
     description: >-
-      编辑测评场景表单：名称 / 描述 / 题目增删改 / 通用设置，以及 evaluation_setting 测评设置。先更新测评设置，再更新表单本身。
-      计分题的 answers / answer_setting_mode 写法同 create_evaluation_form（每个选项一条答案并设 relative）。
+      Edits an evaluation form: name / description / adding, removing and changing questions / general settings, plus the evaluation settings in evaluation_setting.
+      Updates the evaluation settings first, then the form itself.
+      Scored questions write answers / answer_setting_mode as in create_evaluation_form (one answer per choice, with relative).
   count_entries:
     kind: count_entries
-    title: 统计数据条数
+    title: Count entries
     description: >-
-      按条件统计数据条数，不返回数据本身。form_token 传单个 token 统计一个表单（支持 keyword / filters）；
-      传最多 10 个 token 的数组则一次统计多个表单并给出合计（此时 filters 只能用 created_at / updated_at / creator_id，不支持 keyword）。
+      Counts the entries matching the conditions, without returning them. A single form_token counts one form (keyword / filters supported);
+      an array of up to 10 tokens counts several forms in one call and gives the total (filters can then use only created_at / updated_at / creator_id, and keyword is not supported).
 
 # ---- 4. 生成规则 ----
 
@@ -180,31 +181,30 @@ bodyParam:
 parameters:
   EntriesFilters:
     descriptionAppend: |-
-      - 多选字段按「含某个选项」筛选用 `any_in`（排除用 `none_in`）；`eq` 不是「包含」，只匹配整组选项完全相同的数据。
+      - To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not "contains": it matches only entries with exactly the same set of choices.
 
 # ---- 6. 按操作覆盖：descriptionAppend（追加说明）、description（整段替换 openapi 的描述，只在原文对模型是噪音时用）、
 #         annotations（覆盖推断）、outputSchema（true / false 强制） ----
 tools:
   listForms:
-    descriptionAppend: 通常是会话的第一步：先拿到表单 token，再调用 get_form / list_entries。
+    descriptionAppend: >-
+      Usually the first call of a session: get the form token here, then call get_form / list_entries.
   getForm:
-    descriptionAppend: 返回的 fields 里每个字段的 api_code 是读写数据时的键。
+    descriptionAppend: The api_code of each field in the returned fields is its key when reading and writing entries.
   createForm:
     descriptionAppend: >-
-      fields 每项的结构按 type 分支，先用 get_schema("FieldInput") 看类型列表，再用 get_schema("<Type>Input")
-      （如 "TextFieldInput"）看该类型接受的属性；不要自己猜字段属性。考试 / 测评表单请用 create_exam_form / create_evaluation_form。
+      Each item of fields branches on type: get_schema("FieldInput") lists the types, then get_schema("<Type>Input")
+      (e.g. "TextFieldInput") shows the properties that type accepts; do not guess field properties. For an exam or evaluation form use create_exam_form / create_evaluation_form.
   updateForm:
-    descriptionAppend: 删除字段 / 选项前先用 check_field_data 确认是否已有数据，删除不可逆。只改字段规则时用 edit_field_rules。
-  updateEntry:
-    descriptionAppend: 只更新传入的键（PATCH）；整体覆盖的 PUT 不提供。
+    descriptionAppend: Before removing a field or choice, check_field_data tells whether it already has entries; removal cannot be undone. To change only field rules, use edit_field_rules.
   deleteEntry:
     annotations: { destructiveHint: true }
   createEntryImport:
     descriptionAppend: >-
-      只用于客户端真实持有、已用 upload_import_file 上传的文件。对话里贴的表格 / CSV 文本直接用 create_entries 写入（每批 ≤ 200 条），不要先转成文件再导入。
+      Only for a file the client actually holds and has uploaded with upload_import_file. Table / CSV text pasted into the conversation goes straight to create_entries (at most 200 per batch); do not turn it into a file to import.
   uploadImportFile:
     # openapi 原文讲的是 HTTP 鉴权与 multipart，对 MCP 调用方是噪音，整段替换。
     description: >-
-      把客户端真实持有的表格文件（xlsx / xls / csv）上传到指定表单，返回导入附件 id；随后把它作为 attachment_id 交给 import_entries_from_file 发起导入。
-      对话里贴的表格 / CSV 文本不要走这里（不要自行编成 base64 当文件上传），直接用 create_entries 写入（每批 ≤ 200 条）。
-      文件大小受账号套餐的 Excel 导入上限限制，扩展名须为 xls / xlsx / csv；不满足时返回 422，error_description 为具体原因。
+      Uploads a spreadsheet file (xlsx / xls / csv) the client actually holds to the given form and returns the import attachment id; pass it as attachment_id to import_entries_from_file to start the import.
+      Table / CSV text pasted into the conversation does not go through here (do not encode it as base64 and upload it as a file); write it with create_entries (at most 200 per batch).
+      The file size is capped by the plan's Excel import limit, and the extension must be xls / xlsx / csv; otherwise returns 422 with the reason in error_description.

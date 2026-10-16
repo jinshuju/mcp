@@ -14,13 +14,13 @@ import metaJson from './generated/meta.json' with { type: 'json' };
 export const META = metaJson as GeneratedMeta;
 
 export const INSTRUCTIONS = [
-  '金数据（Jinshuju）表单 / 表格 / 数据的 MCP 服务，工具一一对应开放 API v1，按 openapi.yaml 生成。',
-  '常见路径：list_forms 找到表单 token → get_form 看字段 api_code → list_entries / count_entries / aggregate_entries 读数据；',
-  '写入用 create_entry / patch_entries_batch，字段键是 api_code。',
-  '建表单：先 get_schema("FieldInput") 看字段类型，再 get_schema("<Type>Input") 看该类型属性，然后 create_form。',
-  '入参里「结构见 schema「X」」的地方一律用 get_schema 查，不要猜。',
-  '报错会给出 HTTP 状态和服务端的 error_description / errors，按提示修正后重试；429 按 Retry-After 等待。',
-  '个人令牌只看得到自己创建或被共享的表单；企业令牌看得到企业全部表单。'
+  'MCP server for Jinshuju (金数据) forms, tables and entries. Each tool maps to the open API v1 and is generated from its openapi.yaml.',
+  "Usual path: list_forms finds the form token → get_form shows the fields' api_code → list_entries / count_entries / aggregate_entries read entries;",
+  'create_entry / patch_entries write them, keyed by api_code.',
+  'To create a form: get_schema("FieldInput") lists the field types, get_schema("<Type>Input") shows a type\'s properties, then call create_form.',
+  'Wherever an input says `Shape: schema "X"`, look X up with get_schema; do not guess.',
+  "An error gives the HTTP status and the server's error_description / errors; fix the call as they say and retry. On 429, wait as Retry-After says.",
+  'A personal token sees only the forms its user created or that are shared with them; an account token sees every form in the account.'
 ].join('\n');
 
 export interface BuildServerOptions {
@@ -76,13 +76,13 @@ export function buildServer({
       }
     }),
     {
-      title: 'API v1 数据结构定义',
-      description: 'openapi.yaml 中 components.schemas 的 JSON Schema，按名字读取。',
+      title: 'API v1 schemas',
+      description: 'JSON Schemas from components.schemas of openapi.yaml, read by name.',
       mimeType: 'application/schema+json'
     },
     async (uri, { name }) => {
       const schema = SCHEMAS[String(name)];
-      if (!schema) throw new Error(`没有名为 ${String(name)} 的 schema`);
+      if (!schema) throw new Error(`No schema named ${String(name)}`);
       return { contents: [{ uri: uri.href, mimeType: 'application/schema+json', text: JSON.stringify(schema) }] };
     }
   );

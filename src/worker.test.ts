@@ -119,7 +119,7 @@ test('工具里 API 连不上：模型照常看到报错；Sentry 记 warning，
   });
   const result = await h.callTool('list_forms', { limit: 1 });
   assert.equal(result.isError, true);
-  assert.match(text(result), /无法连接金数据 API/);
+  assert.match(text(result), /Could not reach the Jinshuju API/);
   const events = h.events();
   assert.equal(events.length, 1);
   const [event] = events;

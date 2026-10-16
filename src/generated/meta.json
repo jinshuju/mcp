@@ -1,8 +1,8 @@
 {
   "generatedFrom": {
-    "title": "金数据 API v1",
+    "title": "Jinshuju API v1",
     "version": "1.0",
-    "sha256": "0cb3f0322a17c5e0"
+    "sha256": "54912d2240cc55de"
   },
   "baseUrl": "https://jinshuju.net/api/v1",
   "toolCount": 60,
@@ -93,21 +93,21 @@
     "FormCreateConstraints"
   ],
   "tags": {
-    "Forms": "表单：列表、结构、创建与编辑，以及字段规则、协作者、复制、移动等附属操作。",
-    "Form Settings": "表单设置：提交设置、访问策略、Webhook、主题、关闭规则、考试 / 测评场景设置。",
-    "Entries": "表单数据：列表、查询、新增、更新、删除与批量操作。",
-    "Tables": "数据表格（kind=table）：结构与数据，字段类型限于表格支持的列类型。",
-    "Views": "表单 / 表格视图（视图筛选、排序、列配置）及按视图读取数据。",
-    "Comments": "数据评论。",
-    "Fill": "填写链接：以填写者身份读取填写页（`/f/`、`/v/`）并按它提交数据。",
-    "OpenSearch": "对外查询。",
-    "Folders": "文件夹。",
-    "Predefined Choices Sets": "预置选项集。",
-    "Templates": "模板使用。",
-    "Contacts": "联系人。",
-    "Account": "当前用户与企业账户：成员、发票、消费记录、短信签名审核状态。",
-    "Trade": "小金商户：商户与入驻进度、收款订单、交易统计、退款与提现。",
-    "Uploads": "附件、表单图片、导入文件的上传。",
-    "Utilities": "工具类接口。"
+    "Forms": "Forms: list, structure, create and edit, plus field display rules, cooperators, copy, move and other related operations.",
+    "Form Settings": "Form settings: submission settings, access policy, Webhook, theme, closing rules, exam / evaluation scene settings.",
+    "Entries": "Form entries: list, query, create, update, delete and batch operations.",
+    "Tables": "Tables (kind=table): structure and entries; field types are limited to the column types tables support.",
+    "Views": "Form / table views (view filters, sort, column configuration) and reading entries through a view.",
+    "Comments": "Entry comments.",
+    "Fill": "Fill links: read the fill page (`/f/`, `/v/`) as a submitter and submit entries through it.",
+    "OpenSearch": "Public queries.",
+    "Folders": "Folders.",
+    "Predefined Choices Sets": "Predefined choice sets.",
+    "Templates": "Using templates.",
+    "Contacts": "Contacts.",
+    "Account": "Current user and account: members, e-invoices, payment history, SMS signature review status.",
+    "Trade": "小金商户: merchant and onboarding progress, payment orders, transaction statistics, refunds and payouts.",
+    "Uploads": "Uploading attachments, form images and import files.",
+    "Utilities": "Utility endpoints."
   }
 }

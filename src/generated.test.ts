@@ -121,10 +121,14 @@ test('共享参数的 descriptionAppend 只追加到引用它的操作', () => {
     (TOOLS.find((t) => t.name === name)!.inputSchema.properties as Record<string, { description?: string }>).filters
       ?.description ?? '';
   for (const name of ['list_entries', 'count_entries', 'aggregate_entries', 'get_form_data_summary']) {
-    assert.match(filtersOf(name), /整组选项完全相同/, name);
+    assert.match(filtersOf(name), /exactly the same set of choices/, name);
   }
   for (const name of ['list_forms', 'search_entries_in_forms']) {
-    assert.doesNotMatch(filtersOf(name), /整组选项完全相同/, `${name} 的 filters 是按表单属性筛选的另一个参数`);
+    assert.doesNotMatch(
+      filtersOf(name),
+      /exactly the same set of choices/,
+      `${name} 的 filters 是按表单属性筛选的另一个参数`
+    );
   }
 });
 
@@ -188,7 +192,12 @@ test('注解按 HTTP 方法推断，overlay 可覆盖；scope 行抽到 scopes',
   assert.equal(byName.create_entry.annotations.readOnlyHint, false);
   assert.ok(byName.create_form.description.includes('get_schema'));
   assert.deepEqual(byName.list_entries.scopes, ['read_entries']);
-  assert.ok(!byName.list_entries.description.includes('OAuth 令牌需要 scope'));
+  assert.ok(!byName.list_entries.description.includes('OAuth scope'));
+  // 单行说明里 scope 跟在句末；按 image_type 分情况写的那行只取 scope 名
+  assert.deepEqual(byName.list_form_views.scopes, ['forms']);
+  assert.ok(!byName.list_form_views.description.includes('OAuth scope'));
+  assert.deepEqual(byName.upload_form_image.scopes, ['forms', 'form_setting']);
+  assert.ok(!byName.upload_form_image.description.includes('OAuth scope'));
 });
 
 test('导入工具把对话里贴的数据引导到 create_entries；upload_import_file 不讲 HTTP 鉴权与 multipart', () => {
@@ -197,7 +206,7 @@ test('导入工具把对话里贴的数据引导到 create_entries；upload_impo
     assert.match(byName[name].description, /create_entries/, name);
   }
   const upload = byName.upload_import_file.description;
-  assert.ok(upload.startsWith('上传导入文件\n'), 'summary 保留在第一行');
-  assert.doesNotMatch(upload, /multipart|鉴权|401/);
+  assert.ok(upload.startsWith('Upload an import file\n'), 'summary 保留在第一行');
+  assert.doesNotMatch(upload, /multipart|credential|401/);
   assert.match(upload, /xls \/ xlsx \/ csv/);
 });

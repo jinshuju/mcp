@@ -78,10 +78,12 @@ function refName(ref: string): string {
   return ref.split('/').pop() ?? ref;
 }
 
+const POINTER_PREFIX = 'Shape: schema ';
+
 function pointerStub(name: string): Json {
   return {
     type: 'object',
-    description: `结构见 schema「${name}」：调用 get_schema 工具（name="${name}"）或读取资源 jinshuju://schemas/${name}。`
+    description: `${POINTER_PREFIX}"${name}"; call get_schema (name="${name}") or read the resource jinshuju://schemas/${name}.`
   };
 }
 
@@ -90,7 +92,7 @@ function isPointerStub(schema: unknown): boolean {
     !!schema &&
     typeof schema === 'object' &&
     typeof (schema as Json).description === 'string' &&
-    ((schema as Json).description as string).startsWith('结构见 schema「')
+    ((schema as Json).description as string).startsWith(POINTER_PREFIX)
   );
 }
 
@@ -107,7 +109,7 @@ function inline(node: unknown, seen: readonly string[] = []): unknown {
     const name = refName(ref);
     if (pointer.has(name)) return pointerStub(name);
     if (omit.has(name)) return {};
-    if (seen.includes(ref)) return { type: 'object', description: `递归结构（${name}）` };
+    if (seen.includes(ref)) return { type: 'object', description: `Recursive structure (${name})` };
     const target = inline(lookup(ref), [...seen, ref]) as Json;
     const siblings = { ...obj };
     delete siblings.$ref;
@@ -149,9 +151,9 @@ function collapseVariants(schema: Json): Json {
     const titles = list.map((item) => (item as Json)?.title).filter((t): t is string => typeof t === 'string');
     if (titles.length !== list.length) continue;
     const { [key]: _dropped, ...rest } = schema;
-    const hint = `按 type 分支，每个分支的专属属性用 get_schema 查看：${titles.slice(0, 8).join('、')}${
-      titles.length > 8 ? ` 等 ${titles.length} 种` : ''
-    }。`;
+    const hint = `Branches on type; get_schema shows each branch's own properties: ${titles.slice(0, 8).join(', ')}${
+      titles.length > 8 ? `, ${titles.length} in all` : ''
+    }.`;
     rest.description = rest.description ? `${rest.description}\n${hint}` : hint;
     if (rest.type === undefined) rest.type = 'object';
     return rest;
@@ -161,11 +163,31 @@ function collapseVariants(schema: Json): Json {
 
 // ---------- 描述 / 注解 ----------
 
-const SCOPE_LINE = /^\s*OAuth 令牌需要 scope[:：]\s*(.+?)\s*$/m;
+/**
+ * 操作说明里的 `OAuth scope: forms`：多行说明里独占一行，单行说明里跟在句末。抽进 scopes，不留在工具描述里。
+ * 个别是按条件写的（`forms when image_type … ; form_setting otherwise`），从中只认 spec 里单独出现过的 scope 名。
+ */
+const SCOPE_LINE = /(?:^|[ \t]+)OAuth scope:[ \t]*(.+?)[ \t]*(?:\n|$)/m;
+const SCOPE_LIST = /^[a-z_]+(?:\s*[/,]\s*[a-z_]+)*$/;
+
+let scopeNames: Set<string> | undefined;
+function knownScopes(): Set<string> {
+  scopeNames ??= new Set(
+    [...rawOps.values()].flatMap(({ op }) => {
+      const value = SCOPE_LINE.exec((op.description as string) ?? '')?.[1] ?? '';
+      return SCOPE_LIST.test(value) ? value.split(/[\s/,]+/) : [];
+    })
+  );
+  return scopeNames;
+}
 
 function splitScopes(description: string): { text: string; scopes: string[] } {
-  const match = SCOPE_LINE.exec(description);
-  const scopes = match ? match[1].split(/[\s/、,]+/).filter(Boolean) : [];
+  const value = SCOPE_LINE.exec(description)?.[1];
+  const scopes = !value
+    ? []
+    : SCOPE_LIST.test(value)
+      ? value.split(/[\s/,]+/)
+      : [...new Set(value.match(/[a-z_]+/g))].filter((word) => knownScopes().has(word));
   const text = description
     .replace(SCOPE_LINE, '')
     .replace(/\n{3,}/g, '\n\n')
@@ -380,12 +402,15 @@ function multipartSchema(raw: Json): Json {
   const props = (schema.properties ?? {}) as Json;
   const req = new Set((schema.required as string[]) ?? []);
   if ('file' in props) {
-    const fileDesc = ((props.file as Json).description as string) ?? '要上传的文件';
+    const fileDesc = (((props.file as Json).description as string) ?? 'The file to upload').replace(/\.$/, '');
     delete props.file;
     req.delete('file');
-    props.file_base64 = { type: 'string', description: `${fileDesc}。文件内容的 Base64（可带 data URI 前缀）。` };
-    props.file_name = { type: 'string', description: '文件名（含扩展名）' };
-    props.content_type = { type: 'string', description: '文件的 MIME 类型，如 image/png、text/csv' };
+    props.file_base64 = {
+      type: 'string',
+      description: `${fileDesc}. The file content as Base64 (a data URI prefix is fine).`
+    };
+    props.file_name = { type: 'string', description: 'File name, with extension' };
+    props.content_type = { type: 'string', description: 'MIME type of the file, e.g. image/png, text/csv' };
     req.add('file_base64');
     req.add('file_name');
     req.add('content_type');
@@ -398,7 +423,7 @@ function multipartSchema(raw: Json): Json {
 function describe(built: Built, override: ToolOverride = {}, outputSchema = built.outputSchema): string {
   const parts = [built.summary, override.description?.trim() ?? built.operation.description];
   if (!outputSchema && built.operation.responseSchema) {
-    parts.push(`返回结构见 schema「${built.operation.responseSchema}」（get_schema 可查看）。`);
+    parts.push(`Returns schema "${built.operation.responseSchema}" (see get_schema).`);
   }
   if (override.descriptionAppend) parts.push(override.descriptionAppend.trim());
   return parts.filter(Boolean).join('\n');
@@ -474,9 +499,9 @@ for (const [name, composite] of Object.entries(overlay.composites ?? {})) {
       type: ['string', 'array'],
       items: { type: 'string' },
       maxItems: 10,
-      description: '表单 token；或最多 10 个 token 的数组，一次统计多个表单'
+      description: 'A form token, or an array of up to 10 tokens to count several forms in one call'
     };
-    extra.push(`多表单统计（form_token 为数组时）：${across.operation.description}`);
+    extra.push(`Several forms (form_token is an array): ${across.operation.description}`);
   } else {
     if (!composite.settingOperation || !composite.settingKey || !composite.scene) {
       throw new Error(`composite ${name}: scene / settingOperation / settingKey are required`);
@@ -494,7 +519,7 @@ for (const [name, composite] of Object.entries(overlay.composites ?? {})) {
               )
             )
           }),
-      description: `${composite.scene === 'exam' ? '考试' : '测评'}设置（${composite.settingOperation}）：${setting.operation.description}`
+      description: `${composite.scene === 'exam' ? 'Exam' : 'Evaluation'} settings (${composite.settingOperation}): ${setting.operation.description}`
     };
     extra.push(built.operation.description);
   }
@@ -543,7 +568,7 @@ function componentSchema(name: string): Json {
       );
       resolved['x-variants'] = mapping;
       resolved.description =
-        `${(resolved.description as string) ?? ''}\n按 type 分支：x-variants 列出了 type -> 分支 schema 名，用 get_schema 查看具体分支（如 "TextFieldInput"）。`.trim();
+        `${(resolved.description as string) ?? ''}\nBranches on type: x-variants maps each type to its branch schema; get_schema shows a branch (e.g. "TextFieldInput").`.trim();
     }
     return resolved;
   } finally {

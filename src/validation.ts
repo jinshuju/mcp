@@ -27,14 +27,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const NOISE = [/^Property "[^"]+" does not match (additional properties )?schema\.$/, /^False boolean schema\.$/];
 
 function readable(message: string | undefined): string {
-  if (!message) return '参数不合法';
+  if (!message) return 'Invalid arguments';
   const lines = message
     .split('; ')
     .map((line) =>
-      line.replace(/^#\/?([^:]*):\s*/, (_m, path: string) => (path ? `${path.replace(/\//g, '.')}：` : ''))
+      line.replace(/^#\/?([^:]*):\s*/, (_m, path: string) => (path ? `${path.replace(/\//g, '.')}: ` : ''))
     );
-  const specific = lines.filter((line) => !NOISE.some((re) => re.test(line.replace(/^.*：/, ''))));
-  return [...new Set(specific.length > 0 ? specific : lines)].join('；');
+  const specific = lines.filter((line) => !NOISE.some((re) => re.test(line.replace(/^[^:]*: /, ''))));
+  return [...new Set(specific.length > 0 ? specific : lines)].join('; ');
 }
 
 export const toolInputValidator: jsonSchemaValidator = {
@@ -55,7 +55,7 @@ export const toolInputValidator: jsonSchemaValidator = {
           return {
             valid: false,
             data: undefined,
-            errorMessage: `不存在的参数：${extra.join('、')}。这个工具只接受：${known.join('、')}`
+            errorMessage: `Unknown arguments: ${extra.join(', ')}. This tool accepts only: ${known.join(', ')}`
           };
         }
       }
