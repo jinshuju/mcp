@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.1](https://github.com/jinshuju/mcp/compare/v0.2.0...v0.2.1) (2026-10-16)
+
+
+### Documentation
+
+* rewrite the README for users and drop the retired built-in MCP ([3b89432](https://github.com/jinshuju/mcp/commit/3b89432d073b730095c82ef48284835f612fcb07))
+
+
+### Chores
+
+* list docs in the changelog and release 0.2.1 ([e91f65c](https://github.com/jinshuju/mcp/commit/e91f65c939798a0a43fca5482df2959f846de0f7))
+
 ## [0.2.0](https://github.com/jinshuju/mcp/compare/v0.1.0...v0.2.0) (2026-10-16)
 
 
