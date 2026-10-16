@@ -80,13 +80,21 @@ test('tools/call: extra keys are named, along with the arguments the tool accept
   assert.equal(result.isError, true);
   assert.equal(calls.length, 0);
   const text = (result.content[0] as { text: string }).text;
-  assert.match(text, /Unknown arguments: scene, report/);
+  assert.match(text, /Unknown arguments: report\./);
   assert.match(text, /accepts only: .*name.*fields.*evaluation_setting/);
   assert.doesNotMatch(text, /additional properties/);
 
   const typed = await client.callTool({ name: 'list_entries', arguments: { form_token: 'AbCdEf', limit: 'ten' } });
   assert.equal(typed.isError, true);
   assert.match((typed.content[0] as { text: string }).text, /: limit: Instance type "string" is invalid/);
+
+  // scene is accepted on the create tools, but only as the tool's own scene
+  const wrongScene = await client.callTool({
+    name: 'create_evaluation_form',
+    arguments: { name: '职场压力自测', scene: 'exam', fields: [] }
+  });
+  assert.equal(wrongScene.isError, true);
+  assert.equal(calls.length, 0);
   await close();
 });
 
@@ -148,7 +156,12 @@ test('composite tools: create_exam_form creates the form, then writes the settin
   const { client, close } = await connect(fetchImpl);
   const created = await client.callTool({
     name: 'create_exam_form',
-    arguments: { name: '期末考试', fields: [{ type: 'SingleSelect', label: 'Q1' }], exam_setting: { limited_time: 45 } }
+    arguments: {
+      name: '期末考试',
+      scene: 'exam',
+      fields: [{ type: 'SingleSelect', label: 'Q1' }],
+      exam_setting: { limited_time: 45 }
+    }
   });
   assert.equal(created.isError, undefined);
   assert.equal(calls.length, 2);
