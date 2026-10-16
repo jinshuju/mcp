@@ -1,4 +1,4 @@
-# 找表单 (finding forms / the account): the first step of a session. Source: in production sessions on the built-in MCP the most common opening is list_forms → get_form → count_entries.
+# 找表单 (finding forms / the account): the first step of a session. Source: in production sessions the most common opening is list_forms → get_form → count_entries.
 - id: find-01
   category: 找表单
   title: Find a form by topic and report its entry count

@@ -3,8 +3,8 @@
  * npm run eval -- <command> [options]
  *
  *   seed [--reset]                       Prepare the fixtures (forms + entries) in the eval account; writes state/fixtures.json
- *   run [options]                        Run the matrix; by default every task × EVAL_MODELS × new,builtin
- *       --models a,b  --mcp new,builtin  --tasks id,id  --category 读数据,统计汇总  --sample n
+ *   run [options]                        Run the matrix; by default every task × EVAL_MODELS against this repo's MCP
+ *       --models a,b  --mcp new,name=url  --tasks id,id  --category 读数据,统计汇总  --sample n
  *       --repeat n  --concurrency n  --judge model  --run-id id  --resume  --verbose  --no-upload
  *       --description-limit n            Truncate tool descriptions to n characters (for gateways with a 1024 limit)
  *   report <run_id>                      Write report.md / summary.json
@@ -12,7 +12,7 @@
  *   reset [alias...]                     Restore fixtures to what fixtures.yaml describes
  *   sweep [--hours n]                    Move non-fixture forms created in the last n hours into the output folder
  *   tasks                                List the sample set
- *   catalog                              Connect to each MCP and print its version, tool count and catalog size
+ *   catalog                              Connect to the MCP(s) and print the version, tool count and catalog size
  */
 import { mkdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -132,7 +132,7 @@ async function main(): Promise<void> {
     }
     case 'catalog': {
       const { credential } = await makeApi(cfg);
-      for (const target of parseTargets(list(flags.mcp) ?? ['new', 'builtin'], cfg)) {
+      for (const target of parseTargets(list(flags.mcp) ?? ['new'], cfg)) {
         const mcp = await connectMcp(target, credential, cfg);
         log(`${target.name}: ${mcp.version}`);
         log(
@@ -155,7 +155,7 @@ async function main(): Promise<void> {
       });
       if (!tasks.length) throw new Error('No tasks selected');
       const models = list(flags.models) ?? cfg.models;
-      const targets = parseTargets(list(flags.mcp) ?? ['new', 'builtin'], cfg);
+      const targets = parseTargets(list(flags.mcp) ?? ['new'], cfg);
       const runId = str(flags['run-id']) ?? newRunId();
       const runDir = resolve(cfg.resultsDir, runId);
       mkdirSync(runDir, { recursive: true });

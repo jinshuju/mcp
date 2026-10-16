@@ -1,0 +1,77 @@
+# Development
+
+How to build, run, deploy and evaluate `@jinshuju/mcp`. The README covers using it; [ARCHITECTURE.md](ARCHITECTURE.md) covers how it fits together.
+
+## Commands
+
+```bash
+npm install
+npm run generate     # spec/openapi.yaml + mcp.overlay.yaml -> src/generated/ (operations / tools / schemas / meta)
+npm run check        # typecheck + oxlint + oxfmt
+npm test             # builds, then runs node:test without touching the network
+npm run dev          # local HTTP server: http://127.0.0.1:8787/mcp
+npm run spec:update  # fetches the latest live openapi.yaml and regenerates
+```
+
+After changing `mcp.overlay.yaml` or updating `spec/openapi.yaml`, run `npm run generate` and commit `src/generated/`; CI checks it.
+
+## Environment variables
+
+| Variable                          | Meaning                                                                                                                                                |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `JINSHUJU_ACCESS_TOKEN`           | Credential for stdio mode; when set, the config file is not read                                                                                       |
+| `JINSHUJU_CONFIG`                 | Config file path, default `~/.jinshuju/config.json`                                                                                                    |
+| `JINSHUJU_API_BASE_URL`           | API URL, default `https://jinshuju.net/api/v1`                                                                                                         |
+| `JINSHUJU_AUTH_HOST`              | Authorization server, default `https://account.jinshuju.net`                                                                                           |
+| `JINSHUJU_MCP_PUBLIC_URL`         | Public URL in HTTP mode (the resource in the OAuth metadata); a comma-separated list is chosen by the request's Host; empty infers it from the request |
+| `JINSHUJU_MCP_MAX_RESULT_CHARS`   | Maximum characters of one result, default 120000; longer results are truncated with a hint to page                                                     |
+| `JINSHUJU_MCP_TOKEN_CACHE_TTL_MS` | Token verification cache in HTTP mode, default 5 minutes                                                                                               |
+| `POSTHOG_API_KEY`                 | PostHog project token (`phc_…`); when set, HTTP mode reports MCP analytics, see below                                                                  |
+| `POSTHOG_HOST`                    | PostHog ingestion host, default `https://us.i.posthog.com`                                                                                             |
+| `JINSHUJU_MCP_COLLECT_INTENT`     | Whether the model writes the user's intent in each call (`context` argument → `$mcp_intent`), default `true`                                           |
+| `SENTRY_DSN`                      | Sentry project DSN; when set, the Workers entry reports exceptions, see below                                                                          |
+| `SENTRY_ENVIRONMENT`              | Sentry environment name, optional                                                                                                                      |
+| `PORT` / `HOST`                   | Where the Node entry listens, default 8787 / 0.0.0.0                                                                                                   |
+
+## Deployment
+
+- **Docker (official)**: `docker build -t jinshuju-mcp . && docker run -p 8787:8787 -e JINSHUJU_MCP_PUBLIC_URL=https://mcp.jinshuju.net jinshuju-mcp`
+- **Cloudflare Workers (optional)**: `npx wrangler login && npm run worker:deploy`
+- **WDL or another Workers-compatible platform (optional)**: with [`@wdl-dev/cli`](https://github.com/wdl-dev/cli) installed and its token configured, `npm run wdl:deploy`;
+  set the public URL as the secret `JINSHUJU_MCP_PUBLIC_URL` (`wdl secret put --worker jinshuju-mcp JINSHUJU_MCP_PUBLIC_URL`),
+  with several entry points comma-separated, e.g. `https://mcp.jinshuju.net,https://<ns>.<platform>/jinshuju-mcp`;
+  to report to PostHog add the secret `POSTHOG_API_KEY` (and `POSTHOG_HOST` if needed); to report to Sentry add `SENTRY_DSN`.
+
+The service is stateless and needs no database, KV or Durable Objects.
+
+## Usage analytics (PostHog MCP analytics)
+
+With `POSTHOG_API_KEY` set, the HTTP deployment reports tool usage through [@posthog/mcp](https://posthog.com/docs/mcp-analytics):
+
+- Only `$mcp_initialize` (legacy handshake) and `$mcp_tool_call` are reported; `tools/list`, resources, `$identify` and `$exception` are not;
+- A tool call records the tool name, the argument names (`$mcp_input_keys`), the duration, whether it failed and the truncated error, **but not the argument values or the result**;
+- Every tool gets one more argument, `context`, where the model writes what the user wants to do (`$mcp_intent`); email addresses, phone numbers, IPs and card numbers in it are masked before sending.
+  With `JINSHUJU_MCP_COLLECT_INTENT=false` the argument is no longer advertised, and a client that still sends it gets no error;
+- `distinct_id` is the Jinshuju user id; `$session_id` is derived from a hash of the token (one session per token); the client name / version come from the handshake or each request's `_meta`.
+
+stdio (local) mode reports nothing.
+
+## Error monitoring (Sentry)
+
+The Workers entry (`src/worker.ts`) is wrapped with [@sentry/cloudflare](https://docs.sentry.io/platforms/javascript/guides/cloudflare/) and reports once `SENTRY_DSN` is set:
+
+- It reports the unexpected: exceptions thrown by tool handlers (an unreachable API / timeout is a warning), the API being unreachable during token verification, and errors the routes did not catch. A 4xx / 5xx from the API is a normal tool result and is not reported;
+- No request bodies, IPs or cookies are collected, and tracing is off; sensitive request headers such as `Authorization` are scrubbed to `[Filtered]` by the SDK; the user is recorded only as the Jinshuju user id.
+
+The Node entry (Docker) and stdio report nothing.
+
+## Evals
+
+`evals/` is an automated, multi-model evaluation built from real usage: 42 tasks (categories 找表单 / 读数据 / 统计汇总 / 建表单 / 改设置 / 批量写入 / 导入 — find forms, read entries, aggregate, create forms, change settings, batch writes, import)
+run by several models against this repository's MCP, are scored by assertions, produce pass-rate and token tables by model × category,
+and write every run into a Jinshuju form. Usage, task format and metrics are in [evals/README.md](evals/README.md).
+
+```bash
+npm run eval -- seed     # prepares fixture data in the eval account
+npm run eval -- run      # all tasks × EVAL_MODELS → evals/results/<run_id>/report.md
+```

@@ -1,8 +1,8 @@
 # evals/ — MCP evals
 
 Automated, multi-model evaluation and scoring built from real usage.
-The same tasks and the same models run against both the **new MCP** (this repository, connected in process) and the **built-in MCP** (`https://jinshuju.net/mcp`),
-are scored by assertions, produce pass-rate and token tables by model × MCP × task category, and every run is written into a Jinshuju form.
+Fixed tasks are run by several models against this repository's MCP (connected in process by default, or a deployment over HTTP),
+are scored by assertions, produce pass-rate and token tables by model × task category, and every run is written into a Jinshuju form.
 
 ```
 evals/
@@ -20,7 +20,7 @@ evals/
     runner.ts          Task × model × MCP matrix, with read / write locks per fixture; writes results/<run_id>/
     report.ts          Aggregates into report.md / summary.json
     upload.ts          Writes to the Jinshuju form 「MCP 评测结果（自动写入）」 ("MCP eval results (written automatically)")
-  reports/             Archive of each round's comparison report (copies of report.md with conclusions) — not committed
+  reports/             Archive of each round's report (copies of report.md with conclusions) — not committed
   state/               fixtures.json (fixture tokens, api_codes, seed serial numbers, results form token) — not committed
   results/<run_id>/    meta.json, runs.jsonl, transcripts/, report.md, summary.json — not committed
 ```
@@ -36,19 +36,20 @@ evals/
 #    EVAL_JUDGE_MODEL=anthropic-claude-sonnet-5-5
 
 npm run eval -- seed            # creates the fixture forms in the eval account and seeds data (idempotent; --reset forces a re-seed)
-npm run eval -- catalog         # shows both MCPs' versions, tool counts and tools/list sizes
-npm run eval -- run             # all tasks × EVAL_MODELS × new,builtin; then writes the report and fills the results form
+npm run eval -- catalog         # shows the MCP's version, tool count and tools/list size
+npm run eval -- run             # all tasks × EVAL_MODELS; then writes the report and fills the results form
 npm run eval -- run --tasks read-01,agg-03 --models deepseek-v4.1-flash --mcp new --verbose --no-upload
 npm run eval -- report <run_id> # regenerates report.md / summary.json
 npm run eval -- upload <run_id> # writes the results into the Jinshuju form (idempotent)
 ```
 
 Other `run` options: `--category 读数据,统计汇总`, `--sample 10` (deterministic sampling), `--repeat 3`, `--concurrency 5`,
-`--judge <model>`, `--run-id <id>`, `--resume` (continue after an interruption), `--description-limit 1024` (truncates tool descriptions when the gateway limits their length).
+`--judge <model>`, `--run-id <id>`, `--resume` (continue after an interruption), `--description-limit 1024` (truncates tool descriptions when the gateway limits their length),
+`--mcp new,prod=https://jinshuju.net/mcp` (also runs against a deployment; `new` is this checkout, or `EVAL_NEW_MCP_URL` when set).
 
 ## Sample set
 
-The tasks come from real tool-call records after the built-in MCP went live:
+The tasks come from real tool-call records in production:
 usage patterns were drawn from the tool sequences of sessions (e.g. `list_forms → get_form → count_entries`, the `get_form → edit_form` round trip,
 `count_entries` failing on several forms with a keyword and switching to `search_entries_in_forms`, the date-format error of `list_form_entry_stats`),
 then written up as tasks stratified into the 7 categories; each task's `source` field records the session pattern it came from.
@@ -119,16 +120,16 @@ A task passes when all its assertions pass. `field` in assertions always uses th
 
 ## Scoring and metrics
 
-- **Main metric**: assertion pass rate, summarised by model × MCP × category.
+- **Main metric**: assertion pass rate, summarised by model × category.
 - **Secondary metrics**: per task, input / output tokens, turns, tool calls, tool errors, retries after errors, truncated results, duration and run errors.
 - Open-ended answers are checked claim by claim by an LLM judge; the judge model is fixed (`EVAL_JUDGE_MODEL`) and recorded in every result.
-- Both sides are treated alike: the same system prompt (with each MCP's own `instructions` appended), the same tool-result truncation threshold (120k characters by default, the same as the new MCP's own), the same turn limit.
-- `report.md` also gives the tools/list size of both sides, a fixed cost paid on every turn of a conversation.
+- Every model gets the same system prompt (with the server's `instructions` appended), the same tool-result truncation threshold (120k characters by default, the same as the server's own) and the same turn limit.
+- `report.md` also gives the tools/list size, a fixed cost paid on every turn of a conversation.
 
 ## Persistence
 
 After `run` (or with `upload <run_id>`), every run is written into the Jinshuju form 「MCP 评测结果（自动写入）」:
-date, run ID, MCP, MCP version (`commit=… openapi=…` for the new MCP, serverInfo + tools/list hash for the built-in one), model, task ID, task category, result,
+date, run ID, MCP, MCP version (`commit=… openapi=…` in process, serverInfo + tools/list hash over HTTP), model, task ID, task category, result,
 assertion details, input / output tokens, turns, tool calls, tool errors, duration, tool sequence, final answer and judge model.
 The form lives in the fixture folder, and its token is kept in `state/fixtures.json`; uploading the same run again writes nothing twice.
 
@@ -141,6 +142,6 @@ The report goes into the job summary, and `evals/results/` is kept as an artifac
 ## Known limitations
 
 - The open API has no endpoint to delete a form, so the output of form-creating tasks can only be archived into a folder and builds up in the account; use a dedicated eval account.
-- Import tasks only check that the data lands correctly: the built-in MCP's presigned upload needs the client to PUT the file itself, which a model cannot do, so models on both sides mostly switch to `create_entries`; the tool sequence shows which path was taken.
+- Import tasks only check that the data lands correctly: a model may write with `create_entries` instead of uploading a file; the tool sequence shows which path was taken.
 - When the plan does not support "show the score in exams" or "evaluation report", the server forces those settings to none, so no task asserts on them.
 - Live sessions do not record the natural-language intent, so task wording is reconstructed from tool sequences, not the user's exact words.
