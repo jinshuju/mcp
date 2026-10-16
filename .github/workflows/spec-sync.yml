@@ -1,10 +1,10 @@
 name: Sync openapi.yaml
 
-# 每天拉一次线上 openapi.yaml；有变化就重新生成工具并开一个 PR。
-# 这就是「通过 openapi.yaml 自动更新 jinshuju/mcp」：人只需要 review PR 里工具的 diff。
+# Fetches the live openapi.yaml once a day; when it changed, regenerates the tools and opens a PR.
+# This is how jinshuju/mcp follows openapi.yaml automatically: a person only reviews the tool diff in the PR.
 on:
   schedule:
-    - cron: '17 1 * * *' # 每天 09:17 北京时间
+    - cron: '17 1 * * *' # 09:17 Beijing time, daily
   workflow_dispatch:
 
 permissions:
@@ -27,13 +27,13 @@ jobs:
         run: |
           {
             echo 'body<<EOF'
-            echo '线上 openapi.yaml 有更新，已重新生成工具。'
+            echo 'The live openapi.yaml changed; the tools have been regenerated.'
             echo
             echo '```'
             git diff --stat -- spec src/generated | tail -20
             echo '```'
             echo
-            echo '工具数：' "$(node -e "console.log(require('./src/generated/meta.json').toolCount)")"
+            echo 'Tools:' "$(node -e "console.log(require('./src/generated/meta.json').toolCount)")"
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
       - uses: peter-evans/create-pull-request@v7

@@ -1,6 +1,6 @@
 /**
- * 评测自己用的 API 访问（种子数据、状态断言、重置、结果写入）。
- * 复用主包的 JinshujuApi 与操作表，不经过任何一个被测 MCP，保证「裁判」独立于「选手」。
+ * The eval's own API access (seed data, state assertions, resets, writing results).
+ * It reuses the main package's JinshujuApi and operation table and goes through neither MCP under test, so the referee stays independent of the players.
  */
 import { JinshujuApi, type ApiResponse } from '../../src/api.js';
 import { OPERATIONS } from '../../src/composites.js';
@@ -53,19 +53,19 @@ export class EvalApi {
     readonly credential: Credential
   ) {}
 
-  /** 按 operationId 调一次；非 2xx 抛 ApiError。 */
+  /** Calls one operation by operationId; a non-2xx response throws ApiError. */
   async op<T = unknown>(operationId: string, args: Record<string, unknown> = {}): Promise<T> {
     const spec = OPERATIONS[operationId];
-    if (!spec) throw new Error(`operations.json 里没有 ${operationId}`);
+    if (!spec) throw new Error(`${operationId} is not in operations.json`);
     const res = await this.api.call(spec, args, this.credential);
     if (res.status < 200 || res.status >= 300) throw new ApiError(operationId, res.status, res.json ?? res.text);
     return res.json as T;
   }
 
-  /** 同上，但返回原始响应（给「预期 400」这类探测用）。 */
+  /** Same, but returns the raw response (for probes that expect a 400). */
   async raw(operationId: string, args: Record<string, unknown> = {}): Promise<ApiResponse> {
     const spec = OPERATIONS[operationId];
-    if (!spec) throw new Error(`operations.json 里没有 ${operationId}`);
+    if (!spec) throw new Error(`${operationId} is not in operations.json`);
     return this.api.call(spec, args, this.credential);
   }
 
@@ -112,7 +112,7 @@ export class EvalApi {
     return this.op<FormDetail>('updateForm', { form_token: token, ...body });
   }
 
-  /** PATCH /forms/{token}/setting：操作表里请求体不 flatten，整个放在 body 键下。 */
+  /** PATCH /forms/{token}/setting: the operation table does not flatten this body; it all goes under the body key. */
   updateFormSetting(token: string, setting: Record<string, unknown>) {
     return this.op('updateFormSetting', { form_token: token, body: setting });
   }
@@ -125,7 +125,7 @@ export class EvalApi {
     return this.op('moveFormToFolder', { form_token: token, folder_token: folderToken });
   }
 
-  /** 考试 / 测评设置：非该场景的表单返回 400 → undefined。 */
+  /** Exam / evaluation settings: a form of another scene returns 400 → undefined. */
   async sceneSetting(kind: 'exam' | 'evaluation', token: string): Promise<Record<string, unknown> | undefined> {
     const res = await this.raw(kind === 'exam' ? 'getExamSetting' : 'getEvaluationSetting', { form_token: token });
     if (res.status >= 200 && res.status < 300) return (res.json ?? {}) as Record<string, unknown>;
@@ -164,7 +164,7 @@ export class EvalApi {
     return this.op<{ created?: unknown[]; errors?: unknown[] }>('createEntriesBatch', { form_token: token, entries });
   }
 
-  /** PATCH /forms/{token}/entries/{serial}：操作表里请求体不 flatten，整个放在 body 键下。 */
+  /** PATCH /forms/{token}/entries/{serial}: the operation table does not flatten this body; it all goes under the body key. */
   updateEntry(token: string, serial: number, entry: Record<string, unknown>) {
     return this.op('updateEntry', { form_token: token, serial_number: serial, body: entry });
   }
@@ -174,7 +174,7 @@ export class EvalApi {
   }
 }
 
-/** 把 get_form 的 fields（单键对象数组）展平成 [api_code, 定义] 列表，保持顺序。 */
+/** Flattens get_form's fields (an array of single-key objects) into an ordered list of [api_code, definition]. */
 export function flattenFields(form: FormDetail): { api_code: string; def: FieldDef }[] {
   return form.fields.map((item) => {
     const [api_code, def] = Object.entries(item)[0]!;

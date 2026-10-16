@@ -21,15 +21,15 @@ interface Captured {
   properties: Record<string, unknown>;
 }
 
-/** 假的金数据 API + 假的 PostHog：两边的请求都记下来，埋点内容从 /batch/ 的请求体里读。 */
+/** A fake Jinshuju API and a fake PostHog: both record their requests; events are read from the /batch/ request bodies. */
 function harness(
   options: {
     analytics?: boolean;
     collectIntent?: boolean;
     me?: Response;
-    /** 第一次 /batch 发不出去（等 posthog 的 requestTimeout 把它 abort），之后的正常 */
+    /** The first /batch never answers (until posthog's requestTimeout aborts it); later ones are normal */
     hangFirstBatch?: boolean;
-    /** /batch 一律回这个状态码 */
+    /** Every /batch answers with this status */
     batchStatus?: number;
     requestTimeoutMs?: number;
   } = {}
@@ -67,7 +67,7 @@ function harness(
         headers: JSON_HEADERS
       });
     }
-    return new Response('{"error":"not_found","error_description":"表单不存在"}', {
+    return new Response('{"error":"not_found","error_description":"form cannot be found"}', {
       status: 404,
       headers: JSON_HEADERS
     });
@@ -97,7 +97,7 @@ function harness(
 
 type App = ReturnType<typeof harness>['app'];
 
-/** 2025 旧握手：裸 JSON-RPC，带 MCP-Protocol-Version 与（客户端回放的）Mcp-Session-Id。 */
+/** The 2025 legacy handshake: plain JSON-RPC with MCP-Protocol-Version and the Mcp-Session-Id the client replays. */
 async function legacy(app: App, body: unknown, headers: Record<string, string> = {}) {
   const res = await app.request('https://mcp.test/mcp', {
     method: 'POST',
@@ -123,7 +123,7 @@ const INITIALIZE = {
 async function until(check: () => boolean, timeoutMs = 2000): Promise<void> {
   const started = Date.now();
   while (!check()) {
-    if (Date.now() - started > timeoutMs) throw new Error('等待超时');
+    if (Date.now() - started > timeoutMs) throw new Error('timed out waiting');
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
 }
@@ -145,19 +145,19 @@ async function modernClient(app: App) {
   return client;
 }
 
-test('没有一个生成的工具自己声明 context 参数：这个名字留给埋点用', () => {
+test('no generated tool declares a context argument of its own: the name is reserved for analytics', () => {
   for (const tool of TOOLS)
     assert.equal(Object.keys(tool.inputSchema.properties ?? {}).includes('context'), false, tool.name);
 });
 
-test('旧握手：只报 initialize 与 tool_call，记参数名不记参数值，意图来自 context，同一令牌同一会话', async () => {
+test('legacy handshake: only initialize and tool_call are reported, argument names without values, intent from context, one session per token', async () => {
   const h = harness();
   const init = await legacy(h.app, INITIALIZE);
   assert.equal(init.res.status, 200);
   assert.match(String(init.json?.result?.instructions), /`context` argument/);
-  // 无状态服务没有会话；PostHog SDK 在 initialize 时铸一个带客户端名字和版本的 Mcp-Session-Id，客户端之后会回放
+  // A stateless server has no session; the PostHog SDK mints an Mcp-Session-Id carrying the client name and version on initialize, and the client replays it
   const sessionHeader = init.res.headers.get('mcp-session-id');
-  assert.ok(sessionHeader, 'initialize 响应应带 Mcp-Session-Id');
+  assert.ok(sessionHeader, 'the initialize response carries Mcp-Session-Id');
   assert.equal(decodeSessionToken(sessionHeader).cn, 'claude-ai');
   const replay = { 'Mcp-Session-Id': sessionHeader };
 
@@ -170,7 +170,7 @@ test('旧握手：只报 initialize 与 tool_call，记参数名不记参数值�
   assert.notEqual(
     listForms.inputSchema.additionalProperties,
     false,
-    '加了 context 之后不能再是 additionalProperties: false'
+    'with context added, additionalProperties can no longer be false'
   );
 
   const ok = await legacy(
@@ -186,7 +186,7 @@ test('旧握手：只报 initialize 与 tool_call，记参数名不记参数值�
   assert.equal(ok.json?.result?.isError, undefined);
   assert.equal(h.apiCalls.length, 1);
   assert.match(h.apiCalls[0].url, /q(%5B%5D|\[\])?=13800138000/);
-  assert.doesNotMatch(h.apiCalls[0].url, /context/, 'context 不能流到 API');
+  assert.doesNotMatch(h.apiCalls[0].url, /context/, 'context never reaches the API');
 
   const failed = await legacy(
     h.app,
@@ -200,14 +200,14 @@ test('旧握手：只报 initialize 与 tool_call，记参数名不记参数值�
   );
   assert.equal(failed.json?.result?.isError, true);
 
-  // 同一个连接上的重复握手不再报
+  // A repeated handshake on the same connection is not reported again
   await legacy(h.app, { ...INITIALIZE, id: 5 });
 
   const events = await h.events();
   assert.deepEqual(
     events.map((e) => e.event),
     ['$mcp_initialize', '$mcp_tool_call', '$mcp_tool_call'],
-    'tools/list 不报，$identify 不报，重复握手不报'
+    'no event for tools/list, $identify or the repeated handshake'
   );
   for (const e of events) {
     assert.equal(e.distinct_id, 'u1');
@@ -216,7 +216,7 @@ test('旧握手：只报 initialize 与 tool_call，记参数名不记参数值�
     assert.equal(e.properties.$mcp_server_version, VERSION);
     assert.equal(e.properties.mcp_caller_type, 'external');
     assert.match(String(e.properties.$session_id), /^ses_[0-9a-f]{32}$/);
-    assert.equal(e.properties.$session_id, events[0].properties.$session_id, '同一令牌同一会话');
+    assert.equal(e.properties.$session_id, events[0].properties.$session_id, 'one token, one session');
   }
   const [initialize, call, failure] = events;
   assert.equal(initialize.properties.$mcp_client_name, 'claude-ai');
@@ -228,18 +228,22 @@ test('旧握手：只报 initialize 与 tool_call，记参数名不记参数值�
   assert.equal(call.properties.$mcp_intent_source, 'context_parameter');
   assert.equal(call.properties.$mcp_is_error, false);
   assert.equal(typeof call.properties.$mcp_duration_ms, 'number');
-  assert.equal(call.properties.$mcp_client_name, 'claude-ai', '工具调用从回放的 Mcp-Session-Id 里认出客户端');
+  assert.equal(
+    call.properties.$mcp_client_name,
+    'claude-ai',
+    'the tool call recognizes the client from the replayed Mcp-Session-Id'
+  );
   assert.equal(failure.properties.$mcp_tool_name, 'get_form');
   assert.equal(failure.properties.$mcp_is_error, true);
-  assert.match(String(failure.properties.$mcp_error_message), /表单不存在|404/);
+  assert.match(String(failure.properties.$mcp_error_message), /form cannot be found|404/);
   const wire = JSON.stringify(h.batches);
-  assert.doesNotMatch(wire, /13800138000/, '不记参数值');
-  assert.doesNotMatch(wire, /秘密表单/, '不记返回内容');
+  assert.doesNotMatch(wire, /13800138000/, 'argument values are not recorded');
+  assert.doesNotMatch(wire, /秘密表单/, 'results are not recorded');
   for (const key of ['$mcp_parameters', '$mcp_response', '$mcp_tool_description'])
     assert.doesNotMatch(wire, new RegExp(`"\\${key}"`));
 });
 
-test('2026-07-28 无状态客户端：client 信息来自每个请求的 _meta，会话仍按令牌派生', async () => {
+test("2026-07-28 stateless client: client info comes from each request's _meta, and the session is still derived from the token", async () => {
   const h = harness();
   const client = await modernClient(h.app);
   const { tools } = await client.listTools();
@@ -260,13 +264,13 @@ test('2026-07-28 无状态客户端：client 信息来自每个请求的 _meta�
   assert.equal(call.properties.$mcp_protocol_version, '2026-07-28');
   assert.equal(call.properties.$mcp_intent, '列出表单');
   assert.deepEqual(call.properties.$mcp_input_keys, ['limit']);
-  // 同一个令牌走旧握手得到的会话 id 与这里一致
+  // The same token gets the same session id over the legacy handshake
   const old = harness();
   await legacy(old.app, INITIALIZE);
   assert.equal((await old.events())[0].properties.$session_id, call.properties.$session_id);
 });
 
-test('关掉意图采集：不再下发 context，客户端照旧发来的 context 仍被接受但不上报', async () => {
+test('intent capture off: context is no longer advertised; a context the client still sends is accepted but not reported', async () => {
   const h = harness({ collectIntent: false });
   const init = await legacy(h.app, INITIALIZE);
   assert.doesNotMatch(String(init.json?.result?.instructions), /context/);
@@ -286,7 +290,7 @@ test('关掉意图采集：不再下发 context，客户端照旧发来的 conte
   assert.equal('$mcp_intent' in call.properties, false);
 });
 
-test('不配 PostHog：没有 context 参数，收到也不报错，什么都不上报', async () => {
+test('without PostHog: no context argument, receiving one is not an error, and nothing is reported', async () => {
   const h = harness({ analytics: false });
   const list = await legacy(h.app, { jsonrpc: '2.0', id: 2, method: 'tools/list' });
   const tools = list.json?.result?.tools as { name: string; inputSchema: { properties: Record<string, unknown> } }[];
@@ -301,7 +305,7 @@ test('不配 PostHog：没有 context 参数，收到也不报错，什么都不
   assert.equal(h.batches.length, 0);
 });
 
-test('GET /me 没给出用户：事件匿名，不建人', async () => {
+test('GET /me gives no user: events are anonymous and no person is created', async () => {
   const h = harness({ me: new Response('{"error":"forbidden"}', { status: 403, headers: JSON_HEADERS }) });
   await legacy(h.app, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'list_forms', arguments: {} } });
   const [call] = await h.events();
@@ -310,9 +314,9 @@ test('GET /me 没给出用户：事件匿名，不建人', async () => {
   assert.equal(call.properties.$process_person_profile, false);
 });
 
-test('PostHog 客户端按请求新建：前一个请求的上报发不出去，不耽误后面请求的上报', async () => {
+test("a PostHog client per request: one request's stuck upload does not hold up the next request's events", async () => {
   const h = harness({ hangFirstBatch: true, requestTimeoutMs: 200 });
-  const init = await legacy(h.app, INITIALIZE); // 这个请求的 flush 卡在第一次 /batch 上
+  const init = await legacy(h.app, INITIALIZE); // this request's flush hangs on the first /batch
   const replay = { 'Mcp-Session-Id': init.res.headers.get('mcp-session-id')! };
   const call = await legacy(
     h.app,
@@ -326,18 +330,18 @@ test('PostHog 客户端按请求新建：前一个请求的上报发不出去，
   );
   assert.equal(call.res.status, 200);
   await until(() => h.batches.length >= 1);
-  // 先到的是第二个请求的 tool_call：共用一个客户端的话，它会排在卡住的 initialize 后面一起等
+  // The second request's tool_call arrives first: with a shared client it would queue behind the stuck initialize
   assert.deepEqual(
     h.batches[0].batch.map((e) => e.event),
     ['$mcp_tool_call']
   );
-  // 重试后 initialize 也到了。posthog 的请求超时定时器是 unref 的，光 await flush() 的话 Node 20 / 22 上
-  // 事件循环会先空掉、测试被取消；until 轮询的定时器撑着事件循环，等它超时重试完。
+  // After the retry the initialize arrives too. posthog's request timeout timer is unref'd, so awaiting flush() alone
+  // lets the event loop drain on Node 20 / 22 and the test is cancelled; until()'s polling timer keeps the loop alive until the retry is done.
   await until(() => h.batches.some((b) => b.batch.some((e) => e.event === '$mcp_initialize')), 3000);
-  await h.analytics?.flush(); // 别把定时器留给下一个测试
+  await h.analytics?.flush(); // don't leave timers to the next test
 });
 
-test('PostHog 拒收：上报失败会打到 console（线上再经 Sentry），不影响工具结果', async () => {
+test('PostHog rejects the batch: the failure is logged to the console (and reaches Sentry in production) and the tool result is unaffected', async () => {
   const h = harness({ batchStatus: 500 });
   const logged: unknown[][] = [];
   const original = console.error;
@@ -353,6 +357,6 @@ test('PostHog 拒收：上报失败会打到 console（线上再经 Sentry），
   }
   assert.ok(
     logged.some((args) => String(args[0]).includes('posthog flush failed')),
-    `没看到上报失败的日志：${JSON.stringify(logged.map((a) => String(a[0])))}`
+    `no log of the failed upload: ${JSON.stringify(logged.map((a) => String(a[0])))}`
   );
 });

@@ -1,6 +1,7 @@
 /**
- * 按 OperationSpec 发一次 API v1 请求。只管「怎么发」：URL、query、body、multipart、凭证、超时、
- * 响应解析。「发什么」由生成的操作表决定，「结果怎么说」由 tools.ts 决定。
+ * Sends one API v1 request for an OperationSpec. It only decides how to send it: URL, query, body, multipart,
+ * credential, timeout and response parsing. What to send comes from the generated operation table; how to report
+ * the result is up to tools.ts.
  */
 import type { Credential } from './credential.js';
 import type { OperationSpec } from './types.js';
@@ -14,11 +15,11 @@ export interface ApiOptions {
 
 export interface ApiResponse {
   status: number;
-  /** 解析后的 JSON；非 JSON 或空响应时为 undefined */
+  /** The parsed JSON; undefined for a non-JSON or empty response */
   json?: unknown;
-  /** 非 JSON 响应的原文（截断） */
+  /** The raw text of a non-JSON response (truncated) */
   text?: string;
-  /** 服务端报告模式下的参数问题（X-API-Input-Warnings） */
+  /** Argument problems the server reports in report mode (X-API-Input-Warnings) */
   warnings?: string;
   retryAfter?: string;
   rateLimit?: { limit?: string; remaining?: string; reset?: string };
@@ -67,7 +68,7 @@ function decodeBase64(data: string): Uint8Array {
   return bytes;
 }
 
-/** 请求体：flatten 时是入参里除 path / query 参数外的所有键；否则是 body.param 那个键的值。 */
+/** The request body: when flattened, every argument key except the path / query parameters; otherwise the value under body.param. */
 export function bodyPayload(op: OperationSpec, args: Args): unknown {
   if (!op.body) return undefined;
   let payload: unknown;
@@ -103,14 +104,14 @@ export function buildBody(op: OperationSpec, args: Args): { body?: BodyInit; con
     const name = typeof fields.file_name === 'string' ? fields.file_name : 'file';
     form.set('file', new Blob([bytes as BlobPart], { type }), name);
   }
-  // multipart 的 Content-Type（含 boundary）由 fetch 自己生成
+  // fetch sets the multipart Content-Type (with its boundary) itself
   return { body: form };
 }
 
 export class JinshujuApi {
   private readonly fetchImpl: typeof fetch;
   constructor(private readonly options: ApiOptions) {
-    // 不直接存全局 fetch：作为方法调用时 this 不是全局对象，workerd / 浏览器会抛 Illegal invocation。
+    // Don't store the global fetch as is: called as a method, its `this` is not the global object, and workerd / browsers throw Illegal invocation.
     this.fetchImpl = options.fetch ?? ((input, init) => fetch(input, init));
   }
 
@@ -118,7 +119,7 @@ export class JinshujuApi {
     return this.options.baseUrl;
   }
 
-  /** 发请求；401 时让凭证续期一次再重试。 */
+  /** Sends the request; on 401, has the credential renew once and retries. */
   async call(op: OperationSpec, args: Args, credential: Credential): Promise<ApiResponse> {
     const first = await this.send(op, args, await credential.token());
     if (first.status !== 401) return first;
@@ -126,7 +127,7 @@ export class JinshujuApi {
     return this.send(op, args, await credential.token());
   }
 
-  /** 不经过操作表的裸请求，给令牌校验这类内部调用用。 */
+  /** A raw request outside the operation table, for internal calls such as token verification. */
   async raw(method: string, path: string, token: string): Promise<ApiResponse> {
     return this.perform(method, new URL(this.options.baseUrl.replace(/\/$/, '') + path), token, {});
   }

@@ -1,7 +1,8 @@
 /**
- * 评测体系的数据形状：样本任务、断言、夹具（测评数据）、一次运行的记录。
+ * Data shapes of the eval system: sample tasks, assertions, fixtures (eval data) and the record of one run.
  */
 
+/** Category names are data: task files, run records and the results form's choices all use them as written. */
 export const CATEGORIES = ['找表单', '读数据', '统计汇总', '建表单', '改设置', '批量写入', '导入'] as const;
 export type Category = (typeof CATEGORIES)[number];
 
@@ -11,24 +12,24 @@ export interface TaskFilter {
   value?: unknown;
 }
 
-/** 对一个字段定义的期望（建表单 / 改结构类任务的状态断言） */
+/** What a field definition should look like (state assertions of create-form / change-structure tasks) */
 export interface FieldExpect {
-  /** 字段标题完全相等 */
+  /** Field label equals this exactly */
   label?: string;
-  /** 字段标题包含 */
+  /** Field label contains this */
   label_contains?: string;
-  /** FieldDefinition.type 的取值（如 single_line_text / single_choice / rating），可给多个候选 */
+  /** FieldDefinition.type value (e.g. single_line_text / single_choice / rating); several candidates allowed */
   type?: string | string[];
   required?: boolean;
   unique?: boolean;
-  /** 选项数 */
+  /** Number of choices */
   choices?: number;
   choices_min?: number;
-  /** 必须包含的选项显示值 */
+  /** Choice labels that must be present */
   choices_include?: string[];
-  /** 位于标题为该值的字段之后 */
+  /** Comes right after the field with this label */
   after_label?: string;
-  /** 字段不应存在 */
+  /** The field must not exist */
   absent?: boolean;
 }
 
@@ -47,9 +48,9 @@ export type StateCheck =
       fixture: string;
       filters?: TaskFilter[];
       min?: number;
-      /** 每条匹配数据都应满足的字段值（键为夹具字段 key） */
+      /** Field values every matching entry must have (keyed by fixture field key) */
       all?: Record<string, unknown>;
-      /** 不应有任何匹配数据满足的字段值 */
+      /** Field values no matching entry may have */
       none?: Record<string, unknown>;
     }
   | {
@@ -63,7 +64,7 @@ export type StateCheck =
       setting?: Record<string, unknown>;
       exam_setting?: Record<string, unknown>;
       evaluation_setting?: Record<string, unknown>;
-      /** 与某个夹具表单字段数一致（复制表单） */
+      /** Same field count as this fixture form (copying a form) */
       same_field_count_as?: string;
     }
   | ({ check: 'form_field'; fixture: string } & FieldExpect)
@@ -87,7 +88,7 @@ export interface TaskExpect {
     contains_any?: string[];
     not_contains?: string[];
     regex?: string;
-    /** 用 LLM-as-judge 逐条核对的事实 */
+    /** Facts an LLM judge checks one by one */
     claims?: string[];
   };
   state?: StateCheck[];
@@ -98,20 +99,20 @@ export interface Task {
   category: Category;
   title: string;
   prompt: string;
-  /** 样本来源（线上会话模式 / 文档用例） */
+  /** Where the sample comes from (a production session pattern / a documented use case) */
   source?: string;
-  /** 依赖的夹具别名 */
+  /** Aliases of the fixtures it depends on */
   fixtures?: string[];
-  /** 会修改夹具数据：运行前后重置，并与其它任务互斥 */
+  /** Changes fixture data: reset before and after the run, and exclusive with other tasks */
   writes?: boolean;
-  /** 会创建新表单：运行后把新表单移入产出文件夹 */
+  /** Creates forms: after the run they are moved into the output folder */
   creates_forms?: boolean;
-  /** 允许的最多模型轮次（LLM 调用数），缺省 12 */
+  /** Most model turns allowed (LLM calls), 12 by default */
   max_turns?: number;
   expect: TaskExpect;
 }
 
-// ---- 夹具 ----
+// ---- Fixtures ----
 
 export interface FixtureField {
   key: string;
@@ -131,7 +132,7 @@ export interface FixtureForm {
   description?: string;
   fields: FixtureField[];
   setting?: Record<string, unknown>;
-  /** 种子数据，键为字段 key */
+  /** Seed entries, keyed by field key */
   entries?: Record<string, unknown>[];
 }
 
@@ -168,7 +169,7 @@ export interface FixtureState {
   results_form_token?: string;
 }
 
-// ---- 运行记录 ----
+// ---- Run records ----
 
 export interface ToolCallRecord {
   index: number;

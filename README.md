@@ -1,154 +1,154 @@
 # @jinshuju/mcp
 
-金数据（[jinshuju.net](https://jinshuju.net)）的 MCP Server：让 Claude、Cursor、Claude Code 等支持 MCP 的 AI 工具读写表单、表格和数据。
-工具按 [开放 API v1 的 openapi.yaml](https://jinshuju.net/api/v1/openapi.yaml) 自动生成，与 API 保持一致；工具集与 [金数据 MCP Server](https://open.jinshuju.net/mcp) 文档中的工具一一对应。
+The MCP server for Jinshuju ([jinshuju.net](https://jinshuju.net)): lets Claude, Cursor, Claude Code and other MCP-capable AI tools read and write forms, tables and entries.
+The tools are generated from the [open API v1 openapi.yaml](https://jinshuju.net/api/v1/openapi.yaml) and stay in step with the API; the tool set matches the tools documented for the [Jinshuju MCP Server](https://open.jinshuju.net/mcp) one to one.
 
-两种用法：
+Two ways to use it:
 
-- **远程（HTTP）** — 官方部署，OAuth 登录，适合 claude.ai、Cursor、Windsurf 等；
-- **本地（stdio）** — `npx -y @jinshuju/mcp`，适合 Claude Code 等本地客户端，和 [@jinshuju/cli](https://github.com/jinshuju/cli) 共用一次登录。
+- **Remote (HTTP)** — the official deployment, with OAuth sign-in; for claude.ai, Cursor, Windsurf and the like;
+- **Local (stdio)** — `npx -y @jinshuju/mcp`; for local clients such as Claude Code, sharing one sign-in with [@jinshuju/cli](https://github.com/jinshuju/cli).
 
-## 远程使用
+## Remote use
 
-服务地址：`https://mcp.jinshuju.net/mcp`（上线前以 open.jinshuju.net/mcp 公布的为准）。
+Server URL: `https://mcp.jinshuju.net/mcp` (until launch, the URL published at open.jinshuju.net/mcp is authoritative).
 
-| 客户端      | 配置                                                                            |
-| ----------- | ------------------------------------------------------------------------------- |
-| claude.ai   | Settings → Connectors → Add custom connector，填服务地址，按提示登录金数据      |
-| Claude Code | `claude mcp add jinshuju -s user --transport http https://mcp.jinshuju.net/mcp` |
-| Cursor      | `{ "mcpServers": { "jinshuju": { "url": "https://mcp.jinshuju.net/mcp" } } }`   |
-| Windsurf    | 同上，键名用 `serverUrl`                                                        |
+| Client      | Setup                                                                                   |
+| ----------- | --------------------------------------------------------------------------------------- |
+| claude.ai   | Settings → Connectors → Add custom connector, enter the server URL, sign in to Jinshuju |
+| Claude Code | `claude mcp add jinshuju -s user --transport http https://mcp.jinshuju.net/mcp`         |
+| Cursor      | `{ "mcpServers": { "jinshuju": { "url": "https://mcp.jinshuju.net/mcp" } } }`           |
+| Windsurf    | Same as above, with the key `serverUrl`                                                 |
 
-不想走 OAuth 的（CI、脚本）可以直接带 Access Token：`--header "Authorization: Bearer YOUR_ACCESS_TOKEN"` 或配置里加 `headers`。
-个人 Access Token 在 [个人中心 → API](https://next.jinshuju.net/profile/api) 创建；企业 Access Token 在 [系统设置 → 企业 API](https://next.jinshuju.net/system/api_licence)。
+Without OAuth (CI, scripts), send an access token directly: `--header "Authorization: Bearer YOUR_ACCESS_TOKEN"`, or add `headers` to the config.
+Create a personal access token under [Profile → API](https://next.jinshuju.net/profile/api), and an account access token under [System settings → Account API](https://next.jinshuju.net/system/api_licence).
 
-## 本地使用（stdio）
+## Local use (stdio)
 
 ```bash
-# 先登录一次（浏览器 OAuth），凭证存在 ~/.jinshuju/config.json，cli 和 mcp 共用
+# Sign in once (browser OAuth); the credential is stored in ~/.jinshuju/config.json and shared by the cli and mcp
 npx -y @jinshuju/cli auth login
 
 # Claude Code
 claude mcp add jinshuju -s user -- npx -y @jinshuju/mcp
 ```
 
-或者不登录，直接给 token：
+Or skip the sign-in and pass a token:
 
 ```bash
 claude mcp add jinshuju -s user -e JINSHUJU_ACCESS_TOKEN=your_token -- npx -y @jinshuju/mcp
 ```
 
-验证：对助手说「列出我的金数据表单」。
+To check it works, ask the assistant to "list my Jinshuju forms".
 
-## 有哪些工具
+## Tools
 
-60 个工具，与 [金数据 MCP Server](https://open.jinshuju.net/mcp) 文档中的工具同名，外加一个 `get_schema`。每个工具对应 openapi.yaml 的一个操作，少数是两个操作的组合：
+60 tools with the same names as those documented for the [Jinshuju MCP Server](https://open.jinshuju.net/mcp), plus `get_schema`. Each tool maps to one operation in openapi.yaml; a few combine two operations:
 
-| 类别          | 工具                                                                                                                                                                                                                                |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 表单          | list_forms、get_form、create_form、edit_form、copy_form、move_form、list_form_cooperators、get_field_rules、edit_field_rules、check_field_data、preview_field_type_change、edit_theme                                               |
-| 考试 / 测评   | create_exam_form、edit_exam_form、create_evaluation_form、edit_evaluation_form（建表单 / 改表单 + 场景设置，两个请求）                                                                                                              |
-| 数据          | list_entries、get_entry、create_entry、update_entry、delete_entry、create_entries、patch_entries、count_entries、aggregate_entries、get_form_data_summary、search_entries_in_forms、list_form_entry_stats、import_entries_from_file |
-| 我填写的      | list_my_submitted_forms、list_my_submitted_entries、search_my_submitted_entries                                                                                                                                                     |
-| 评论          | list_entry_comments、create_entry_comment、update_entry_comment、delete_entry_comment                                                                                                                                               |
-| 视图          | list_form_views、get_form_view、create_form_view、edit_form_view、delete_form_view、list_form_view_entries                                                                                                                          |
-| 表格          | list_tables、get_table、create_table、edit_table、move_table                                                                                                                                                                        |
-| 对外查询      | list_opensearch_queries、get_opensearch_query、create_opensearch_query、edit_opensearch_query、get_opensearch_field_suggestions                                                                                                     |
-| 文件夹 / 账户 | list_folders、create_folder、get_current_user、get_current_billing_account、list_account_users                                                                                                                                      |
-| 上传          | upload_entry_attachment、upload_form_image、upload_import_file                                                                                                                                                                      |
-| 结构          | get_schema（按名字读 openapi 的 schema，如 FieldInput、TextFieldInput）                                                                                                                                                             |
+| Category            | Tools                                                                                                                                                                                                                               |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Forms               | list_forms, get_form, create_form, edit_form, copy_form, move_form, list_form_cooperators, get_field_rules, edit_field_rules, check_field_data, preview_field_type_change, edit_theme                                               |
+| Exams / evaluations | create_exam_form, edit_exam_form, create_evaluation_form, edit_evaluation_form (create / edit the form + its scene settings, two requests)                                                                                          |
+| Entries             | list_entries, get_entry, create_entry, update_entry, delete_entry, create_entries, patch_entries, count_entries, aggregate_entries, get_form_data_summary, search_entries_in_forms, list_form_entry_stats, import_entries_from_file |
+| What I submitted    | list_my_submitted_forms, list_my_submitted_entries, search_my_submitted_entries                                                                                                                                                     |
+| Comments            | list_entry_comments, create_entry_comment, update_entry_comment, delete_entry_comment                                                                                                                                               |
+| Views               | list_form_views, get_form_view, create_form_view, edit_form_view, delete_form_view, list_form_view_entries                                                                                                                          |
+| Tables              | list_tables, get_table, create_table, edit_table, move_table                                                                                                                                                                        |
+| Public queries      | list_opensearch_queries, get_opensearch_query, create_opensearch_query, edit_opensearch_query, get_opensearch_field_suggestions                                                                                                     |
+| Folders / account   | list_folders, create_folder, get_current_user, get_current_billing_account, list_account_users                                                                                                                                      |
+| Uploads             | upload_entry_attachment, upload_form_image, upload_import_file                                                                                                                                                                      |
+| Schemas             | get_schema (reads an openapi schema by name, e.g. FieldInput, TextFieldInput)                                                                                                                                                       |
 
-与 open.jinshuju.net/mcp 文档中工具的差异：
+Differences from the tools documented at open.jinshuju.net/mcp:
 
-- 预签名上传（`prepare_*_upload`）不在 openapi.yaml 里，这里提供的是直接上传（文件以 base64 传入）的 `upload_*`；
-- `update_entry` 只做增量更新（PATCH），不提供整体覆盖；
-- 字段类型等数据结构通过 `get_schema` 工具和 `jinshuju://schemas/{name}` 资源提供。
+- Presigned uploads (`prepare_*_upload`) are not in openapi.yaml; the `upload_*` tools here upload directly (the file is passed as base64);
+- `update_entry` only updates partially (PATCH); there is no full replace;
+- Data structures such as field types are served by the `get_schema` tool and the `jinshuju://schemas/{name}` resource.
 
-工具名 → 操作的完整映射见 `mcp.overlay.yaml` 和 `src/generated/meta.json`。
+The full tool → operation mapping is in `mcp.overlay.yaml` and `src/generated/meta.json`.
 
-**体量。** 完整 tools/list 约 3.9 万 token（o200k 估算；不含 outputSchema 约 3.6 万）。
-控制体量的办法是不内联大 schema：字段定义（52 种类型）、表单设置、主题等改成一句指针；表格列这类按 type 分支的联合只留公共属性。
-模型需要时用 `get_schema("FieldInput")` / `get_schema("TextFieldInput")` 按需读取。
+**Size.** The full tools/list is about 39k tokens (o200k estimate; about 36k without outputSchema).
+It stays that size by not inlining large schemas: field definitions (52 types), form settings, themes and the like become a one-line pointer; unions that branch on type, such as table columns, keep only their common properties.
+The model reads them on demand with `get_schema("FieldInput")` / `get_schema("TextFieldInput")`.
 
-## 环境变量
+## Environment variables
 
-| 变量                              | 说明                                                                                                 |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `JINSHUJU_ACCESS_TOKEN`           | stdio 模式的凭证；设了就不读配置文件                                                                 |
-| `JINSHUJU_CONFIG`                 | 配置文件路径，缺省 `~/.jinshuju/config.json`                                                         |
-| `JINSHUJU_API_BASE_URL`           | API 地址，缺省 `https://jinshuju.net/api/v1`                                                         |
-| `JINSHUJU_AUTH_HOST`              | 授权服务器，缺省 `https://account.jinshuju.net`                                                      |
-| `JINSHUJU_MCP_PUBLIC_URL`         | HTTP 模式对外地址（OAuth 元数据里的 resource）；逗号分隔可给多个，按请求的 Host 选用；留空按请求推断 |
-| `JINSHUJU_MCP_MAX_RESULT_CHARS`   | 单次结果最多字符数，缺省 120000，超过截断并提示分页                                                  |
-| `JINSHUJU_MCP_TOKEN_CACHE_TTL_MS` | HTTP 模式令牌校验缓存，缺省 5 分钟                                                                   |
-| `POSTHOG_API_KEY`                 | PostHog 项目 token（`phc_…`）；配了就在 HTTP 模式上报 MCP analytics，见下文                          |
-| `POSTHOG_HOST`                    | PostHog 上报地址，缺省 `https://us.i.posthog.com`                                                    |
-| `JINSHUJU_MCP_COLLECT_INTENT`     | 是否让模型在每次调用里写用户意图（`context` 参数 → `$mcp_intent`），缺省 `true`                      |
-| `SENTRY_DSN`                      | Sentry 项目 DSN；配了就在 Workers 入口上报异常，见下文                                               |
-| `SENTRY_ENVIRONMENT`              | Sentry 环境名，可选                                                                                  |
-| `PORT` / `HOST`                   | Node 入口监听，缺省 8787 / 0.0.0.0                                                                   |
+| Variable                          | Meaning                                                                                                                                                |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `JINSHUJU_ACCESS_TOKEN`           | Credential for stdio mode; when set, the config file is not read                                                                                       |
+| `JINSHUJU_CONFIG`                 | Config file path, default `~/.jinshuju/config.json`                                                                                                    |
+| `JINSHUJU_API_BASE_URL`           | API URL, default `https://jinshuju.net/api/v1`                                                                                                         |
+| `JINSHUJU_AUTH_HOST`              | Authorization server, default `https://account.jinshuju.net`                                                                                           |
+| `JINSHUJU_MCP_PUBLIC_URL`         | Public URL in HTTP mode (the resource in the OAuth metadata); a comma-separated list is chosen by the request's Host; empty infers it from the request |
+| `JINSHUJU_MCP_MAX_RESULT_CHARS`   | Maximum characters of one result, default 120000; longer results are truncated with a hint to page                                                     |
+| `JINSHUJU_MCP_TOKEN_CACHE_TTL_MS` | Token verification cache in HTTP mode, default 5 minutes                                                                                               |
+| `POSTHOG_API_KEY`                 | PostHog project token (`phc_…`); when set, HTTP mode reports MCP analytics, see below                                                                  |
+| `POSTHOG_HOST`                    | PostHog ingestion host, default `https://us.i.posthog.com`                                                                                             |
+| `JINSHUJU_MCP_COLLECT_INTENT`     | Whether the model writes the user's intent in each call (`context` argument → `$mcp_intent`), default `true`                                           |
+| `SENTRY_DSN`                      | Sentry project DSN; when set, the Workers entry reports exceptions, see below                                                                          |
+| `SENTRY_ENVIRONMENT`              | Sentry environment name, optional                                                                                                                      |
+| `PORT` / `HOST`                   | Where the Node entry listens, default 8787 / 0.0.0.0                                                                                                   |
 
-## 使用统计（PostHog MCP analytics）
+## Usage analytics (PostHog MCP analytics)
 
-HTTP 部署配了 `POSTHOG_API_KEY` 后，用 [@posthog/mcp](https://posthog.com/docs/mcp-analytics) 上报工具使用情况，口径与 jinshuju.net/mcp 内置 MCP 的一致：
+With `POSTHOG_API_KEY` set, the HTTP deployment reports tool usage through [@posthog/mcp](https://posthog.com/docs/mcp-analytics), on the same terms as the built-in MCP at jinshuju.net/mcp:
 
-- 只报 `$mcp_initialize`（旧握手）与 `$mcp_tool_call`；`tools/list`、resources、`$identify`、`$exception` 都不报；
-- 工具调用记工具名、参数名（`$mcp_input_keys`）、耗时、是否出错与截断后的报错，**不记参数值，也不记返回内容**；
-- 每个工具多一个 `context` 参数，让模型写用户想做什么（`$mcp_intent`），发出前抹掉其中的邮箱 / 手机号 / IP / 卡号；
-  `JINSHUJU_MCP_COLLECT_INTENT=false` 关掉后参数不再下发，客户端照旧发来的也不会出错；
-- `distinct_id` 是金数据用户 id，`$session_id` 由令牌哈希派生（同一个令牌一个会话），客户端名字 / 版本来自握手或每个请求的 `_meta`。
+- Only `$mcp_initialize` (legacy handshake) and `$mcp_tool_call` are reported; `tools/list`, resources, `$identify` and `$exception` are not;
+- A tool call records the tool name, the argument names (`$mcp_input_keys`), the duration, whether it failed and the truncated error, **but not the argument values or the result**;
+- Every tool gets one more argument, `context`, where the model writes what the user wants to do (`$mcp_intent`); email addresses, phone numbers, IPs and card numbers in it are masked before sending.
+  With `JINSHUJU_MCP_COLLECT_INTENT=false` the argument is no longer advertised, and a client that still sends it gets no error;
+- `distinct_id` is the Jinshuju user id; `$session_id` is derived from a hash of the token (one session per token); the client name / version come from the handshake or each request's `_meta`.
 
-stdio（本地）模式不上报。
+stdio (local) mode reports nothing.
 
-## 错误监控（Sentry）
+## Error monitoring (Sentry)
 
-Workers 入口（`src/worker.ts`）用 [@sentry/cloudflare](https://docs.sentry.io/platforms/javascript/guides/cloudflare/) 包了一层，配了 `SENTRY_DSN` 就上报：
+The Workers entry (`src/worker.ts`) is wrapped with [@sentry/cloudflare](https://docs.sentry.io/platforms/javascript/guides/cloudflare/) and reports once `SENTRY_DSN` is set:
 
-- 报的是意外：工具 handler 抛出的异常（API 连不上 / 超时记 warning）、令牌校验时 API 不可达、路由里没接住的错误；API 返回的 4xx / 5xx 是正常的工具结果，不报；
-- 不采集请求体、IP、cookie，不开 tracing；`Authorization` 等敏感请求头由 SDK 抹成 `[Filtered]`；用户只记金数据用户 id。
+- It reports the unexpected: exceptions thrown by tool handlers (an unreachable API / timeout is a warning), the API being unreachable during token verification, and errors the routes did not catch. A 4xx / 5xx from the API is a normal tool result and is not reported;
+- No request bodies, IPs or cookies are collected, and tracing is off; sensitive request headers such as `Authorization` are scrubbed to `[Filtered]` by the SDK; the user is recorded only as the Jinshuju user id.
 
-Node 入口（Docker）和 stdio 不上报。
+The Node entry (Docker) and stdio report nothing.
 
-## 开发
+## Development
 
 ```bash
 npm install
-npm run generate     # spec/openapi.yaml + mcp.overlay.yaml -> src/generated/（operations / tools / schemas / meta）
+npm run generate     # spec/openapi.yaml + mcp.overlay.yaml -> src/generated/ (operations / tools / schemas / meta)
 npm run check        # typecheck + oxlint + oxfmt
-npm test             # 构建后跑 node:test，不碰网络
-npm run dev          # 本地起 HTTP：http://127.0.0.1:8787/mcp
-npm run spec:update  # 拉最新的线上 openapi.yaml 并重新生成
+npm test             # builds, then runs node:test without touching the network
+npm run dev          # local HTTP server: http://127.0.0.1:8787/mcp
+npm run spec:update  # fetches the latest live openapi.yaml and regenerates
 ```
 
-改 `mcp.overlay.yaml` 或更新 `spec/openapi.yaml` 后必须 `npm run generate` 并提交 `src/generated/`，CI 会检查。
+After changing `mcp.overlay.yaml` or updating `spec/openapi.yaml`, run `npm run generate` and commit `src/generated/`; CI checks it.
 
-## 部署
+## Deployment
 
-- **Docker（官方）**：`docker build -t jinshuju-mcp . && docker run -p 8787:8787 -e JINSHUJU_MCP_PUBLIC_URL=https://mcp.jinshuju.net jinshuju-mcp`
-- **Cloudflare Workers（可选）**：`npx wrangler login && npm run worker:deploy`
-- **WDL 等 Workers 兼容平台（可选）**：装好 [`@wdl-dev/cli`](https://github.com/wdl-dev/cli) 并配置好 token 后 `npm run wdl:deploy`；
-  对外地址设为 secret `JINSHUJU_MCP_PUBLIC_URL`（`wdl secret put --worker jinshuju-mcp JINSHUJU_MCP_PUBLIC_URL`），
-  多个入口用逗号分隔，如 `https://mcp.jinshuju.net,https://<ns>.<platform>/jinshuju-mcp`；
-  要上报 PostHog 再加 secret `POSTHOG_API_KEY`（需要时还有 `POSTHOG_HOST`），要报 Sentry 再加 `SENTRY_DSN`。
+- **Docker (official)**: `docker build -t jinshuju-mcp . && docker run -p 8787:8787 -e JINSHUJU_MCP_PUBLIC_URL=https://mcp.jinshuju.net jinshuju-mcp`
+- **Cloudflare Workers (optional)**: `npx wrangler login && npm run worker:deploy`
+- **WDL or another Workers-compatible platform (optional)**: with [`@wdl-dev/cli`](https://github.com/wdl-dev/cli) installed and its token configured, `npm run wdl:deploy`;
+  set the public URL as the secret `JINSHUJU_MCP_PUBLIC_URL` (`wdl secret put --worker jinshuju-mcp JINSHUJU_MCP_PUBLIC_URL`),
+  with several entry points comma-separated, e.g. `https://mcp.jinshuju.net,https://<ns>.<platform>/jinshuju-mcp`;
+  to report to PostHog add the secret `POSTHOG_API_KEY` (and `POSTHOG_HOST` if needed); to report to Sentry add `SENTRY_DSN`.
 
-服务无状态，不需要数据库、KV 或 Durable Objects。
+The service is stateless and needs no database, KV or Durable Objects.
 
-## 评测
+## Evals
 
-`evals/` 是基于真实用例、多模型的自动化测评：42 个任务（找表单 / 读数据 / 统计汇总 / 建表单 / 改设置 / 批量写入 / 导入）
-同时跑在本仓库的 MCP 与内置 MCP（jinshuju.net/mcp）上，按断言打分，输出「模型 × MCP × 类别」的通过率与 token 表，
-并把每次运行写进一张金数据表单。用法、任务格式与指标见 [evals/README.md](evals/README.md)。
+`evals/` is an automated, multi-model evaluation built from real usage: 42 tasks (categories 找表单 / 读数据 / 统计汇总 / 建表单 / 改设置 / 批量写入 / 导入 — find forms, read entries, aggregate, create forms, change settings, batch writes, import)
+run against both this repository's MCP and the built-in MCP (jinshuju.net/mcp), are scored by assertions, produce pass-rate and token tables by model × MCP × category,
+and write every run into a Jinshuju form. Usage, task format and metrics are in [evals/README.md](evals/README.md).
 
 ```bash
-npm run eval -- seed     # 在测评账户里准备夹具数据
-npm run eval -- run      # 全部任务 × EVAL_MODELS × new,builtin → evals/results/<run_id>/report.md
+npm run eval -- seed     # prepares fixture data in the eval account
+npm run eval -- run      # all tasks × EVAL_MODELS × new,builtin → evals/results/<run_id>/report.md
 ```
 
-## 设计说明
+## Design notes
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — 模块、一次调用的路径、生成规则、鉴权
-- [evals/README.md](evals/README.md) — 评测体系：样本集、运行器、打分、持久化
+- [ARCHITECTURE.md](ARCHITECTURE.md) — modules, the path of one call, generation rules, authentication
+- [evals/README.md](evals/README.md) — the eval system: sample set, runner, scoring, persistence
 
-## 许可证
+## License
 
 Apache-2.0

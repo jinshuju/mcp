@@ -1,9 +1,10 @@
 /**
- * 工具入参校验器：在 Node 与 Workers 里行为一致，报错能指出是哪个参数出了问题。
+ * Tool argument validator: behaves the same on Node and Workers, and its errors name the argument at fault.
  *
- * SDK 在 Node 上缺省用 Ajv，多传了键只会报 "data must NOT have additional properties"，不说是哪个键；
- * 模型只能逐个猜着删。这里统一用纯 JS 的 @cfworker/json-schema 引擎（Workers 上本来就是它），
- * 并先于引擎检查顶层多余键，直接列出多余的和可用的参数名。
+ * On Node the SDK uses Ajv by default, which reports an extra key only as "data must NOT have additional properties"
+ * without naming it, leaving the model to guess and drop keys one at a time. This uses the pure-JS @cfworker/json-schema
+ * engine everywhere (it is what Workers uses anyway), and checks for extra top-level keys before the engine, listing the
+ * extra and the accepted argument names directly.
  */
 import type { JsonSchemaType, JsonSchemaValidatorResult, jsonSchemaValidator } from '@modelcontextprotocol/server';
 import { CfWorkerJsonSchemaValidator } from '@modelcontextprotocol/server/validators/cf-worker';
@@ -11,8 +12,9 @@ import { CfWorkerJsonSchemaValidator } from '@modelcontextprotocol/server/valida
 const engine = new CfWorkerJsonSchemaValidator({ shortcircuit: false });
 
 /**
- * PostHog MCP analytics（analytics.ts）给每个工具加的意图参数。模型照着工具列表填，而列表可能是它缓存的：
- * 埋点关掉之后客户端还会继续发，所以不管开没开，到了校验这里一律接受并去掉，不让它流到 API。
+ * The intent argument PostHog MCP analytics (analytics.ts) adds to every tool. The model fills it from the tool list, which
+ * may be cached: clients keep sending it after analytics is turned off, so validation always accepts and strips it, on or
+ * off, and it never reaches the API.
  */
 export const CONTEXT_ARGUMENT = 'context';
 
@@ -21,8 +23,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * 引擎的报错形如 `#/limit: Instance type "string" is invalid. Expected "integer".`，把 JSON pointer 换成参数路径；
- * 同时去掉引擎在子 schema 失败后顺带给出的外层笼统报错（"Property x does not match schema" 之类）。
+ * Engine errors look like `#/limit: Instance type "string" is invalid. Expected "integer".`; this turns the JSON pointer
+ * into an argument path, and drops the vague outer errors the engine adds after a sub-schema fails ("Property x does not
+ * match schema" and the like).
  */
 const NOISE = [/^Property "[^"]+" does not match (additional properties )?schema\.$/, /^False boolean schema\.$/];
 

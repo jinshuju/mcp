@@ -1,4 +1,4 @@
-# 服务端部署用镜像：一个 Node 进程，监听 PORT（默认 8787），无外部依赖。
+# Image for server deployment: one Node process listening on PORT (default 8787), no external dependencies.
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./

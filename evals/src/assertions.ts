@@ -1,6 +1,6 @@
 /**
- * 断言：工具调用序列、轮次、最终答复（子串 / 正则 / LLM judge）、运行后的真实状态（通过 API 读回来核对）。
- * 一个任务通过 = 全部断言通过。
+ * Assertions: the tool-call sequence, turns, the final answer (substrings / regex / LLM judge) and the real state after the run (read back through the API).
+ * A task passes when every assertion passes. Expected values (labels, answer strings, claims) come from the task files and stay as written.
  */
 import { EvalApi, flattenFields, type FieldDef, type FormDetail } from './api.js';
 import { sameValue } from './fixtures.js';
@@ -32,7 +32,7 @@ const stripHtml = (s: string | null | undefined) =>
     .replace(/&nbsp;/g, ' ')
     .trim();
 
-/** 答复里的全角数字 / 逗号归一化，便于子串匹配 */
+/** Normalizes full-width digits / commas in an answer, for substring matching */
 function normalize(s: string): string {
   return s
     .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xff10 + 0x30))
@@ -61,7 +61,7 @@ export class Templates {
         const form = this.state.forms[alias!];
         if (form) value = String((form as unknown as Record<string, unknown>)[prop!] ?? '');
       }
-      if (value === undefined) throw new Error(`模板 ${whole} 无法解析`);
+      if (value === undefined) throw new Error(`Cannot resolve template ${whole}`);
       out = out.split(whole).join(value);
     }
     return out;
@@ -77,33 +77,33 @@ function fieldTypeOk(def: FieldDef, expect: FieldExpect): boolean {
 function checkField(fields: { api_code: string; def: FieldDef }[], index: number, expect: FieldExpect): string[] {
   const { def } = fields[index]!;
   const problems: string[] = [];
-  if (!fieldTypeOk(def, expect)) problems.push(`类型是 ${def.type}，期望 ${[expect.type].flat().join('/')}`);
+  if (!fieldTypeOk(def, expect)) problems.push(`type is ${def.type}, expected ${[expect.type].flat().join('/')}`);
   const validation = (def.validation ?? {}) as Record<string, unknown>;
   if (expect.required !== undefined && !!validation.required !== expect.required) {
-    problems.push(expect.required ? '不是必填' : '不应必填');
+    problems.push(expect.required ? 'not required' : 'should not be required');
   }
   if (expect.unique !== undefined && !!validation.unique !== expect.unique) {
-    problems.push(expect.unique ? '没有设置不允许重复' : '不应设置唯一');
+    problems.push(expect.unique ? 'not set to unique' : 'should not be unique');
   }
   const names = (def.choices ?? []).filter((c) => !c.hidden).map((c) => c.name);
   if (expect.choices !== undefined && names.length !== expect.choices) {
-    problems.push(`选项数 ${names.length}，期望 ${expect.choices}`);
+    problems.push(`${names.length} choices, expected ${expect.choices}`);
   }
   if (expect.choices_min !== undefined && names.length < expect.choices_min) {
-    problems.push(`选项数 ${names.length}，至少 ${expect.choices_min}`);
+    problems.push(`${names.length} choices, expected at least ${expect.choices_min}`);
   }
   for (const want of expect.choices_include ?? []) {
-    if (!names.some((n) => n.trim() === want)) problems.push(`缺少选项「${want}」`);
+    if (!names.some((n) => n.trim() === want)) problems.push(`missing choice "${want}"`);
   }
   if (expect.after_label) {
     const anchor = fields.findIndex(({ def: d }) => d.label === expect.after_label);
-    if (anchor < 0) problems.push(`找不到锚点字段「${expect.after_label}」`);
-    else if (index !== anchor + 1) problems.push(`位置不在「${expect.after_label}」之后`);
+    if (anchor < 0) problems.push(`no anchor field "${expect.after_label}"`);
+    else if (index !== anchor + 1) problems.push(`not right after "${expect.after_label}"`);
   }
   return problems;
 }
 
-/** 在字段列表里找满足期望的字段；fields 里每个期望匹配互不相同的字段。 */
+/** Finds a field that meets each expectation; each expectation in fields matches a different field. */
 function matchFields(form: FormDetail, expects: FieldExpect[]): AssertionResult[] {
   const fields = flattenFields(form);
   const used = new Set<number>();
@@ -120,7 +120,7 @@ function matchFields(form: FormDetail, expects: FieldExpect[]): AssertionResult[
         return true;
       });
     if (!candidates.length) {
-      results.push({ kind: 'state', name: `字段「${label}」`, pass: false, detail: '不存在' });
+      results.push({ kind: 'state', name: `field "${label}"`, pass: false, detail: 'does not exist' });
       continue;
     }
     let best: { index: number; problems: string[] } | undefined;
@@ -132,9 +132,9 @@ function matchFields(form: FormDetail, expects: FieldExpect[]): AssertionResult[
     used.add(best!.index);
     results.push({
       kind: 'state',
-      name: `字段「${label}」`,
+      name: `field "${label}"`,
       pass: best!.problems.length === 0,
-      detail: best!.problems.join('；') || `${fields[best!.index]!.def.label} (${fields[best!.index]!.def.type})`
+      detail: best!.problems.join('; ') || `${fields[best!.index]!.def.label} (${fields[best!.index]!.def.type})`
     });
   }
   return results;
@@ -172,15 +172,15 @@ async function runStateCheck(ctx: AssertContext, task: Task, check: StateCheck):
         keyword: check.keyword
       });
       const problems: string[] = [];
-      if (check.equals !== undefined && n !== check.equals) problems.push(`期望 ${check.equals}`);
-      if (check.min !== undefined && n < check.min) problems.push(`至少 ${check.min}`);
-      if (check.max !== undefined && n > check.max) problems.push(`至多 ${check.max}`);
+      if (check.equals !== undefined && n !== check.equals) problems.push(`expected ${check.equals}`);
+      if (check.min !== undefined && n < check.min) problems.push(`at least ${check.min}`);
+      if (check.max !== undefined && n > check.max) problems.push(`at most ${check.max}`);
       return [
         {
           kind: 'state',
           name,
           pass: !problems.length,
-          detail: `实际 ${n} 条${problems.length ? '，' + problems.join('，') : ''}`
+          detail: `actually ${n}${problems.length ? ', ' + problems.join(', ') : ''}`
         }
       ];
     }
@@ -188,21 +188,21 @@ async function runStateCheck(ctx: AssertContext, task: Task, check: StateCheck):
       const form = state.forms[check.fixture]!;
       const rows = await api.listAllEntries(form.token, { filters: toApiFilters(ctx, check.fixture, check.filters) });
       const problems: string[] = [];
-      if ((check.min ?? 1) > rows.length) problems.push(`匹配 ${rows.length} 条，至少 ${check.min ?? 1}`);
+      if ((check.min ?? 1) > rows.length) problems.push(`${rows.length} match, expected at least ${check.min ?? 1}`);
       for (const [key, expected] of Object.entries(check.all ?? {})) {
         const code = form.fields[key]!.api_code;
         const bad = rows.filter((r) => !sameValue(r[code], expected));
         if (bad.length)
           problems.push(
-            `${key} 应为 ${JSON.stringify(expected)}，有 ${bad.length} 条不符（如 ${JSON.stringify(bad[0]![code] ?? null)}）`
+            `${key} should be ${JSON.stringify(expected)}; ${bad.length} entries differ (e.g. ${JSON.stringify(bad[0]![code] ?? null)})`
           );
       }
       for (const [key, expected] of Object.entries(check.none ?? {})) {
         const code = form.fields[key]!.api_code;
         const hit = rows.filter((r) => sameValue(r[code], expected));
-        if (hit.length) problems.push(`${key} 不应为 ${JSON.stringify(expected)}，有 ${hit.length} 条`);
+        if (hit.length) problems.push(`${key} should not be ${JSON.stringify(expected)}; ${hit.length} entries are`);
       }
-      return [{ kind: 'state', name, pass: !problems.length, detail: problems.join('；') || `匹配 ${rows.length} 条` }];
+      return [{ kind: 'state', name, pass: !problems.length, detail: problems.join('; ') || `${rows.length} match` }];
     }
     case 'form_created': {
       const keyword = check.name ?? check.name_contains ?? '';
@@ -216,24 +216,24 @@ async function runStateCheck(ctx: AssertContext, task: Task, check: StateCheck):
         .filter((r) => Date.parse(r.created_at) >= since)
         .filter((r) => (check.name ? r.name.trim() === check.name : r.name.includes(keyword)));
       if (!hits.length) {
-        return [{ kind: 'state', name, pass: false, detail: `运行期间没有创建名为「${keyword}」的表单` }];
+        return [{ kind: 'state', name, pass: false, detail: `no form named "${keyword}" was created during the run` }];
       }
       const form = await api.getForm(hits[0]!.token);
       const results: AssertionResult[] = [
-        { kind: 'state', name: `${name}：表单存在`, pass: true, detail: `${form.name} ${form.token}` }
+        { kind: 'state', name: `${name}: form exists`, pass: true, detail: `${form.name} ${form.token}` }
       ];
       const fieldCount = form.fields.length;
       if (check.min_fields !== undefined || check.max_fields !== undefined) {
         const ok =
           (check.min_fields === undefined || fieldCount >= check.min_fields) &&
           (check.max_fields === undefined || fieldCount <= check.max_fields);
-        results.push({ kind: 'state', name: `${name}：字段数`, pass: ok, detail: `${fieldCount} 个` });
+        results.push({ kind: 'state', name: `${name}: field count`, pass: ok, detail: `${fieldCount}` });
       }
       if (check.same_field_count_as) {
         const source = await api.getForm(state.forms[check.same_field_count_as]!.token);
         results.push({
           kind: 'state',
-          name: `${name}：字段数与 ${check.same_field_count_as} 一致`,
+          name: `${name}: same field count as ${check.same_field_count_as}`,
           pass: fieldCount === source.fields.length,
           detail: `${fieldCount} vs ${source.fields.length}`
         });
@@ -242,31 +242,31 @@ async function runStateCheck(ctx: AssertContext, task: Task, check: StateCheck):
         const setting = await api.sceneSetting(check.scene, form.token);
         results.push({
           kind: 'state',
-          name: `${name}：场景 ${check.scene}`,
+          name: `${name}: scene ${check.scene}`,
           pass: setting !== undefined,
-          detail: setting ? '是' : '不是该场景'
+          detail: setting ? 'yes' : 'another scene'
         });
         const expected = check.scene === 'exam' ? check.exam_setting : check.evaluation_setting;
         for (const [k, v] of Object.entries(expected ?? {})) {
           const actual = setting?.[k];
           results.push({
             kind: 'state',
-            name: `${name}：${check.scene}_setting.${k}`,
+            name: `${name}: ${check.scene}_setting.${k}`,
             pass: settingMatches(setting ?? {}, k, v),
-            detail: `实际 ${JSON.stringify(actual ?? null)}`
+            detail: `actually ${JSON.stringify(actual ?? null)}`
           });
         }
       }
       for (const [k, v] of Object.entries(check.setting ?? {})) {
         results.push({
           kind: 'state',
-          name: `${name}：setting.${k}`,
+          name: `${name}: setting.${k}`,
           pass: settingMatches(form.setting ?? {}, k, v),
-          detail: `实际 ${JSON.stringify(form.setting?.[k] ?? null)}`
+          detail: `actually ${JSON.stringify(form.setting?.[k] ?? null)}`
         });
       }
       if (check.fields?.length)
-        results.push(...matchFields(form, check.fields).map((r) => ({ ...r, name: `${name}：${r.name}` })));
+        results.push(...matchFields(form, check.fields).map((r) => ({ ...r, name: `${name}: ${r.name}` })));
       return results;
     }
     case 'form_field': {
@@ -285,20 +285,21 @@ async function runStateCheck(ctx: AssertContext, task: Task, check: StateCheck):
         return [
           {
             kind: 'state',
-            name: `${name}：字段「${label}」已删除`,
+            name: `${name}: field "${label}" removed`,
             pass: index < 0,
-            detail: index < 0 ? '不存在' : '仍然存在'
+            detail: index < 0 ? 'does not exist' : 'still exists'
           }
         ];
       }
-      if (index < 0) return [{ kind: 'state', name: `${name}：字段「${label}」`, pass: false, detail: '不存在' }];
+      if (index < 0)
+        return [{ kind: 'state', name: `${name}: field "${label}"`, pass: false, detail: 'does not exist' }];
       const problems = checkField(fields, index, check);
       return [
         {
           kind: 'state',
-          name: `${name}：字段「${label}」`,
+          name: `${name}: field "${label}"`,
           pass: !problems.length,
-          detail: problems.join('；') || `${fields[index]!.def.type}`
+          detail: problems.join('; ') || `${fields[index]!.def.type}`
         }
       ];
     }
@@ -309,14 +310,14 @@ async function runStateCheck(ctx: AssertContext, task: Task, check: StateCheck):
       if (check.name !== undefined)
         results.push({
           kind: 'state',
-          name: `${name}：名称`,
+          name: `${name}: name`,
           pass: form.name.trim() === check.name,
           detail: form.name
         });
       if (check.name_contains !== undefined)
         results.push({
           kind: 'state',
-          name: `${name}：名称包含`,
+          name: `${name}: name contains`,
           pass: form.name.includes(check.name_contains),
           detail: form.name
         });
@@ -324,7 +325,7 @@ async function runStateCheck(ctx: AssertContext, task: Task, check: StateCheck):
         const desc = stripHtml(form.description);
         results.push({
           kind: 'state',
-          name: `${name}：描述`,
+          name: `${name}: description`,
           pass: desc.includes(check.description_contains),
           detail: desc.slice(0, 80)
         });
@@ -332,16 +333,16 @@ async function runStateCheck(ctx: AssertContext, task: Task, check: StateCheck):
       if (check.field_count !== undefined)
         results.push({
           kind: 'state',
-          name: `${name}：字段数`,
+          name: `${name}: field count`,
           pass: form.fields.length === check.field_count,
           detail: `${form.fields.length}`
         });
       for (const [k, v] of Object.entries(check.setting ?? {})) {
         results.push({
           kind: 'state',
-          name: `${name}：setting.${k}`,
+          name: `${name}: setting.${k}`,
           pass: settingMatches(form.setting ?? {}, k, v),
-          detail: `实际 ${JSON.stringify(form.setting?.[k] ?? null)}`
+          detail: `actually ${JSON.stringify(form.setting?.[k] ?? null)}`
         });
       }
       for (const [k, v] of Object.entries(check.theme ?? {})) {
@@ -352,15 +353,15 @@ async function runStateCheck(ctx: AssertContext, task: Task, check: StateCheck):
             : JSON.stringify(actual) === JSON.stringify(v);
         results.push({
           kind: 'state',
-          name: `${name}：theme.${k}`,
+          name: `${name}: theme.${k}`,
           pass: ok,
-          detail: `实际 ${JSON.stringify(actual ?? null)}`
+          detail: `actually ${JSON.stringify(actual ?? null)}`
         });
       }
       return results;
     }
     default:
-      return [{ kind: 'state', name, pass: false, detail: `未知的 check：${JSON.stringify(check)}` }];
+      return [{ kind: 'state', name, pass: false, detail: `unknown check: ${JSON.stringify(check)}` }];
   }
 }
 
@@ -370,68 +371,72 @@ export async function evaluateTask(task: Task, trace: AgentTrace, ctx: AssertCon
   const called = new Set(trace.calls.map((c) => c.name));
   const tpl = new Templates(ctx.api, ctx.state);
 
-  // 工具
+  // Tools
   for (const t of expect.tools?.must_call ?? []) {
-    results.push({ kind: 'tools', name: `应调用 ${t}`, pass: called.has(t) });
+    results.push({ kind: 'tools', name: `calls ${t}`, pass: called.has(t) });
   }
   if (expect.tools?.any_of?.length) {
     const hit = expect.tools.any_of.filter((t) => called.has(t));
     results.push({
       kind: 'tools',
-      name: `应调用 ${expect.tools.any_of.join(' / ')} 之一`,
+      name: `calls one of ${expect.tools.any_of.join(' / ')}`,
       pass: hit.length > 0,
-      detail: hit.join(', ') || '都没调用'
+      detail: hit.join(', ') || 'called none'
     });
   }
   for (const t of expect.tools?.must_not_call ?? []) {
-    results.push({ kind: 'tools', name: `不应调用 ${t}`, pass: !called.has(t) });
+    results.push({ kind: 'tools', name: `does not call ${t}`, pass: !called.has(t) });
   }
 
-  // 轮次
+  // Turns
   const maxTurns = expect.max_turns ?? task.max_turns ?? 12;
   results.push({
     kind: 'turns',
-    name: `轮次 ≤ ${maxTurns}`,
+    name: `turns ≤ ${maxTurns}`,
     pass: !trace.exhausted && trace.turns <= maxTurns,
-    detail: `${trace.turns} 轮${trace.exhausted ? '，未完成' : ''}`
+    detail: `${trace.turns} turns${trace.exhausted ? ', not finished' : ''}`
   });
   if (expect.max_tool_calls !== undefined) {
     results.push({
       kind: 'turns',
-      name: `工具调用 ≤ ${expect.max_tool_calls}`,
+      name: `tool calls ≤ ${expect.max_tool_calls}`,
       pass: trace.tool_calls <= expect.max_tool_calls,
-      detail: `${trace.tool_calls} 次`
+      detail: `${trace.tool_calls}`
     });
   }
-  if (trace.error) results.push({ kind: 'turns', name: '运行无错误', pass: false, detail: trace.error });
+  if (trace.error) results.push({ kind: 'turns', name: 'run without errors', pass: false, detail: trace.error });
 
-  // 答复
+  // Answer
   const answer = trace.final_answer ?? '';
   const norm = normalize(answer);
   const a = expect.answer;
   if (a) {
     if (!answer.trim()) {
-      results.push({ kind: 'answer', name: '有最终答复', pass: false, detail: '为空' });
+      results.push({ kind: 'answer', name: 'has a final answer', pass: false, detail: 'empty' });
     }
     for (const raw of a.contains ?? []) {
       const s = await tpl.render(String(raw));
-      results.push({ kind: 'answer', name: `答复含「${s}」`, pass: norm.includes(normalize(s)) });
+      results.push({ kind: 'answer', name: `answer contains "${s}"`, pass: norm.includes(normalize(s)) });
     }
     if (a.contains_any?.length) {
       const rendered = await Promise.all(a.contains_any.map((s) => tpl.render(String(s))));
       const hit = rendered.filter((s) => norm.includes(normalize(s)));
       results.push({
         kind: 'answer',
-        name: `答复含 ${rendered.map((s) => `「${s}」`).join(' / ')} 之一`,
+        name: `answer contains one of ${rendered.map((s) => `"${s}"`).join(' / ')}`,
         pass: hit.length > 0
       });
     }
     for (const raw of a.not_contains ?? []) {
       const s = await tpl.render(String(raw));
-      results.push({ kind: 'answer', name: `答复不含「${s}」`, pass: !norm.includes(normalize(s)) });
+      results.push({ kind: 'answer', name: `answer does not contain "${s}"`, pass: !norm.includes(normalize(s)) });
     }
     if (a.regex) {
-      results.push({ kind: 'answer', name: `答复匹配 /${a.regex}/`, pass: new RegExp(a.regex, 'i').test(answer) });
+      results.push({
+        kind: 'answer',
+        name: `answer matches /${a.regex}/`,
+        pass: new RegExp(a.regex, 'i').test(answer)
+      });
     }
     if (a.claims?.length) {
       const claims = await Promise.all(a.claims.map((c) => tpl.render(c)));
@@ -440,17 +445,22 @@ export async function evaluateTask(task: Task, trace: AgentTrace, ctx: AssertCon
         for (const v of verdicts) results.push({ kind: 'claim', name: v.claim, pass: v.pass, detail: v.reason });
       } catch (error) {
         for (const c of claims)
-          results.push({ kind: 'claim', name: c, pass: false, detail: `judge 失败：${(error as Error).message}` });
+          results.push({ kind: 'claim', name: c, pass: false, detail: `judge failed: ${(error as Error).message}` });
       }
     }
   }
 
-  // 状态
+  // State
   for (const check of expect.state ?? []) {
     try {
       results.push(...(await runStateCheck(ctx, task, check)));
     } catch (error) {
-      results.push({ kind: 'state', name: check.check, pass: false, detail: `检查出错：${(error as Error).message}` });
+      results.push({
+        kind: 'state',
+        name: check.check,
+        pass: false,
+        detail: `check failed: ${(error as Error).message}`
+      });
     }
   }
   return results;

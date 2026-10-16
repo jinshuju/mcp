@@ -1,5 +1,5 @@
 /**
- * 组装一个 McpServer。无状态：每个 HTTP 请求 / 每个 stdio 连接各建一个，便宜且互不影响。
+ * Assembles an McpServer. Stateless: one per HTTP request / per stdio connection, cheap and independent of each other.
  */
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/server';
 import { JinshujuApi } from './api.js';
@@ -27,9 +27,9 @@ export interface BuildServerOptions {
   credential: Credential;
   config?: Partial<Config>;
   fetch?: typeof fetch;
-  /** 服务器说明，缺省 INSTRUCTIONS；HTTP 模式开了意图采集时在后面追加 context 参数的说明 */
+  /** Server instructions, INSTRUCTIONS by default; with intent collection on in HTTP mode, the context argument's note is appended */
   instructions?: string;
-  /** 工具抛异常时的回调（HTTP 部署报 Sentry）；报错照常转给模型 */
+  /** Callback when a tool throws (the HTTP deployment reports to Sentry); the error still goes to the model as usual */
   onToolError?: ToolRuntime['onError'];
 }
 
@@ -55,7 +55,7 @@ export function buildServer({
   registerGeneratedTools(server, { api, credential, maxResultChars: cfg.maxResultChars, onError: onToolError });
   registerSchemaTools(server, META.pointerSchemas);
 
-  // 同一份 schema 目录也作为资源暴露，给偏好 resources 的客户端用。
+  // The same schema catalog is also exposed as resources, for clients that prefer resources.
   server.registerResource(
     'schema',
     new ResourceTemplate('jinshuju://schemas/{name}', {

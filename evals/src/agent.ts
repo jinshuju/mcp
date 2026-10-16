@@ -1,6 +1,8 @@
 /**
- * 最小的 agent loop：系统提示 + 任务 → 模型 → 工具调用 → 结果回填 → … → 最终答复。
- * 对两个 MCP 一视同仁：同样的系统提示（附各自的 instructions）、同样的结果截断、同样的轮次上限。
+ * A minimal agent loop: system prompt + task → model → tool calls → results fed back → … → final answer.
+ * Both MCPs get the same treatment: the same system prompt (plus each one's instructions), the same result truncation, the same turn limit.
+ * Everything the model under test reads from the harness (the system prompt, tool-call errors, the truncation note) stays in
+ * Chinese: the tasks are Chinese users' requests, and rewording any of it would break comparison with past rounds.
  */
 import {
   chatCompletion,
@@ -21,7 +23,7 @@ export interface AgentOptions {
   maxTurns: number;
   maxToolResultChars: number;
   toolTimeoutMs: number;
-  /** OpenAI function description 上限；undefined 表示不截断 */
+  /** OpenAI's function description limit; undefined means no truncation */
   descriptionLimit?: number;
   today?: string;
   log?: (line: string) => void;
@@ -91,7 +93,7 @@ export async function runAgent(options: AgentOptions): Promise<AgentTrace> {
     try {
       result = await chatCompletion(llm, { model, messages, tools });
     } catch (error) {
-      trace.error = error instanceof LlmError ? error.message : `LLM 调用失败：${(error as Error).message}`;
+      trace.error = error instanceof LlmError ? error.message : `LLM call failed: ${(error as Error).message}`;
       log?.(`  ✗ ${trace.error.slice(0, 200)}`);
       return trace;
     }
@@ -153,7 +155,7 @@ export async function runAgent(options: AgentOptions): Promise<AgentTrace> {
         ...(outcome.is_error ? { error_message: preview(outcome.text, 500) } : {})
       });
       log?.(
-        `  ${outcome.is_error ? '✗' : '✓'} ${name} ${preview(JSON.stringify(args), 120)} → ${outcome.text.length} 字符`
+        `  ${outcome.is_error ? '✗' : '✓'} ${name} ${preview(JSON.stringify(args), 120)} → ${outcome.text.length} chars`
       );
       messages.push({ role: 'tool', tool_call_id: call.id, content: outcome.is_error ? `ERROR: ${text}` : text });
     }

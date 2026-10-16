@@ -24,7 +24,7 @@ interface SentryEvent {
 
 const json = (body: string) => new Response(body, { headers: { 'Content-Type': 'application/json' } });
 
-/** 读 body 时炸掉的 Response：让 api.ts 在 TransportError 之外的地方抛异常。 */
+/** A Response that throws when its body is read: makes api.ts throw somewhere other than TransportError. */
 function explodingResponse(message: string): Response {
   return { status: 200, headers: new Headers(), text: () => Promise.reject(new Error(message)) } as unknown as Response;
 }
@@ -33,7 +33,7 @@ function text(result: { content?: unknown }): string {
   return (result.content as { text?: string }[]).map((c) => c.text ?? '').join('\n');
 }
 
-/** 假的金数据 API + 假的 Sentry transport：像平台那样经 withSentry 调用 worker，事件从 envelope 里解出来。 */
+/** A fake Jinshuju API and a fake Sentry transport: calls the worker through withSentry as the platform does, and decodes events from the envelopes. */
 function harness(options: { dsn?: boolean; me?: () => Response; forms?: () => Response } = {}) {
   const envelopes: string[] = [];
   const pending: Promise<unknown>[] = [];
@@ -53,7 +53,7 @@ function harness(options: { dsn?: boolean; me?: () => Response; forms?: () => Re
     (): CloudflareOptions => ({
       ...sentryOptions(),
       dsn: options.dsn === false ? undefined : 'https://key@o1.ingest.sentry.io/1',
-      // 缺省整个 isolate 共用第一个 client；测试里每个请求新建，transport 才是自己的
+      // By default the whole isolate shares the first client; the tests create one per request so each gets its own transport
       cacheClient: false,
       transport: (transportOptions) =>
         createTransport(transportOptions, async (request) => {
@@ -111,7 +111,7 @@ const toolsList: RequestInit = {
   body: '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 };
 
-test('工具里 API 连不上：模型照常看到报错；Sentry 记 warning，带工具名和用户 id，不带令牌、IP 和请求体', async () => {
+test('API unreachable inside a tool: the model sees the error as usual; Sentry records a warning with the tool name and user id, without the token, IP or request body', async () => {
   const h = harness({
     forms: () => {
       throw new TypeError('connect ECONNREFUSED');
@@ -128,13 +128,13 @@ test('工具里 API 连不上：模型照常看到报错；Sentry 记 warning，
   assert.ok(event.exception?.values?.some((v) => v.type === 'TransportError'));
   assert.equal(event.user?.id, 'u1');
   assert.equal(event.user?.ip_address, undefined);
-  assert.equal(event.sdk?.settings?.infer_ip, 'never', 'Sentry 服务端也不要按连接推断 IP');
+  assert.equal(event.sdk?.settings?.infer_ip, 'never', 'Sentry must not infer the IP from the connection either');
   assert.equal(event.request?.headers?.authorization, '[Filtered]');
   assert.equal(event.request?.data, undefined);
   assert.equal(event.release, 'jinshuju-mcp@0.1.0');
 });
 
-test('工具里的意外异常：转给模型的报错照旧，Sentry 记 error', async () => {
+test('unexpected exception inside a tool: the model gets the error as before, and Sentry records an error', async () => {
   const h = harness({ forms: () => explodingResponse('boom') });
   const result = await h.callTool('list_forms', { limit: 1 });
   assert.equal(result.isError, true);
@@ -145,7 +145,7 @@ test('工具里的意外异常：转给模型的报错照旧，Sentry 记 error'
   assert.ok(event?.exception?.values?.some((v) => v.value === 'boom'));
 });
 
-test('没配 SENTRY_DSN：什么都不发，行为不变', async () => {
+test('no SENTRY_DSN: nothing is sent and behavior is unchanged', async () => {
   const h = harness({
     dsn: false,
     forms: () => {
@@ -157,14 +157,14 @@ test('没配 SENTRY_DSN：什么都不发，行为不变', async () => {
   assert.equal(h.envelopes.length, 0);
 });
 
-test('令牌校验时 API 出了意外：503，Sentry 收到', async () => {
+test('unexpected API failure during token verification: 503, and Sentry gets it', async () => {
   const h = harness({ me: () => explodingResponse('me exploded') });
   const res = await h.call('https://mcp.test/mcp', toolsList);
   assert.equal(res.status, 503);
   assert.ok(h.events().some((e) => e.exception?.values?.some((v) => v.value === 'me exploded')));
 });
 
-test('路由里没接住的异常：500，Sentry 收到', async () => {
+test('an exception the route does not catch: 500, and Sentry gets it', async () => {
   const h = harness();
   h.app.get('/boom', () => {
     throw new Error('boom route');

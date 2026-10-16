@@ -1,5 +1,6 @@
 /**
- * LLM-as-judge：开放式答复按「claims rubric」逐条核对。judge 模型固定并写进结果，便于跨期比较。
+ * LLM-as-judge: an open answer is checked claim by claim against a rubric. The judge model is fixed and written into the results, so rounds can be compared.
+ * The judge prompt stays in Chinese: the tasks, answers and claims are Chinese, and rewording it would break comparison with past rounds.
  */
 import { chatCompletion, type LlmConfig } from './llm.js';
 
@@ -21,7 +22,7 @@ const SYSTEM = [
 function extractJson(text: string): unknown {
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
-  if (start < 0 || end < start) throw new Error('judge 没有返回 JSON');
+  if (start < 0 || end < start) throw new Error('the judge returned no JSON');
   return JSON.parse(text.slice(start, end + 1));
 }
 
@@ -32,7 +33,7 @@ export async function judgeClaims(
 ): Promise<ClaimVerdict[]> {
   if (!input.claims.length) return [];
   if (!input.answer.trim()) {
-    return input.claims.map((claim) => ({ claim, pass: false, reason: '助手没有给出最终答复' }));
+    return input.claims.map((claim) => ({ claim, pass: false, reason: 'the assistant gave no final answer' }));
   }
   const user = [
     '## 用户任务',
@@ -60,12 +61,12 @@ export async function judgeClaims(
     return input.claims.map((claim) => ({
       claim,
       pass: false,
-      reason: `judge 输出无法解析：${(error as Error).message}`
+      reason: `cannot parse the judge's output: ${(error as Error).message}`
     }));
   }
   const byIndex = new Map((parsed.results ?? []).map((r, i) => [Number(r.index ?? i + 1), r]));
   return input.claims.map((claim, i) => {
     const r = byIndex.get(i + 1);
-    return { claim, pass: r?.pass === true, reason: r?.reason ?? 'judge 未给出结论' };
+    return { claim, pass: r?.pass === true, reason: r?.reason ?? 'the judge gave no verdict' };
   });
 }

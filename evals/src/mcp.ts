@@ -1,9 +1,9 @@
 /**
- * 被测对象：按名字连上一个 MCP。
- * - new     ：本仓库的 MCP，缺省进程内直连 buildServer（评的就是当前 checkout）；设了 EVAL_NEW_MCP_URL 则走 HTTP。
- * - builtin ：金数据内置 MCP（https://jinshuju.net/mcp）。
- * - 任意 name=url：其它 HTTP 部署。
- * 两边都用同一份凭证（JINSHUJU_ACCESS_TOKEN 或 ~/.jinshuju/config.json），保证看到同一个账户的数据。
+ * The MCPs under test, connected by name:
+ * - new:       this repo's MCP; by default buildServer in process (so it evaluates the current checkout), or over HTTP when EVAL_NEW_MCP_URL is set.
+ * - builtin:   Jinshuju's built-in MCP (https://jinshuju.net/mcp).
+ * - name=url:  any other HTTP deployment.
+ * Every target uses the same credential (JINSHUJU_ACCESS_TOKEN or ~/.jinshuju/config.json), so they all see the same account's data.
  */
 import { createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
@@ -40,7 +40,7 @@ export function parseTargets(specs: string[], cfg: EvalConfig): McpTarget[] {
     if (s === 'builtin') return { name: 'builtin', kind: 'http', url: cfg.builtinMcpUrl };
     const eq = s.indexOf('=');
     if (eq > 0) return { name: s.slice(0, eq), kind: 'http', url: s.slice(eq + 1) };
-    throw new Error(`不认识的 MCP 目标：${s}（可用 new / builtin / name=url）`);
+    throw new Error(`Unknown MCP target: ${s} (use new / builtin / name=url)`);
   });
 }
 
@@ -110,7 +110,10 @@ export interface ToolCallOutcome {
   duration_ms: number;
 }
 
-/** 调一次工具，把结果压成文本（isError 的也一样），超时按错误处理。 */
+/**
+ * Calls a tool once and flattens the result to text (isError results too); a timeout counts as an error.
+ * The failure text goes to the model under test, so it stays in Chinese like the rest of the harness's prompts.
+ */
 export async function callTool(
   mcp: ConnectedMcp,
   name: string,

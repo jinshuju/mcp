@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Node 进程入口：官方部署（Docker / k8s）用。 */
+/** Node process entry, used by the official deployment (Docker / k8s). */
 import { serve } from '@hono/node-server';
 import { analyticsFromConfig } from './analytics.js';
 import { createApp } from './app.js';
@@ -16,7 +16,7 @@ serve({ fetch: app.fetch, port, hostname: host }, (info) => {
   console.error(`jinshuju-mcp ${VERSION} listening on http://${info.address}:${info.port}/mcp`);
 });
 
-// posthog-node 定时批量发送；进程退出前把队列里的事件发完。
+// posthog-node sends in timed batches; flush the queued events before the process exits.
 if (analytics) {
   const stop = () => {
     analytics

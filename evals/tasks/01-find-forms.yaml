@@ -1,8 +1,8 @@
-# 找表单 / 账户：会话的第一步。来源：内置 MCP 的线上会话里最常见的开场是 list_forms → get_form → count_entries。
+# 找表单 (finding forms / the account): the first step of a session. Source: in production sessions on the built-in MCP the most common opening is list_forms → get_form → count_entries.
 - id: find-01
   category: 找表单
-  title: 按主题找表单并报数据量
-  source: 线上会话模式 list_forms → count_entries / get_form_data_summary
+  title: Find a form by topic and report its entry count
+  source: production session pattern list_forms → count_entries / get_form_data_summary
   prompt: 我有一个关于客户满意度的表单，帮我找到它，告诉我表单叫什么、现在一共收到多少条数据。
   fixtures: [satisfaction]
   max_turns: 6
@@ -15,8 +15,8 @@
 
 - id: find-02
   category: 找表单
-  title: 看表单结构与填写链接
-  source: 线上会话模式 list_forms → get_form
+  title: Show a form's structure and fill link
+  source: production session pattern list_forms → get_form
   prompt: 「秋季技术沙龙报名表」的填写链接是什么？它有哪些字段，哪些是必填的？
   fixtures: [signup]
   max_turns: 6
@@ -32,8 +32,8 @@
 
 - id: find-03
   category: 找表单
-  title: 账户套餐与配额
-  source: 线上会话 get_current_billing_account
+  title: Account plan and quotas
+  source: production session get_current_billing_account
   prompt: 我现在是什么套餐？本月还能收多少条数据？
   max_turns: 4
   expect:
@@ -46,8 +46,8 @@
 
 - id: find-04
   category: 找表单
-  title: 单表单条数与分状态计数
-  source: 线上会话 count_entries
+  title: Entry count of one form, and counts by status
+  source: production session count_entries
   prompt: 「办公用品采购申请」一共有多少条申请？其中状态是「已批准」的有几条？
   fixtures: [orders]
   max_turns: 6
@@ -59,8 +59,8 @@
 
 - id: find-05
   category: 找表单
-  title: 不存在的表单 token
-  source: 线上会话 get_form 报错「Form not found or access denied」
+  title: A form token that does not exist
+  source: production session get_form failing with "Form not found or access denied"
   prompt: token 是 ZZZZ99 的那个表单叫什么名字？有多少条数据？
   max_turns: 5
   expect:
@@ -73,8 +73,8 @@
 
 - id: find-06
   category: 找表单
-  title: 最近收到数据的表单
-  source: 线上会话 list_forms 带 within_last 过滤报错后重试
+  title: Forms that received entries recently
+  source: production session list_forms with a within_last filter, retried after an error
   prompt: 最近 30 天有哪些表单收到过新数据？按数据量从多到少列出表单名称和它们的总数据量。
   fixtures: [employees, satisfaction, orders, signup]
   max_turns: 6

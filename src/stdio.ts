@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * 本地 stdio 入口：`claude mcp add jinshuju -- npx -y @jinshuju/mcp`。
- * 凭证来自 JINSHUJU_ACCESS_TOKEN，或 @jinshuju/cli 登录后的 ~/.jinshuju/config.json。
+ * Local stdio entry: `claude mcp add jinshuju -- npx -y @jinshuju/mcp`.
+ * The credential comes from JINSHUJU_ACCESS_TOKEN, or from ~/.jinshuju/config.json after logging in with @jinshuju/cli.
  */
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { configFromEnv } from './config.js';

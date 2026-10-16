@@ -1,8 +1,8 @@
-# 批量写入：都作用在一次性表单 signup 上，运行前后重置。来源：线上会话里 create_entry / create_entries / patch_entries / update_entry 都紧跟 get_form。
+# 批量写入 (writing entries): all act on the signup fixture, which is reset before and after each run. Source: in production sessions create_entry / create_entries / patch_entries / update_entry all come right after get_form.
 - id: write-01
   category: 批量写入
-  title: 新增一条数据
-  source: 线上会话模式 get_form → create_entry
+  title: Create one entry
+  source: production session pattern get_form → create_entry
   prompt: 帮我在「秋季技术沙龙报名表」里加一条报名：李雷，手机 13800001111，邮箱 lilei@example.com，公司是极光科技，参加下午场，需要午餐。
   fixtures: [signup]
   writes: true
@@ -23,8 +23,8 @@
 
 - id: write-02
   category: 批量写入
-  title: 批量新增多条
-  source: 线上会话模式 get_form → create_entries
+  title: Create several entries in a batch
+  source: production session pattern get_form → create_entries
   prompt: |
     把下面这几个人报到「秋季技术沙龙报名表」里（依次是姓名、手机、邮箱、公司、场次、是否需要午餐）：
     韩梅梅 13800002222 hanmm@example.com 蓝海咨询 上午场 不需要
@@ -57,8 +57,8 @@
 
 - id: write-03
   category: 批量写入
-  title: 按条件批量更新
-  source: 线上会话模式 list_entries → patch_entries
+  title: Update entries matching a condition
+  source: production session pattern list_entries → patch_entries
   prompt: 「秋季技术沙龙报名表」里所有报了上午场的人，把「是否需要午餐」统一改成「需要」。其他人不要动。
   fixtures: [signup]
   writes: true
@@ -84,8 +84,8 @@
 
 - id: write-04
   category: 批量写入
-  title: 定位一条并改单个字段
-  source: 线上会话模式 get_entry → update_entry
+  title: Find one entry and change one field
+  source: production session pattern get_entry → update_entry
   prompt: 「秋季技术沙龙报名表」里王芳的手机号填错了，帮我改成 13900009999。
   fixtures: [signup]
   writes: true
@@ -106,7 +106,7 @@
 
 - id: write-05
   category: 批量写入
-  title: 按条件删除一条
+  title: Delete an entry matching a condition
   prompt: 「秋季技术沙龙报名表」里备注写着「测试」的那条报名是我测试用的，帮我删掉。
   fixtures: [signup]
   writes: true

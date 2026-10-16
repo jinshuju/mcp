@@ -4,7 +4,7 @@ import { TOOLS, SCHEMAS } from './tools.js';
 import { OPERATIONS } from './composites.js';
 import { META } from './server.js';
 
-/** open.jinshuju.net/mcp 文档中的 60 个工具：本服务的工具集必须与之一一对应。 */
+/** The 60 tools documented at open.jinshuju.net/mcp: this server's tool set must match them one to one. */
 const BUILTIN = [
   'aggregate_entries',
   'check_field_data',
@@ -67,25 +67,25 @@ const BUILTIN = [
   'update_entry',
   'update_entry_comment'
 ];
-/** openapi 没有「预签名上传」接口，这三个改为直接上传，名字随接口。 */
+/** openapi has no presigned-upload endpoints; these three upload directly instead and are named after the endpoints. */
 const RENAMED: Record<string, string> = {
   prepare_entry_attachment_upload: 'upload_entry_attachment',
   prepare_form_image_upload: 'upload_form_image',
   prepare_import_file_upload: 'upload_import_file'
 };
 
-test('工具集与文档中的 60 个工具一一对应', () => {
+test('the tool set matches the 60 documented tools one to one', () => {
   const names = new Set(TOOLS.map((t) => t.name));
   assert.equal(BUILTIN.length, 60);
   const expected = BUILTIN.map((n) => RENAMED[n] ?? n);
-  for (const name of expected) assert.ok(names.has(name), `缺少 ${name}`);
+  for (const name of expected) assert.ok(names.has(name), `missing ${name}`);
   const extra = [...names].filter((n) => !expected.includes(n));
-  assert.deepEqual(extra, [], `多出的工具：${extra.join(', ')}`);
+  assert.deepEqual(extra, [], `unexpected tools: ${extra.join(', ')}`);
   assert.equal(TOOLS.length, META.toolCount);
   for (const name of names) assert.match(name, /^[a-z0-9_]{1,64}$/);
 });
 
-test('操作表覆盖 openapi 全部操作，组合工具用到的操作都在', () => {
+test('the operation table covers every openapi operation, including those the composite tools use', () => {
   assert.equal(Object.keys(OPERATIONS).length, META.operationCount);
   for (const id of [
     'createForm',
@@ -100,7 +100,7 @@ test('操作表覆盖 openapi 全部操作，组合工具用到的操作都在',
   for (const t of TOOLS) assert.ok(OPERATIONS[t.operationId], `${t.name} -> ${t.operationId}`);
 });
 
-test('inputSchema 里没有 $ref，也没有 OpenAPI 专有关键字', () => {
+test('inputSchema has no $ref and no OpenAPI-only keywords', () => {
   const banned = new Set(['$ref', 'discriminator', 'nullable', 'xml', 'example']);
   const walk = (node: unknown, where: string) => {
     if (Array.isArray(node)) return node.forEach((n, i) => walk(n, `${where}[${i}]`));
@@ -116,7 +116,7 @@ test('inputSchema 里没有 $ref，也没有 OpenAPI 专有关键字', () => {
   }
 });
 
-test('共享参数的 descriptionAppend 只追加到引用它的操作', () => {
+test("a shared parameter's descriptionAppend goes only to the operations that reference it", () => {
   const filtersOf = (name: string) =>
     (TOOLS.find((t) => t.name === name)!.inputSchema.properties as Record<string, { description?: string }>).filters
       ?.description ?? '';
@@ -127,12 +127,12 @@ test('共享参数的 descriptionAppend 只追加到引用它的操作', () => {
     assert.doesNotMatch(
       filtersOf(name),
       /exactly the same set of choices/,
-      `${name} 的 filters 是按表单属性筛选的另一个参数`
+      `${name}'s filters is a different parameter that filters on form properties`
     );
   }
 });
 
-test('路径参数都在 inputSchema.required 里，flatten 的请求体属性在顶层', () => {
+test('path parameters are in inputSchema.required, and flattened body properties are at the top level', () => {
   const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
   for (const t of TOOLS) {
     const required = (t.inputSchema.required as string[] | undefined) ?? [];
@@ -144,18 +144,21 @@ test('路径参数都在 inputSchema.required 里，flatten 的请求体属性�
       );
   }
   const createForm = byName.create_form.inputSchema.properties as Record<string, Record<string, unknown>>;
-  assert.ok(createForm.name && createForm.fields && createForm.scene, 'create_form 的请求体属性提升到顶层');
+  assert.ok(
+    createForm.name && createForm.fields && createForm.scene,
+    "create_form's body properties are lifted to the top level"
+  );
   assert.equal(byName.create_form.body?.flatten, true);
   assert.match(String((createForm.fields.items as Record<string, unknown>).description), /FieldInput/);
   const createEntry = byName.create_entry.inputSchema.properties as Record<string, unknown>;
-  assert.ok(createEntry.entry, 'create_entry 的数据嵌在 entry 下');
+  assert.ok(createEntry.entry, "create_entry's data is nested under entry");
   assert.equal(byName.create_entry.body?.param, 'entry');
   const upload = byName.upload_form_image.inputSchema.properties as Record<string, unknown>;
   assert.ok(upload.file_base64 && upload.file_name && upload.content_type && !('file' in upload));
   assert.equal(byName.upload_form_image.body?.contentType, 'multipart/form-data');
 });
 
-test('投影与组合工具的入参形状', () => {
+test('input shapes of the projection and composite tools', () => {
   const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
   const rules = byName.edit_field_rules;
   assert.equal(rules.operationId, 'updateForm');
@@ -171,7 +174,7 @@ test('投影与组合工具的入参形状', () => {
   const examProps = exam.inputSchema.properties as Record<string, unknown>;
   assert.ok(examProps.name && examProps.fields && examProps.exam_setting && !('scene' in examProps));
   assert.deepEqual(exam.inputSchema.required, ['name', 'fields']);
-  // 场景由工具固定：描述里不能再像是有 scene 参数（模型会照着传，被拒后多一个来回）
+  // The tool fixes the scene: its description must not suggest a scene argument (models pass it, get refused and spend a turn)
   for (const name of ['create_exam_form', 'create_evaluation_form', 'edit_exam_form', 'edit_evaluation_form']) {
     assert.doesNotMatch(byName[name].description, /scene=|`scene`/, name);
   }
@@ -182,14 +185,14 @@ test('投影与组合工具的入参形状', () => {
   assert.deepEqual(count.form_token.type, ['string', 'array']);
 });
 
-test('大 schema 被指针化，并能用 get_schema 的目录查到', () => {
+test('large schemas become pointers and are found in the get_schema catalog', () => {
   assert.ok(SCHEMAS.FieldInput && SCHEMAS.TextFieldInput);
   const variants = SCHEMAS.FieldInput['x-variants'] as Record<string, string>;
   assert.equal(variants.TextField, 'TextFieldInput');
   for (const name of META.pointerSchemas) assert.ok(SCHEMAS[name], name);
 });
 
-test('注解按 HTTP 方法推断，overlay 可覆盖；scope 行抽到 scopes', () => {
+test('annotations are inferred from the HTTP method and the overlay can override them; the scope line goes into scopes', () => {
   const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
   assert.equal(byName.list_forms.annotations.readOnlyHint, true);
   assert.equal(byName.delete_entry.annotations.destructiveHint, true);
@@ -197,20 +200,20 @@ test('注解按 HTTP 方法推断，overlay 可覆盖；scope 行抽到 scopes',
   assert.ok(byName.create_form.description.includes('get_schema'));
   assert.deepEqual(byName.list_entries.scopes, ['read_entries']);
   assert.ok(!byName.list_entries.description.includes('OAuth scope'));
-  // 单行说明里 scope 跟在句末；按 image_type 分情况写的那行只取 scope 名
+  // In a one-line description the scope follows the last sentence; from the line that depends on image_type only the scope names are taken
   assert.deepEqual(byName.list_form_views.scopes, ['forms']);
   assert.ok(!byName.list_form_views.description.includes('OAuth scope'));
   assert.deepEqual(byName.upload_form_image.scopes, ['forms', 'form_setting']);
   assert.ok(!byName.upload_form_image.description.includes('OAuth scope'));
 });
 
-test('导入工具把对话里贴的数据引导到 create_entries；upload_import_file 不讲 HTTP 鉴权与 multipart', () => {
+test('the import tools steer data pasted into the conversation to create_entries; upload_import_file says nothing about HTTP auth or multipart', () => {
   const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
   for (const name of ['upload_import_file', 'import_entries_from_file']) {
     assert.match(byName[name].description, /create_entries/, name);
   }
   const upload = byName.upload_import_file.description;
-  assert.ok(upload.startsWith('Upload an import file\n'), 'summary 保留在第一行');
+  assert.ok(upload.startsWith('Upload an import file\n'), 'the summary stays on the first line');
   assert.doesNotMatch(upload, /multipart|credential|401/);
   assert.match(upload, /xls \/ xlsx \/ csv/);
 });

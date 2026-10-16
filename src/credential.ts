@@ -1,17 +1,17 @@
 /**
- * 凭证来源的接口与最简实现。
+ * The credential source interface and its simplest implementation.
  *
- * HTTP 模式：每个请求自带 Bearer，凭证就是那个字符串（StaticCredential）。
- * stdio 模式的本地凭证（~/.jinshuju/config.json，含 refresh）在 cli-credential.ts，
- * 它依赖 node:fs；这个文件不依赖任何 Node API，所以 Worker 包里不会带进 node: 模块。
+ * HTTP mode: every request brings its own Bearer, and the credential is that string (StaticCredential).
+ * The local credential for stdio mode (~/.jinshuju/config.json, with refresh) lives in cli-credential.ts,
+ * which depends on node:fs; this file uses no Node API, so the Worker bundle pulls in no node: modules.
  */
 
 export interface Credential {
-  /** 当前可用的 access token */
+  /** The access token currently usable */
   token(): Promise<string>;
-  /** API 回了 401：丢弃缓存 / 尝试续期。返回 true 表示拿到了新凭证，值得重试一次。 */
+  /** The API answered 401: drop the cache / try to renew. Returns true when a new credential was obtained and one retry is worthwhile. */
   invalidate(): Promise<boolean>;
-  /** 给 auth status 一类的说明用 */
+  /** For descriptions such as auth status */
   describe(): string;
 }
 
@@ -34,8 +34,8 @@ export class StaticCredential implements Credential {
 export class MissingCredentialError extends Error {
   constructor() {
     super(
-      '没有可用的金数据凭证。可以：设置环境变量 JINSHUJU_ACCESS_TOKEN=<个人或企业 Access Token>；' +
-        '或先用 `npx @jinshuju/cli auth login` 登录（本服务复用 ~/.jinshuju/config.json）。'
+      'No Jinshuju credential available. Set JINSHUJU_ACCESS_TOKEN=<personal or account access token>, ' +
+        'or log in first with `npx @jinshuju/cli auth login` (this server reuses ~/.jinshuju/config.json).'
     );
     this.name = 'MissingCredentialError';
   }

@@ -1,6 +1,6 @@
 name: Release
 
-# 与 jinshuju/cli 相同的两步发布：release-please 维护一个版本 PR；合并它即发布到 npm（OIDC trusted publishing）。
+# Two-step release, same as jinshuju/cli: release-please keeps a release PR open; merging it publishes to npm (OIDC trusted publishing).
 on:
   push:
     branches: [main]

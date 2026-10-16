@@ -1,5 +1,5 @@
 /**
- * 生成产物（src/generated/*.json）的形状。改这里要同步改 scripts/generate.ts。
+ * The shape of the generated output (src/generated/*.json). A change here needs the same change in scripts/generate.ts.
  */
 export type JsonSchema = Record<string, unknown>;
 
@@ -9,22 +9,22 @@ export interface ParamSpec {
   name: string;
   in: 'path' | 'query';
   required: boolean;
-  /** query 数组序列化成 name[]=a&name[]=b（服务端按数组读取） */
+  /** A query array is serialized as name[]=a&name[]=b (the server reads it as an array) */
   array?: boolean;
 }
 
 export interface BodySpec {
   contentType: 'application/json' | 'multipart/form-data';
   required: boolean;
-  /** 请求体属性在入参顶层：去掉 path / query 参数后的其余键就是请求体 */
+  /** Body properties sit at the top level of the arguments: the keys left after removing path / query parameters are the body */
   flatten: boolean;
-  /** 不 flatten 时，请求体在入参里的键名 */
+  /** When not flattened, the argument key that holds the body */
   param?: string;
-  /** 发出前再包一层 { [wrap]: payload }（投影工具用） */
+  /** Wrapped once more as { [wrap]: payload } before sending (for projection tools) */
   wrap?: string;
 }
 
-/** openapi 的一个操作：运行时发请求所需的一切 */
+/** One openapi operation: everything needed to send its request at runtime */
 export interface OperationSpec {
   operationId: string;
   summary: string;
@@ -49,7 +49,7 @@ export interface ToolAnnotations {
 
 export type CompositeKind = 'scene_form_create' | 'scene_form_update' | 'count_entries';
 
-/** 一个 MCP 工具：一个操作 + 入参 / 出参 schema；组合工具额外带 composite */
+/** One MCP tool: an operation + input / output schemas; a composite tool also carries composite */
 export interface ToolSpec extends OperationSpec {
   name: string;
   title: string;
@@ -64,7 +64,7 @@ export interface GeneratedMeta {
   baseUrl: string;
   toolCount: number;
   operationCount: number;
-  /** 工具名 -> operationId（组合工具为 a+b） */
+  /** Tool name -> operationId (a+b for a composite tool) */
   tools: Record<string, string>;
   pointerSchemas: string[];
   omitSchemas: string[];

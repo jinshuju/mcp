@@ -1,10 +1,13 @@
-# 评测夹具：断言依赖的数据。`npm run eval -- seed` 在测评账户里按这里的描述建表单、灌数据，
-# 并把 token / api_code 记在 evals/state/fixtures.json。样本集与数据一起版本化：改了这里就重新 seed。
+# Eval fixtures: the data assertions depend on. `npm run eval -- seed` creates the forms and loads the entries described here
+# in the eval account, and records their tokens / api_codes in evals/state/fixtures.json. The sample set and the data are
+# versioned together: change this file, then seed again.
+# Form names, field labels, choices and entries are test data in Chinese, like the tasks that query them.
 #
-# 约定：
-# - fields[].key 是夹具内部的字段键，任务的状态断言用它引用字段；label 在同一表单内唯一，seed 用 label 对应 api_code。
-# - entries 的键是 field key；选项用显示值，多选用数组，日期用 YYYY-MM-DD。
-# - 带 entries 的表单在 seed 时会被整体重置为这里的数据。
+# Conventions:
+# - fields[].key is the fixture's own field key; task state assertions refer to fields by it. label is unique within a form,
+#   and seed maps it to the api_code.
+# - Entry keys are field keys; choices use their labels, multiple choices an array, dates YYYY-MM-DD.
+# - A form with entries is reset to exactly these entries on seed.
 
 folder: MCP 评测数据（勿动）
 output_folder: MCP 评测产出（可删）
@@ -141,8 +144,8 @@ forms:
           email: machao@example.com,
           mobile: '13800010012'
         }
-    # 事实：研发 5 / 市场 3 / 销售 2 / 人事 2；月薪最高 王强 32000；2026 年入职 3 人（马超、李娜、刘洋）；
-    # 会 Python 5 人（张伟、李娜、刘洋、杨帆、孙丽）= 41.7%；部门平均月薪 研发 23200 / 市场 21000 / 销售 16500 / 人事 19500；总平均 20916.67
+    # Facts: 研发 5 / 市场 3 / 销售 2 / 人事 2; highest monthly salary 王强 32000; 3 joined in 2026 (马超, 李娜, 刘洋);
+    # 5 know Python (张伟, 李娜, 刘洋, 杨帆, 孙丽) = 41.7%; average monthly salary by department 研发 23200 / 市场 21000 / 销售 16500 / 人事 19500; overall average 20916.67
 
   - alias: satisfaction
     name: 客户满意度调查问卷
@@ -336,9 +339,9 @@ forms:
           comment: 外壳有划痕，售后没人理,
           purchase_date: 2026-09-26
         }
-    # 事实：20 条；平均满意度 3.5；分产品平均 智能门锁 4.29 / 扫地机器人 2.57（最低） / 空气净化器 3.67；
-    # NPS 推荐者（9-10）6 人、中立 5 人、贬损者（0-6）9 人；1-2 分客户 4 人（曹操、张辽、郭嘉、太史慈）；
-    # 勾选「物流慢」6 人；按购买月份 7 月 6 / 8 月 8 / 9 月 6
+    # Facts: 20 entries; average satisfaction 3.5; average by product 智能门锁 4.29 / 扫地机器人 2.57 (lowest) / 空气净化器 3.67;
+    # NPS promoters (9-10) 6, passives 5, detractors (0-6) 9; 4 customers scored 1-2 (曹操, 张辽, 郭嘉, 太史慈);
+    # 6 ticked "物流慢"; by purchase month July 6 / August 8 / September 6
 
   - alias: signup
     name: 秋季技术沙龙报名表
@@ -557,8 +560,8 @@ forms:
           status: 已批准,
           purpose: 外设更换
         }
-    # 事实：15 条；已批准 9 / 待审批 4 / 已驳回 2；已批准总金额 16140（研发 6500 / 市场 6400 / 销售 840 / 人事 2400）；
-    # 显示器被申请 5 次共 9 台（最多）；王强出现 2 次
+    # Facts: 15 entries; 已批准 9 / 待审批 4 / 已驳回 2; approved total 16140 (研发 6500 / 市场 6400 / 销售 840 / 人事 2400);
+    # 显示器 requested 5 times, 9 units in all (the most); 王强 appears twice
 
   - alias: training
     name: 新员工入职培训签到表

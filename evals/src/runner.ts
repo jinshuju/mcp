@@ -1,6 +1,6 @@
 /**
- * 跑矩阵：任务 × 模型 × MCP（× 重复次数）。写入类任务按夹具加锁、运行前后重置；建表单的任务跑完把新表单归档。
- * 每次运行写 results/<run_id>/{meta.json, runs.jsonl, transcripts/*.json}，可中断后 --resume。
+ * Runs the matrix: tasks × models × MCPs (× repeats). Write tasks lock their fixture and reset it before and after; create-form tasks archive the forms they made.
+ * Each run writes results/<run_id>/{meta.json, runs.jsonl, transcripts/*.json} and can be picked up again with --resume.
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
@@ -15,7 +15,7 @@ import type { LlmConfig } from './llm.js';
 import { connectMcp, type McpTarget } from './mcp.js';
 import type { FixtureState, FixturesSpec, RunMeta, RunRecord, Task } from './types.js';
 
-/** 读写锁：读任务可并发，写任务独占；FIFO，避免饿死。 */
+/** Read-write lock: read tasks run together, a write task runs alone; FIFO, so nothing starves. */
 class RWLock {
   private readers = 0;
   private writer = false;
@@ -60,7 +60,7 @@ export interface RunOptions {
   judgeModel: string;
   runDir: string;
   resume?: boolean;
-  /** OpenAI function description 上限（字符），undefined 不截断 */
+  /** OpenAI's function description limit (characters); undefined means no truncation */
   descriptionLimit?: number;
   verbose?: boolean;
   log?: (line: string) => void;
@@ -102,7 +102,7 @@ export async function runMatrix(options: RunOptions): Promise<RunRecord[]> {
   mkdirSync(resolve(runDir, 'transcripts'), { recursive: true });
   const llm: LlmConfig = { baseUrl: cfg.llmBaseUrl, apiKey: cfg.llmApiKey, timeoutMs: cfg.llmTimeoutMs };
 
-  // 描述每个被测对象（版本、目录大小）
+  // Describe each MCP under test (version, catalog size)
   const described: RunMeta['targets'] = [];
   for (const target of targets) {
     const mcp = await connectMcp(target, credential, cfg);
@@ -115,7 +115,7 @@ export async function runMatrix(options: RunOptions): Promise<RunRecord[]> {
       catalog_chars: mcp.catalog_chars
     });
     await mcp.close();
-    log(`MCP ${target.name}: ${mcp.version}，${mcp.tools.length} 个工具，目录 ${mcp.catalog_chars} 字符`);
+    log(`MCP ${target.name}: ${mcp.version}, ${mcp.tools.length} tools, catalog ${mcp.catalog_chars} chars`);
   }
   const meta: RunMeta = {
     run_id: runId,
@@ -148,7 +148,7 @@ export async function runMatrix(options: RunOptions): Promise<RunRecord[]> {
     }
   }
   log(
-    `运行 ${runId}：${jobs.length} 个作业（${tasks.length} 任务 × ${models.length} 模型 × ${targets.length} MCP × ${options.repeat}）${done.size ? `，跳过已完成 ${done.size}` : ''}`
+    `Run ${runId}: ${jobs.length} jobs (${tasks.length} tasks × ${models.length} models × ${targets.length} MCPs × ${options.repeat})${done.size ? `, skipping ${done.size} already done` : ''}`
   );
 
   const locks = new Map<string, RWLock>();
@@ -243,7 +243,7 @@ export async function runMatrix(options: RunOptions): Promise<RunRecord[]> {
         if (write) for (const alias of aliases) await resetFixture(api, cfg, spec, state, alias, vlog);
         if (task.creates_forms) await sweepCreatedForms(api, state, startedAt, vlog);
       } catch (error) {
-        log(`  ⚠ ${label} 清理失败：${(error as Error).message}`);
+        log(`  ⚠ ${label} cleanup failed: ${(error as Error).message}`);
       }
     } catch (error) {
       record = {
@@ -294,10 +294,10 @@ export async function runMatrix(options: RunOptions): Promise<RunRecord[]> {
               .filter((a) => !a.pass)
               .map((a) => a.name)
               .slice(0, 3)
-              .join('；')
+              .join('; ')
           ).slice(0, 160)}`;
     log(
-      `[${finished}/${jobs.length}] ${mark} ${label}：${record.turns} 轮 / ${record.tool_calls} 次工具 / ${Math.round(record.duration_ms / 1000)}s / ${record.usage.prompt_tokens + record.usage.completion_tokens} tok${why}`
+      `[${finished}/${jobs.length}] ${mark} ${label}: ${record.turns} turns / ${record.tool_calls} tool calls / ${Math.round(record.duration_ms / 1000)}s / ${record.usage.prompt_tokens + record.usage.completion_tokens} tok${why}`
     );
   }
 

@@ -1,6 +1,6 @@
 /**
- * OpenAI 兼容的 chat/completions 调用：任何支持 function calling 的模型都能接进来（网关统一鉴权）。
- * 负责重试（429 / 5xx / 网络）、用量归一化、MCP 工具 → OpenAI tools 的转换。
+ * OpenAI-compatible chat/completions calls: any model with function calling plugs in (the gateway handles auth).
+ * Handles retries (429 / 5xx / network), usage normalization and MCP tools → OpenAI tools.
  */
 import type { Tool } from '@modelcontextprotocol/client';
 import type { Usage } from './types.js';
@@ -114,7 +114,7 @@ export async function chatCompletion(
       });
       text = await res.text();
       if (!res.ok) {
-        // 网关对同一模型多路由时偶发 404 model_not_found，当作可重试
+        // The gateway routes one model several ways and now and then answers 404 model_not_found; retry it
         const flaky404 = res.status === 404 && /does not exist|not found/i.test(text);
         failure = new LlmError(
           `LLM HTTP ${res.status}: ${text.slice(0, 500)}`,
@@ -127,7 +127,7 @@ export async function chatCompletion(
       const aborted = params.signal?.aborted;
       const timedOut = controller.signal.aborted && !aborted;
       failure = new LlmError(
-        timedOut ? `LLM 调用超时（${cfg.timeoutMs} ms）` : `LLM 网络错误：${(error as Error).message}`,
+        timedOut ? `LLM call timed out (${cfg.timeoutMs} ms)` : `LLM network error: ${(error as Error).message}`,
         undefined,
         !aborted,
         undefined
@@ -142,7 +142,7 @@ export async function chatCompletion(
       try {
         data = JSON.parse(text) as Record<string, unknown>;
       } catch {
-        throw new LlmError(`LLM 返回了非 JSON：${text.slice(0, 300)}`, res.status, false, text);
+        throw new LlmError(`LLM returned non-JSON: ${text.slice(0, 300)}`, res.status, false, text);
       }
       if (data.error) {
         const err = data.error as Record<string, unknown>;
@@ -150,7 +150,7 @@ export async function chatCompletion(
         const code = Number(err.code);
         const retryable = /rate|limit|overloaded|timeout|temporar|busy/i.test(msg) || RETRYABLE.has(code);
         failure = new LlmError(
-          `LLM 错误：${msg.slice(0, 500)}`,
+          `LLM error: ${msg.slice(0, 500)}`,
           Number.isFinite(code) ? code : res.status,
           retryable,
           text
@@ -199,7 +199,7 @@ export async function chatCompletion(
   }
 }
 
-/** OpenAI 对 function description 的长度上限（字符）；超出时截断并计数，报告里会提到。 */
+/** OpenAI's length limit on a function description (characters); longer ones are truncated and counted, and the report says so. */
 export const OPENAI_DESCRIPTION_LIMIT = 1024;
 
 function sanitizeSchema(schema: unknown): Record<string, unknown> {

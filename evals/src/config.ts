@@ -1,5 +1,5 @@
 /**
- * 评测运行配置：全部来自环境变量（可放在 evals/.env.local，不进仓库）。
+ * Eval run configuration, all from environment variables (they can live in evals/.env.local, which is not committed).
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 export const EVALS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const REPO_DIR = resolve(EVALS_DIR, '..');
 
-/** 读取 evals/.env.local（KEY=VALUE，# 注释），已存在的环境变量优先。 */
+/** Reads evals/.env.local (KEY=VALUE, # comments); variables already in the environment win. */
 export function loadEnvFile(path = resolve(EVALS_DIR, '.env.local')): void {
   if (!existsSync(path)) return;
   for (const raw of readFileSync(path, 'utf8').split('\n')) {
@@ -28,20 +28,20 @@ export function loadEnvFile(path = resolve(EVALS_DIR, '.env.local')): void {
 export interface EvalConfig {
   llmBaseUrl: string;
   llmApiKey: string;
-  /** 缺省被测模型 */
+  /** Models under test by default */
   models: string[];
   judgeModel: string;
   builtinMcpUrl: string;
-  /** 新 MCP 的 HTTP 部署地址；不设则进程内直连 buildServer */
+  /** HTTP address of a deployed new MCP; unset, buildServer is connected in process */
   newMcpUrl?: string;
   stateDir: string;
   resultsDir: string;
   concurrency: number;
-  /** 单次 LLM 调用超时 */
+  /** Timeout of one LLM call */
   llmTimeoutMs: number;
-  /** 单次工具调用超时 */
+  /** Timeout of one tool call */
   toolTimeoutMs: number;
-  /** 工具结果喂给模型前的最大字符数（两个 MCP 一视同仁；缺省与新 MCP 自身的截断阈值一致） */
+  /** Most characters of a tool result passed to the model (the same for both MCPs; defaults to the new MCP's own truncation threshold) */
   maxToolResultChars: number;
 }
 
@@ -85,7 +85,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
 export function requireLlm(cfg: EvalConfig): void {
   if (!cfg.llmBaseUrl || !cfg.llmApiKey) {
     throw new Error(
-      '需要 LLM_BASE_URL 与 LLM_API_KEY（OpenAI 兼容的 chat/completions 网关），可写在 evals/.env.local。'
+      'Needs LLM_BASE_URL and LLM_API_KEY (an OpenAI-compatible chat/completions gateway); they can go in evals/.env.local.'
     );
   }
 }

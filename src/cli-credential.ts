@@ -1,7 +1,7 @@
 /**
- * stdio 模式的本地凭证：按 @jinshuju/cli 的约定取。JINSHUJU_ACCESS_TOKEN 环境变量优先，
- * 其次 ~/.jinshuju/config.json 里 `jinshuju auth login` 存下的凭证（access token 或 OAuth 会话，
- * 会话过期时用 refresh_token 续期并写回，mode 600）。两个工具共用一份登录。
+ * The local credential for stdio mode, found the way @jinshuju/cli does. The JINSHUJU_ACCESS_TOKEN environment variable
+ * comes first, then the credential `jinshuju auth login` saved in ~/.jinshuju/config.json (an access token or an OAuth
+ * session; an expired session is renewed with refresh_token and written back, mode 600). Both tools share one login.
  */
 import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -62,7 +62,7 @@ export class CliSessionCredential implements Credential {
 
   describe() {
     const session = this.config && this.session(this.config);
-    return session ? `OAuth 会话（${this.path}）` : `access token（${this.path}）`;
+    return session ? `OAuth session (${this.path})` : `access token (${this.path})`;
   }
 
   async token(): Promise<string> {
@@ -70,7 +70,7 @@ export class CliSessionCredential implements Credential {
     const session = this.session(config);
     if (session) {
       const expiresAt = session.expires_at ? Date.parse(session.expires_at) : Number.NaN;
-      // 提前一分钟续期，避免请求路上过期
+      // Renew a minute early so the token does not expire mid-request
       if (Number.isFinite(expiresAt) && expiresAt - Date.now() < 60_000 && session.refresh_token) {
         await this.refresh();
       }
@@ -88,7 +88,7 @@ export class CliSessionCredential implements Credential {
   }
 
   private refresh(): Promise<boolean> {
-    // 并发的工具调用共用同一次续期
+    // Concurrent tool calls share one renewal
     this.refreshing ??= this.doRefresh().finally(() => {
       this.refreshing = undefined;
     });
@@ -137,7 +137,7 @@ export class CliSessionCredential implements Credential {
   }
 }
 
-/** stdio 入口用：按优先级挑一个凭证来源。 */
+/** For the stdio entry: picks a credential source by priority. */
 export async function resolveCredential(env: Record<string, string | undefined> = process.env): Promise<Credential> {
   if (env.JINSHUJU_ACCESS_TOKEN) return new StaticCredential(env.JINSHUJU_ACCESS_TOKEN, 'env JINSHUJU_ACCESS_TOKEN');
   const path = env.JINSHUJU_CONFIG ?? DEFAULT_CONFIG_PATH;

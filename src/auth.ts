@@ -1,11 +1,13 @@
 /**
- * HTTP 模式的鉴权：本服务只是 OAuth 的 Resource Server。
+ * Authentication in HTTP mode: this service is only an OAuth Resource Server.
  *
- * - 授权服务器是 account.jinshuju.net（已支持动态注册 / PKCE / refresh），本服务不签发任何令牌；
- * - 请求里的 Bearer（OAuth 令牌或个人 / 企业 Access Token）原样转给 API v1；
- * - 令牌是否有效由 API 说了算：用一次轻量调用（GET /me）确认，结果按令牌哈希缓存一段时间，
- *   避免每个工具调用都多花一次 API 配额；
- * - 没带 / 无效令牌时回 401 + WWW-Authenticate: Bearer resource_metadata=...，客户端据此走 OAuth。
+ * - The authorization server is account.jinshuju.net (dynamic registration / PKCE / refresh supported); this service
+ *   issues no tokens;
+ * - the request's Bearer (an OAuth token or a personal / account access token) goes to API v1 as is;
+ * - the API decides whether a token is valid: one light call (GET /me) checks it, and the result is cached by token
+ *   hash for a while, so every tool call does not spend an extra API request;
+ * - with no token or an invalid one, answers 401 + WWW-Authenticate: Bearer resource_metadata=..., and the client
+ *   goes through OAuth from there.
  */
 import {
   bearerAuthChallengeResponse,
@@ -23,7 +25,7 @@ export interface VerifierOptions {
   now?: () => number;
 }
 
-/** 令牌哈希：校验缓存的键，也是 analytics 里会话 id 的来源。 */
+/** Token hash: the key of the verification cache, and the source of the analytics session id. */
 export async function sha256(text: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -36,14 +38,14 @@ export class TokenVerifier {
     this.now = options.now ?? Date.now;
   }
 
-  /** 有效返回 AuthInfo，无效返回 undefined。网络故障视为无效但不缓存。 */
+  /** Returns AuthInfo when valid, undefined when not. A network failure counts as invalid but is not cached. */
   async verify(token: string): Promise<AuthInfo | undefined> {
     const key = await sha256(token);
     const hit = this.cache.get(key);
     if (hit && hit.until > this.now()) return hit.info;
     this.cache.delete(key);
     const res = await this.options.api.raw('GET', '/me', token);
-    // 401 = 令牌本身不被接受；其它状态（200 / 402 / 403 scope 不足 …）都说明令牌有效，只是能做的事不同。
+    // 401 = the token itself is refused; any other status (200 / 402 / 403 for insufficient scope …) means the token is valid and only what it may do differs.
     if (res.status === 401) return undefined;
     const me = (res.status === 200 ? res.json : undefined) as { id?: unknown; name?: unknown } | undefined;
     const info: AuthInfo = {
@@ -65,7 +67,7 @@ export class TokenVerifier {
   }
 }
 
-/** AuthInfo 里的金数据用户 id（GET /me 的 id），没认出用户时 undefined；analytics 与 Sentry 都用它标识用户。 */
+/** The Jinshuju user id in AuthInfo (the id from GET /me), undefined when no user was identified; analytics and Sentry both identify the user by it. */
 export function userIdOf(authInfo: AuthInfo | undefined): string | undefined {
   const id = authInfo?.extra?.userId;
   return id === undefined || id === null || id === '' ? undefined : String(id);
@@ -81,7 +83,7 @@ export function challenge(resourceMetadataUrl: string, message: string): Respons
   return bearerAuthChallengeResponse(new OAuthError(OAuthErrorCode.InvalidToken, message), { resourceMetadataUrl });
 }
 
-/** 从授权服务器拉 RFC 8414 元数据，失败时用内置的已知值。 */
+/** Fetches RFC 8414 metadata from the authorization server, falling back to built-in known values. */
 export async function loadAuthServerMetadata(
   authServer: string,
   fetchImpl: typeof fetch = fetch
@@ -92,7 +94,7 @@ export async function loadAuthServerMetadata(
     });
     if (res.ok) return (await res.json()) as OAuthMetadata;
   } catch {
-    // 下面用内置值
+    // fall through to the built-in values below
   }
   return {
     issuer: authServer,
