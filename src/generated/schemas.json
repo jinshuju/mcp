@@ -12683,9 +12683,254 @@
     "type": "array",
     "items": {
      "type": "object",
-     "description": "Shape: schema \"GoodsItemInput\"; call get_schema (name=\"GoodsItemInput\") or read the resource jinshuju://schemas/GoodsItemInput."
+     "title": "GoodsItemUpdateInput",
+     "additionalProperties": false,
+     "description": "A goods item; one with api_code is an existing item and keeps whatever it leaves out",
+     "properties": {
+      "name": {
+       "type": "string",
+       "description": "Goods name"
+      },
+      "layout": {
+       "type": "string",
+       "enum": [
+        "without_images",
+        "price_only",
+        "images",
+        "text_options"
+       ],
+       "description": "Layout"
+      },
+      "api_code": {
+       "type": "string",
+       "description": "Keeps the identity of the item on edit; when left out, an existing item is matched by name"
+      },
+      "description": {
+       "type": "string",
+       "description": "Goods description"
+      },
+      "position": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "hidden": {
+       "type": "boolean"
+      },
+      "price": {
+       "type": "number",
+       "minimum": 0
+      },
+      "original_price": {
+       "type": "number",
+       "minimum": 0,
+       "description": "Original price, shown struck through"
+      },
+      "predefined_number": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "Default quantity"
+      },
+      "fixed_number": {
+       "type": "boolean",
+       "description": "The quantity cannot be changed"
+      },
+      "inventory": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "Stock; with specifications, set it on each sku instead"
+      },
+      "inventory_reset": {
+       "type": "boolean"
+      },
+      "min_purchase_quantity": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "max_purchase_quantity": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "dimensions": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+         "label",
+         "options"
+        ],
+        "properties": {
+         "api_code": {
+          "type": "string",
+          "description": "Keeps the identity on edit"
+         },
+         "label": {
+          "type": "string",
+          "description": "Dimension name, such as `尺寸`"
+         },
+         "options": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+           "type": "object",
+           "additionalProperties": false,
+           "required": [
+            "label"
+           ],
+           "properties": {
+            "label": {
+             "type": "string"
+            },
+            "value": {
+             "type": "string",
+             "description": "Generated when left out; customized marks a custom amount option"
+            }
+           }
+          }
+         }
+        }
+       },
+       "description": "Specification dimensions"
+      },
+      "skus": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+         "specification"
+        ],
+        "properties": {
+         "specification": {
+          "type": "object",
+          "additionalProperties": {
+           "type": "string"
+          },
+          "description": "Keyed by dimension api_code or name; each value is an option value or name"
+         },
+         "price": {
+          "type": "number",
+          "minimum": 0
+         },
+         "original_price": {
+          "type": "number",
+          "minimum": 0
+         },
+         "inventory": {
+          "type": "integer",
+          "minimum": 0
+         },
+         "inventory_reset": {
+          "type": "boolean"
+         },
+         "min_purchase_quantity": {
+          "type": "integer",
+          "minimum": 0
+         },
+         "max_purchase_quantity": {
+          "type": "integer",
+          "minimum": 0
+         }
+        }
+       },
+       "description": "Specification combinations; specification must name one option for every dimension"
+      },
+      "image_urls": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "format": "uri"
+       },
+       "description": "Goods image URLs for layout=images"
+      },
+      "image_base64s": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "Base64 goods images for layout=images"
+      }
+     },
+     "dependentRequired": {
+      "dimensions": [
+       "skus"
+      ],
+      "skus": [
+       "dimensions"
+      ]
+     },
+     "if": {
+      "not": {
+       "required": [
+        "api_code"
+       ]
+      }
+     },
+     "then": {
+      "required": [
+       "name",
+       "layout"
+      ],
+      "allOf": [
+       {
+        "description": "The price_only / text_options layouts require specifications",
+        "if": {
+         "properties": {
+          "layout": {
+           "enum": [
+            "price_only",
+            "text_options"
+           ]
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "dimensions",
+          "skus"
+         ]
+        }
+       },
+       {
+        "description": "The images layout needs at least one image",
+        "if": {
+         "properties": {
+          "layout": {
+           "const": "images"
+          }
+         }
+        },
+        "then": {
+         "anyOf": [
+          {
+           "required": [
+            "image_urls"
+           ],
+           "properties": {
+            "image_urls": {
+             "minItems": 1
+            }
+           }
+          },
+          {
+           "required": [
+            "image_base64s"
+           ],
+           "properties": {
+            "image_base64s": {
+             "minItems": 1
+            }
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
     },
-    "description": "Replaces the whole list; carry api_code to keep the identity of an item"
+    "description": "Replaces the whole list; carry api_code to keep the identity of an item. An existing item keeps whatever it leaves out, so a reorder lists just the api_codes in the new order"
    },
    "reservation_items": {
     "type": "array",
@@ -18955,6 +19200,255 @@
     }
    }
   ]
+ },
+ "GoodsItemUpdateInput": {
+  "type": "object",
+  "title": "GoodsItemUpdateInput",
+  "additionalProperties": false,
+  "description": "A goods item; one with api_code is an existing item and keeps whatever it leaves out",
+  "properties": {
+   "name": {
+    "type": "string",
+    "description": "Goods name"
+   },
+   "layout": {
+    "type": "string",
+    "enum": [
+     "without_images",
+     "price_only",
+     "images",
+     "text_options"
+    ],
+    "description": "Layout"
+   },
+   "api_code": {
+    "type": "string",
+    "description": "Keeps the identity of the item on edit; when left out, an existing item is matched by name"
+   },
+   "description": {
+    "type": "string",
+    "description": "Goods description"
+   },
+   "position": {
+    "type": "integer",
+    "minimum": 0
+   },
+   "hidden": {
+    "type": "boolean"
+   },
+   "price": {
+    "type": "number",
+    "minimum": 0
+   },
+   "original_price": {
+    "type": "number",
+    "minimum": 0,
+    "description": "Original price, shown struck through"
+   },
+   "predefined_number": {
+    "type": "integer",
+    "minimum": 0,
+    "description": "Default quantity"
+   },
+   "fixed_number": {
+    "type": "boolean",
+    "description": "The quantity cannot be changed"
+   },
+   "inventory": {
+    "type": "integer",
+    "minimum": 0,
+    "description": "Stock; with specifications, set it on each sku instead"
+   },
+   "inventory_reset": {
+    "type": "boolean"
+   },
+   "min_purchase_quantity": {
+    "type": "integer",
+    "minimum": 0
+   },
+   "max_purchase_quantity": {
+    "type": "integer",
+    "minimum": 0
+   },
+   "dimensions": {
+    "type": "array",
+    "minItems": 1,
+    "items": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "label",
+      "options"
+     ],
+     "properties": {
+      "api_code": {
+       "type": "string",
+       "description": "Keeps the identity on edit"
+      },
+      "label": {
+       "type": "string",
+       "description": "Dimension name, such as `尺寸`"
+      },
+      "options": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+         "label"
+        ],
+        "properties": {
+         "label": {
+          "type": "string"
+         },
+         "value": {
+          "type": "string",
+          "description": "Generated when left out; customized marks a custom amount option"
+         }
+        }
+       }
+      }
+     }
+    },
+    "description": "Specification dimensions"
+   },
+   "skus": {
+    "type": "array",
+    "minItems": 1,
+    "items": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "specification"
+     ],
+     "properties": {
+      "specification": {
+       "type": "object",
+       "additionalProperties": {
+        "type": "string"
+       },
+       "description": "Keyed by dimension api_code or name; each value is an option value or name"
+      },
+      "price": {
+       "type": "number",
+       "minimum": 0
+      },
+      "original_price": {
+       "type": "number",
+       "minimum": 0
+      },
+      "inventory": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "inventory_reset": {
+       "type": "boolean"
+      },
+      "min_purchase_quantity": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "max_purchase_quantity": {
+       "type": "integer",
+       "minimum": 0
+      }
+     }
+    },
+    "description": "Specification combinations; specification must name one option for every dimension"
+   },
+   "image_urls": {
+    "type": "array",
+    "items": {
+     "type": "string",
+     "format": "uri"
+    },
+    "description": "Goods image URLs for layout=images"
+   },
+   "image_base64s": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "description": "Base64 goods images for layout=images"
+   }
+  },
+  "dependentRequired": {
+   "dimensions": [
+    "skus"
+   ],
+   "skus": [
+    "dimensions"
+   ]
+  },
+  "if": {
+   "not": {
+    "required": [
+     "api_code"
+    ]
+   }
+  },
+  "then": {
+   "required": [
+    "name",
+    "layout"
+   ],
+   "allOf": [
+    {
+     "description": "The price_only / text_options layouts require specifications",
+     "if": {
+      "properties": {
+       "layout": {
+        "enum": [
+         "price_only",
+         "text_options"
+        ]
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "dimensions",
+       "skus"
+      ]
+     }
+    },
+    {
+     "description": "The images layout needs at least one image",
+     "if": {
+      "properties": {
+       "layout": {
+        "const": "images"
+       }
+      }
+     },
+     "then": {
+      "anyOf": [
+       {
+        "required": [
+         "image_urls"
+        ],
+        "properties": {
+         "image_urls": {
+          "minItems": 1
+         }
+        }
+       },
+       {
+        "required": [
+         "image_base64s"
+        ],
+        "properties": {
+         "image_base64s": {
+          "minItems": 1
+         }
+        }
+       }
+      ]
+     }
+    }
+   ]
+  }
  },
  "GoodsSku": {
   "type": "object",
