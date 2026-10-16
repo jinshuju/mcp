@@ -20,6 +20,7 @@ spec/openapi.yaml        Copy of the live https://jinshuju.net/api/v1/openapi.ya
 mcp.overlay.yaml         Projection rules: exclude / pointerSchemas / bodyParam / per-tool overrides
 scripts/generate.ts      YAML + overlay -> src/generated/{operations,tools,schemas,meta}.json (the only place that knows OpenAPI)
 scripts/fetch-spec.mjs   Fetches the live YAML
+scripts/sync-summary.mjs Titles and describes the spec-sync PR from the src/generated diff
 
 src/
   types.ts        Shapes of the generated output (OperationSpec / ToolSpec / BodySpec)
@@ -143,5 +144,5 @@ never through an MCP under test. Design, task format and metrics are in [evals/R
 ## Release and sync
 
 - CI checks that `npm run generate` leaves no diff in `src/generated`, so the output never drifts.
-- `spec-sync.yml` fetches the live openapi.yaml daily and, when it changed, regenerates and opens a PR — a person only reviews the tool diff.
+- `spec-sync.yml` fetches the live openapi.yaml daily and, when it changed, regenerates and opens a PR — a person only reviews the tool diff. `scripts/sync-summary.mjs` titles it from that diff (added / removed tools, new fields, updated tools), since the squash-merged title is the CHANGELOG line.
 - `release.yml` matches jinshuju/cli: release-please keeps a release PR, and merging it publishes to npm through OIDC.
