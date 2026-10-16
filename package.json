@@ -1,6 +1,6 @@
 {
   "name": "@jinshuju/mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server for the Jinshuju (金数据) Open API v1, generated from openapi.yaml",
   "homepage": "https://github.com/jinshuju/mcp#readme",
   "bugs": {
