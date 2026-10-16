@@ -4,6 +4,7 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { createTransport, withSentry, type CloudflareOptions } from '@sentry/cloudflare';
 import { createApp } from './app.js';
 import { sentryOptions } from './worker.js';
+import { VERSION } from './version.js';
 
 const AS = {
   issuer: 'https://account.test',
@@ -131,7 +132,7 @@ test('API unreachable inside a tool: the model sees the error as usual; Sentry r
   assert.equal(event.sdk?.settings?.infer_ip, 'never', 'Sentry must not infer the IP from the connection either');
   assert.equal(event.request?.headers?.authorization, '[Filtered]');
   assert.equal(event.request?.data, undefined);
-  assert.equal(event.release, 'jinshuju-mcp@0.1.0');
+  assert.equal(event.release, `jinshuju-mcp@${VERSION}`);
 });
 
 test('unexpected exception inside a tool: the model gets the error as before, and Sentry records an error', async () => {
