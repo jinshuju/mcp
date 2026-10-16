@@ -420,6 +420,14 @@ function multipartSchema(raw: Json): Json {
   return schema;
 }
 
+/** 去掉说明里专讲某个参数的列表项（`- \`name\` …`）：组合工具删掉的参数不该再出现在描述里。 */
+function dropParamLines(description: string, names: string[]): string {
+  return description
+    .split('\n')
+    .filter((line) => !names.some((name) => line.trimStart().startsWith(`- \`${name}\``)))
+    .join('\n');
+}
+
 function describe(built: Built, override: ToolOverride = {}, outputSchema = built.outputSchema): string {
   const parts = [built.summary, override.description?.trim() ?? built.operation.description];
   if (!outputSchema && built.operation.responseSchema) {
@@ -521,7 +529,8 @@ for (const [name, composite] of Object.entries(overlay.composites ?? {})) {
           }),
       description: `${composite.scene === 'exam' ? 'Exam' : 'Evaluation'} settings (${composite.settingOperation}): ${setting.operation.description}`
     };
-    extra.push(built.operation.description);
+    // 场景由工具固定，入参里没有 scene；主操作说明里讲 `scene` 参数的那条留着，模型会照着传
+    extra.push(dropParamLines(built.operation.description, ['scene']));
   }
   tools.push({
     ...built.operation,

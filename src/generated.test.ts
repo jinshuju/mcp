@@ -171,6 +171,10 @@ test('投影与组合工具的入参形状', () => {
   const examProps = exam.inputSchema.properties as Record<string, unknown>;
   assert.ok(examProps.name && examProps.fields && examProps.exam_setting && !('scene' in examProps));
   assert.deepEqual(exam.inputSchema.required, ['name', 'fields']);
+  // 场景由工具固定：描述里不能再像是有 scene 参数（模型会照着传，被拒后多一个来回）
+  for (const name of ['create_exam_form', 'create_evaluation_form', 'edit_exam_form', 'edit_evaluation_form']) {
+    assert.doesNotMatch(byName[name].description, /scene=|`scene`/, name);
+  }
   const edit = byName.edit_evaluation_form;
   assert.equal(edit.composite?.settingOperation, 'updateEvaluationSetting');
   assert.ok((edit.inputSchema.properties as Record<string, unknown>).evaluation_setting);
