@@ -87,7 +87,7 @@ composites:
     settingKey: exam_setting
     title: Create an exam form
     description: >-
-      Creates an online exam form that is scored automatically. Use it, not create_form, when the user wants an exam, test or quiz;
+      Creates an online exam form (scene=exam, scored automatically). Use it, not create_form, when the user wants an exam, test or quiz;
       an evaluation such as a psychological test, ability assessment, self-assessment questionnaire or training feedback uses create_evaluation_form.
       Questions must use exam question types (SingleSelect / MultiSelect / TrueOrFalse / DropDownSelect / FillInBlank / ShortAnswer / FillInNumber),
       each with answers (the correct answer and its score; the default absolute mode has one correct answer and scores only a fully correct response).
@@ -108,7 +108,7 @@ composites:
     settingKey: evaluation_setting
     title: Create an evaluation form
     description: >-
-      Creates an evaluation form. Use it when the user wants an evaluation, psychological test, ability assessment,
+      Creates an evaluation form (scene=evaluation). Use it when the user wants an evaluation, psychological test, ability assessment,
       self-assessment questionnaire or training feedback; not create_form, and not create_exam_form (an exam with correct answers).
       A scored evaluation uses SingleSelect / MultiSelect / DropDownSelect / Rating / Nps: each question lists every choice with its score in answers
       and sets answer_setting_mode=relative (every choice scores, none is right or wrong; the default absolute accepts one correct answer and scores any other choice 0).

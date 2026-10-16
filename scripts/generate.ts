@@ -423,14 +423,6 @@ function multipartSchema(raw: Json): Json {
   return schema;
 }
 
-/** Drops list items in a description that document one parameter (`- \`name\` …`): a parameter a composite tool removed should not show up in its description. */
-function dropParamLines(description: string, names: string[]): string {
-  return description
-    .split('\n')
-    .filter((line) => !names.some((name) => line.trimStart().startsWith(`- \`${name}\``)))
-    .join('\n');
-}
-
 function describe(built: Built, override: ToolOverride = {}, outputSchema = built.outputSchema): string {
   const parts = [built.summary, override.description?.trim() ?? built.operation.description];
   if (!outputSchema && built.operation.responseSchema) {
@@ -519,6 +511,15 @@ for (const [name, composite] of Object.entries(overlay.composites ?? {})) {
     }
     const setting = buildOperation(composite.settingOperation, 'flatten');
     delete properties.scene;
+    if (composite.kind === 'scene_form_create') {
+      // Models pass scene to these tools whatever the description says: accept it, pinned to the tool's own
+      // scene (composites.ts sets it anyway), instead of refusing the call and costing a turn.
+      properties.scene = {
+        type: 'string',
+        const: composite.scene,
+        description: `Always "${composite.scene}"; this tool sets it, so it can be left out`
+      };
+    }
     properties[composite.settingKey] = {
       ...((setting.inputSchema.properties as Json).body
         ? ((setting.inputSchema.properties as Json).body as Json)
@@ -532,8 +533,7 @@ for (const [name, composite] of Object.entries(overlay.composites ?? {})) {
           }),
       description: `${composite.scene === 'exam' ? 'Exam' : 'Evaluation'} settings (${composite.settingOperation}): ${setting.operation.description}`
     };
-    // The tool fixes the scene and takes no scene argument; left in, the primary operation's bullet on `scene` makes models pass it
-    extra.push(dropParamLines(built.operation.description, ['scene']));
+    extra.push(built.operation.description);
   }
   tools.push({
     ...built.operation,

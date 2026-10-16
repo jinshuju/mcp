@@ -172,12 +172,12 @@ test('input shapes of the projection and composite tools', () => {
   const exam = byName.create_exam_form;
   assert.equal(exam.composite?.kind, 'scene_form_create');
   const examProps = exam.inputSchema.properties as Record<string, unknown>;
-  assert.ok(examProps.name && examProps.fields && examProps.exam_setting && !('scene' in examProps));
+  assert.ok(examProps.name && examProps.fields && examProps.exam_setting);
   assert.deepEqual(exam.inputSchema.required, ['name', 'fields']);
-  // The tool fixes the scene: its description must not suggest a scene argument (models pass it, get refused and spend a turn)
-  for (const name of ['create_exam_form', 'create_evaluation_form', 'edit_exam_form', 'edit_evaluation_form']) {
-    assert.doesNotMatch(byName[name].description, /scene=|`scene`/, name);
-  }
+  // Models pass scene anyway: the create tools accept it, pinned to their own scene, and do not require it
+  assert.equal((examProps.scene as { const?: string }).const, 'exam');
+  const evaluationProps = byName.create_evaluation_form.inputSchema.properties as Record<string, { const?: string }>;
+  assert.equal(evaluationProps.scene.const, 'evaluation');
   const edit = byName.edit_evaluation_form;
   assert.equal(edit.composite?.settingOperation, 'updateEvaluationSetting');
   assert.ok((edit.inputSchema.properties as Record<string, unknown>).evaluation_setting);
