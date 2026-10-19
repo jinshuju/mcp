@@ -8,7 +8,7 @@ import type { ToolSpec } from './types.js';
 const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t])) as Record<string, ToolSpec>;
 const base = 'https://api.test/api/v1';
 
-test('buildUrl: encodes path parameters, omits empty query values, serializes arrays as name[]', () => {
+test('buildUrl: encodes path parameters, omits empty query values, repeats a `type: array` parameter as name[]', () => {
   const url = buildUrl(base, byName.list_entries, {
     form_token: 'Ab Cd',
     limit: 5,
@@ -22,10 +22,30 @@ test('buildUrl: encodes path parameters, omits empty query values, serializes ar
   assert.equal(url.searchParams.has('keyword'), false);
   const arrayTool: ToolSpec = {
     ...byName.list_forms,
-    params: [{ name: 'tags', in: 'query', required: false, array: true }]
+    params: [{ name: 'tags', in: 'query', required: false, array: 'repeat' }]
   };
   const u2 = buildUrl(base, arrayTool, { tags: ['a', 'b'] });
   assert.equal(u2.search, '?tags%5B%5D=a&tags%5B%5D=b');
+});
+
+test('buildUrl: an array argument is sent as the text the spec describes, so array and string callers send the same query', () => {
+  const filters = [{ field: 'x', operator: 'eq', value: 1 }];
+  const sort = [{ api_code: 'created_at', order: 'desc' }];
+  const structured = buildUrl(base, byName.list_entries, { form_token: 'T', filters, sort, fields: ['a', 'b'] });
+  const serialized = buildUrl(base, byName.list_entries, {
+    form_token: 'T',
+    filters: JSON.stringify(filters),
+    sort: JSON.stringify(sort),
+    fields: 'a,b'
+  });
+  assert.equal(structured.search, serialized.search);
+  assert.equal(structured.searchParams.get('filters'), '[{"field":"x","operator":"eq","value":1}]');
+  assert.equal(structured.searchParams.get('fields'), 'a,b');
+  const search = buildUrl(base, byName.search_entries_in_forms, { form_tokens: ['A', 'B'], filters: [] });
+  assert.equal(search.searchParams.get('form_tokens'), 'A,B');
+  assert.equal(search.searchParams.get('filters'), '[]');
+  const checks = buildUrl(base, byName.check_field_data, { form_token: 'T', checks: [{ field_api_code: 'field_1' }] });
+  assert.equal(checks.searchParams.get('checks'), '[{"field_api_code":"field_1"}]');
 });
 
 test('buildUrl: throws on a missing path parameter', () => {

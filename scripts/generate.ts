@@ -218,8 +218,8 @@ interface ParamSpec {
   name: string;
   in: 'path' | 'query';
   required: boolean;
-  /** A query array is serialized as name[]=a&name[]=b (the server reads it as an array) */
-  array?: boolean;
+  /** How an array argument goes into the query: repeated name[]= (a `type: array` parameter), one JSON text, or one comma-separated value */
+  array?: 'repeat' | 'json' | 'comma';
 }
 interface BodySpec {
   contentType: 'application/json' | 'multipart/form-data';
@@ -276,6 +276,19 @@ interface Built {
   summary: string;
 }
 
+/**
+ * How a query parameter carries an array. A `type: array` parameter is repeated as name[]=. The others are declared as
+ * strings, and their description says what the text is: `a JSON array` goes as one JSON text, a `comma-separated` list
+ * as one comma-joined value (a parameter that takes both, such as fields, goes comma-separated). Both kinds also take an
+ * array in the tool input, so a model passes the structure instead of serializing it, and the query ends up the same.
+ */
+function arrayKind(schema: Json, description = ''): ParamSpec['array'] {
+  if (schema.type === 'array') return 'repeat';
+  if (/comma-separated/i.test(description)) return 'comma';
+  if (/JSON array/.test(description)) return 'json';
+  return undefined;
+}
+
 /** Turns one operation into {operation table entry, inputSchema, outputSchema}. bodyMode: flatten / the nesting key. */
 function buildOperation(operationId: string, bodyMode: 'flatten' | string): Built {
   const raw = rawOps.get(operationId);
@@ -291,6 +304,11 @@ function buildOperation(operationId: string, bodyMode: 'flatten' | string): Buil
     if (where !== 'path' && where !== 'query') continue; // header / cookie parameters are not exposed
     const name = p.name as string;
     const schema = { ...((p.schema as Json) ?? { type: 'string' }) };
+    const array = where === 'query' ? arrayKind(schema, p.description as string | undefined) : undefined;
+    if (array === 'json' || array === 'comma') {
+      schema.type = ['string', 'array'];
+      schema.items = { type: array === 'json' ? 'object' : 'string' };
+    }
     // Append notes by components.parameters name (a shared parameter gets them in every operation that references it)
     const append =
       typeof rawParam.$ref === 'string' ? parameterOverrides[refName(rawParam.$ref)]?.descriptionAppend : undefined;
@@ -302,7 +320,7 @@ function buildOperation(operationId: string, bodyMode: 'flatten' | string): Buil
     properties[name] = schema;
     const isRequired = where === 'path' || p.required === true;
     if (isRequired) required.push(name);
-    params.push({ name, in: where, required: isRequired, array: schema.type === 'array' || undefined });
+    params.push({ name, in: where, required: isRequired, array });
   }
 
   let body: BodySpec | undefined;

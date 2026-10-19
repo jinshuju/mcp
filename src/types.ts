@@ -9,8 +9,8 @@ export interface ParamSpec {
   name: string;
   in: 'path' | 'query';
   required: boolean;
-  /** A query array is serialized as name[]=a&name[]=b (the server reads it as an array) */
-  array?: boolean;
+  /** How an array argument goes into the query: repeated name[]= (a `type: array` parameter), one JSON text, or one comma-separated value */
+  array?: 'repeat' | 'json' | 'comma';
 }
 
 export interface BodySpec {

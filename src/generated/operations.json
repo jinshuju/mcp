@@ -15,12 +15,14 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "sort",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "next",
@@ -204,7 +206,8 @@
    {
     "name": "checks",
     "in": "query",
-    "required": true
+    "required": true,
+    "array": "json"
    }
   ],
   "paramNames": [
@@ -233,7 +236,8 @@
    {
     "name": "checks",
     "in": "query",
-    "required": true
+    "required": true,
+    "array": "json"
    }
   ],
   "paramNames": [
@@ -262,12 +266,14 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -277,7 +283,8 @@
    {
     "name": "sort",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "created_at",
@@ -368,7 +375,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -403,12 +411,14 @@
    {
     "name": "metrics",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "dimensions",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "limit",
@@ -418,7 +428,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -456,7 +467,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "include_overview",
@@ -466,7 +478,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -508,7 +521,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -549,12 +563,14 @@
    {
     "name": "metrics",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "dimensions",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "limit",
@@ -564,7 +580,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -608,7 +625,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "include_overview",
@@ -618,7 +636,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -717,7 +736,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "include_labels",
@@ -1803,12 +1823,14 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "sort",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "next",
@@ -1955,7 +1977,8 @@
    {
     "name": "checks",
     "in": "query",
-    "required": true
+    "required": true,
+    "array": "json"
    }
   ],
   "paramNames": [
@@ -1984,7 +2007,8 @@
    {
     "name": "checks",
     "in": "query",
-    "required": true
+    "required": true,
+    "array": "json"
    }
   ],
   "paramNames": [
@@ -2013,12 +2037,14 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -2028,7 +2054,8 @@
    {
     "name": "sort",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "created_at",
@@ -2119,7 +2146,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -2154,12 +2182,14 @@
    {
     "name": "metrics",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "dimensions",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "limit",
@@ -2169,7 +2199,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -2207,7 +2238,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "include_overview",
@@ -2217,7 +2249,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -2259,7 +2292,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -2300,12 +2334,14 @@
    {
     "name": "metrics",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "dimensions",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "limit",
@@ -2315,7 +2351,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -2359,7 +2396,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "include_overview",
@@ -2369,7 +2407,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -2412,7 +2451,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "include_labels",
@@ -3320,7 +3360,7 @@
     "name": "paid_status",
     "in": "query",
     "required": false,
-    "array": true
+    "array": "repeat"
    },
    {
     "name": "payment_channel",
@@ -3391,7 +3431,7 @@
     "name": "paid_status",
     "in": "query",
     "required": false,
-    "array": true
+    "array": "repeat"
    },
    {
     "name": "payment_channel",
@@ -3634,12 +3674,14 @@
    {
     "name": "form_tokens",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    }
   ],
   "paramNames": [
@@ -3668,12 +3710,14 @@
    {
     "name": "form_tokens",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    }
   ],
   "paramNames": [
@@ -3785,12 +3829,14 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -3850,7 +3896,8 @@
    {
     "name": "form_tokens",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    }
   ],
   "paramNames": [

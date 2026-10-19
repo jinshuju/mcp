@@ -47,7 +47,7 @@ export async function runComposite(tool: ToolSpec, args: Args, runtime: ToolRunt
     const tokens = args.form_token;
     if (Array.isArray(tokens)) {
       const { form_token: _ignored, ...rest } = args;
-      const res = await api.call(op('countEntriesAcrossForms'), { ...rest, form_tokens: tokens.join(',') }, credential);
+      const res = await api.call(op('countEntriesAcrossForms'), { ...rest, form_tokens: tokens }, credential);
       return toToolResult(tool, res, maxResultChars);
     }
     return toToolResult(tool, await api.call(op('countEntries'), args, credential), maxResultChars);

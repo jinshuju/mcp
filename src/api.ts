@@ -47,10 +47,14 @@ export function buildUrl(baseUrl: string, op: OperationSpec, args: Args): URL {
     if (p.in !== 'query') continue;
     const value = args[p.name];
     if (value === undefined || value === null || value === '') continue;
-    if (Array.isArray(value)) {
-      for (const item of value) url.searchParams.append(`${p.name}[]`, scalar(item));
-    } else {
+    if (!Array.isArray(value)) {
       url.searchParams.set(p.name, scalar(value));
+    } else if (p.array === 'json') {
+      url.searchParams.set(p.name, JSON.stringify(value));
+    } else if (p.array === 'comma') {
+      url.searchParams.set(p.name, value.map(scalar).join(','));
+    } else {
+      for (const item of value) url.searchParams.append(`${p.name}[]`, scalar(item));
     }
   }
   return url;

@@ -185,6 +185,42 @@ test('input shapes of the projection and composite tools', () => {
   assert.deepEqual(count.form_token.type, ['string', 'array']);
 });
 
+test('a string query parameter the spec describes as a JSON array or a comma-separated list also takes an array', () => {
+  const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
+  const expected: Record<string, Record<string, 'json' | 'comma'>> = {
+    list_forms: { filters: 'json', sort: 'json' },
+    list_tables: { filters: 'json', sort: 'json' },
+    check_field_data: { checks: 'json' },
+    preview_field_type_change: { checks: 'json' },
+    list_entries: { fields: 'comma', filters: 'json', sort: 'json' },
+    get_entry: { fields: 'comma' },
+    count_entries: { filters: 'json' },
+    aggregate_entries: { metrics: 'json', dimensions: 'json', filters: 'json' },
+    get_form_data_summary: { fields: 'comma', filters: 'json' },
+    search_entries_in_forms: { form_tokens: 'comma', filters: 'json' },
+    list_my_submitted_entries: { fields: 'comma', filters: 'json' },
+    search_my_submitted_entries: { form_tokens: 'comma' }
+  };
+  const found: Record<string, Record<string, string>> = {};
+  for (const t of TOOLS) {
+    for (const p of t.params) if (p.array === 'json' || p.array === 'comma') (found[t.name] ??= {})[p.name] = p.array;
+  }
+  assert.deepEqual(found, expected);
+  for (const [tool, params] of Object.entries(expected)) {
+    const properties = byName[tool].inputSchema.properties as Record<string, Record<string, unknown>>;
+    for (const [name, kind] of Object.entries(params)) {
+      assert.deepEqual(properties[name].type, ['string', 'array'], `${tool}.${name}`);
+      assert.deepEqual(properties[name].items, { type: kind === 'json' ? 'object' : 'string' }, `${tool}.${name}`);
+    }
+  }
+  const forms = byName.list_forms.inputSchema.properties as Record<string, { type: unknown }>;
+  assert.equal(forms.q.type, 'string', 'q takes only q[]=, which the spec does not describe as a list');
+  assert.equal(
+    (byName.list_entries.inputSchema.properties as Record<string, { type: unknown }>).keyword.type,
+    'string'
+  );
+});
+
 test('large schemas become pointers and are found in the get_schema catalog', () => {
   assert.ok(SCHEMAS.FieldInput && SCHEMAS.TextFieldInput);
   const variants = SCHEMAS.FieldInput['x-variants'] as Record<string, string>;

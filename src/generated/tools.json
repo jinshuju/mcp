@@ -15,12 +15,14 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "sort",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "next",
@@ -67,11 +69,23 @@
      "description": "Fuzzy match on name (case-insensitive; matches both the public name and the in-product name). Accepts several values (`q[]=A&q[]=B`), matching forms whose name contains any of them. Equivalent to `filters=[{\"field\":\"form_name\",\"operator\":\"like\",\"value\":...}]`."
     },
     "filters": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Filters, a JSON array; conditions are combined with AND. Filterable fields and operators:\n| field | type | operators |\n|---|---|---|\n| `form_name` | text | `eq` `ne` `any_in` `none_in` `like` `not_like` |\n| `created_at` | time | `eq` `ne` `gte` `gt` `lte` `lt` `within_last` |\n| `last_entry_created_at` | time | same as above (forms that have never received an entry have no value) |\n| `entries_count` | integer | `eq` `ne` `gte` `gt` `lte` `lt` |\n\nThe value of `within_last` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month), meaning the window going back from now.\nExample: `[{\"field\":\"last_entry_created_at\",\"operator\":\"within_last\",\"value\":{\"unit\":\"day\",\"n\":7}}]`\n"
     },
     "sort": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Sort rules, a JSON array, each item `{\"field\": \"<field>\", \"order\": \"asc\"|\"desc\"}` (order defaults to asc), applied in order.\nSortable fields: `created_at`, `last_entry_created_at`, `entries_count`; any other field, an invalid order or unparseable JSON returns 400.\nWith `sort`, `next` becomes a cursor of the form `row:<offset>`, usable only in requests with the same `sort`; rows with equal values may change order between pages.\n"
     },
     "next": {
@@ -934,7 +948,8 @@
    {
     "name": "checks",
     "in": "query",
-    "required": true
+    "required": true,
+    "array": "json"
    }
   ],
   "paramNames": [
@@ -956,7 +971,13 @@
      "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
     },
     "checks": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Targets to check, a JSON array (1 to 100 items), each item one field or one choice:\n| Key | Type | Description |\n|---|---|---|\n| `field_api_code` | string | Required. api_code of the field to check; to check one column of a table field / matrix field, pass that column's api_code and also pass `parent_field` |\n| `choice_value` | string | Optional. To check only one choice, pass that choice's api_code; omitted, checks whether the whole field has any data |\n| `choice_type` | string | Optional, used with `choice_value`: `choice` (default), `statement` / `dimension` for matrix fields, `level_1` to `level_4` for cascading drop-downs |\n| `parent_field` | string | Optional. When checking one column of a matrix / table field, the api_code of the parent field |\n| `check_extended_text` | boolean | Optional. When `true`, checks whether the choice's \"Other\" extra text has any data |\n| `goods_item_dimension_options` | object | Optional. When checking one spec of a goods field, the mapping of spec dimensions to options |\n"
     }
    },
@@ -989,7 +1010,8 @@
    {
     "name": "checks",
     "in": "query",
-    "required": true
+    "required": true,
+    "array": "json"
    }
   ],
   "paramNames": [
@@ -1011,7 +1033,13 @@
      "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
     },
     "checks": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Type conversions to preview, a JSON array (1 to 20 items), one field per item:\n| Key | Type | Description |\n|---|---|---|\n| `field_api_code` | string | Required. api_code of the field to convert |\n| `target_type` | string | Required. Target field type; see `GET /field_types` for values (`GET /field_types?kind=table` for tables) |\n| `target_precision` | string | Optional. When the target is `DateTimeField`, the date precision the edit will use (`month` / `day` / `minute` / `second`), so the preview matches the actual conversion; ignored otherwise |\n"
     }
    },
@@ -1103,12 +1131,14 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -1118,7 +1148,8 @@
    {
     "name": "sort",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "created_at",
@@ -1173,11 +1204,23 @@
      "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
     },
     "fields": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "string"
+     },
      "description": "Return only these fields. A JSON array, a comma-separated string or a repeated parameter, of field api_codes; the serial number is always returned. Returns 400 listing the available fields when an api_code is unknown."
     },
     "filters": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Filters, a JSON array of `{\"field\": \"<api_code>\", \"operator\": \"<op>\", \"value\": ...}` items (`field` can also be written as `api_code` / `trigger`); conditions are combined with AND.\n- All operators: `eq` `ne` `any_in` `none_in` `between` `not_between` `null` `not_null` `gte` `gt` `lte` `lt` `like` `not_like` `within_last`,\n  aliases `equal` / `not_equal` / `start` (=gte) / `end` (=lte). Each field type accepts only some of them; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
@@ -1186,7 +1229,13 @@
      "description": "Full-text keyword (at most 200 characters), fuzzy-matched across all searchable fields. Forms with more than 99999 entries and no analytics engine enabled do not support full-text search (returns 400), unless `creator_id` also restricts the submitter."
     },
     "sort": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Sort rules, a JSON array of `{\"api_code\": \"<api_code>\", \"order\": \"asc\"|\"desc\"}` items, applied in order, with ascending serial number appended automatically at the end.\nOnly sortable fields are allowed; otherwise returns 400 listing the sortable fields. With `sort`, `next` becomes a row offset.\n"
     },
     "created_at": {
@@ -1283,7 +1332,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "include_labels",
@@ -1316,7 +1366,13 @@
      "description": "Entry serial number"
     },
     "fields": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "string"
+     },
      "description": "Return only these fields. A JSON array, a comma-separated string or a repeated parameter, of field api_codes; the serial number is always returned. Returns 400 listing the available fields when an api_code is unknown."
     },
     "include_labels": {
@@ -1819,12 +1875,14 @@
    {
     "name": "metrics",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "dimensions",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "limit",
@@ -1834,7 +1892,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -1865,11 +1924,23 @@
      "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
     },
     "metrics": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Required. Metrics to compute, a JSON array of 1 to 20 items, each `{\"func\": \"<function>\", \"field\": \"<api_code>\"}`; returns 400 when missing or empty.\nThe available functions depend on the field (the field's `analytics.agg_funcs` is authoritative):\n| Field | Functions |\n|---|---|\n| All fields | `count` `count_non_empty` `count_empty` |\n| Text | adds `count_unique` |\n| Number | adds `count_unique` `sum` `avg` `min` `max` `stddev` `median` `p25` `p75` `p90` |\n| Date | adds `count_unique` `min` `max` |\n"
     },
     "dimensions": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Fields to group by, a JSON array of at most 2 items, each `{\"field\": \"<api_code>\", \"bucket\": \"<granularity>\"}`.\nOnly fields whose `analytics.groupable` is true can be grouped by; a date field must have a `bucket` (`day` / `week` / `month`, in Beijing time, UTC+8), and a non-date field must not have a `bucket`.\n"
     },
     "limit": {
@@ -1878,7 +1949,13 @@
      "description": "Maximum number of groups returned when grouping. Defaults to 20, max 200 (larger values are treated as 200; values below 1 use the default). Ignored without grouping."
     },
     "filters": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Filters, a JSON array of `{\"field\": \"<api_code>\", \"operator\": \"<op>\", \"value\": ...}` items (`field` can also be written as `api_code` / `trigger`); conditions are combined with AND.\n- All operators: `eq` `ne` `any_in` `none_in` `between` `not_between` `null` `not_null` `gte` `gt` `lte` `lt` `like` `not_like` `within_last`,\n  aliases `equal` / `not_equal` / `start` (=gte) / `end` (=lte). Each field type accepts only some of them; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
@@ -1915,7 +1992,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "include_overview",
@@ -1925,7 +2003,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -1955,7 +2034,13 @@
      "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
     },
     "fields": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "string"
+     },
      "description": "Summarize only these fields: field api_codes, comma-separated (or repeat `fields[]=`), returned in the order given. Defaults to every analyzable field. Returns 400, listing the analyzable fields, when a field is not analyzable or the caller has no permission to read it."
     },
     "include_overview": {
@@ -1964,7 +2049,13 @@
      "description": "Whether to return `overview` (matching count and entries added today). Defaults to true."
     },
     "filters": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Filters, a JSON array of `{\"field\": \"<api_code>\", \"operator\": \"<op>\", \"value\": ...}` items (`field` can also be written as `api_code` / `trigger`); conditions are combined with AND.\n- All operators: `eq` `ne` `any_in` `none_in` `between` `not_between` `null` `not_null` `gte` `gt` `lte` `lt` `like` `not_like` `within_last`,\n  aliases `equal` / `not_equal` / `start` (=gte) / `end` (=lte). Each field type accepts only some of them; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
@@ -2001,12 +2092,14 @@
    {
     "name": "form_tokens",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    }
   ],
   "paramNames": [
@@ -2030,11 +2123,23 @@
      "description": "Search keyword (at most 200 characters); returns 400 when empty."
     },
     "form_tokens": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "string"
+     },
      "description": "Tokens (ids also accepted) of the forms or tables to search, comma-separated (or repeat `form_tokens[]=`), at most 10 after deduplication. When omitted, every accessible form is searched."
     },
     "filters": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Filters on form attributes that narrow the search scope, a JSON array with the same syntax and fields as `filters` of `GET /forms` (`form_name` / `created_at` / `last_entry_created_at` / `entries_count`); conditions are combined with AND.\nWithout an `entries_count` condition, `entries_count > 0` is appended automatically.\n"
     }
    },
@@ -2224,12 +2329,14 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    },
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -2282,11 +2389,23 @@
      "description": "Form token (`token` from `GET /my/forms`); a 24-character hexadecimal form id is also accepted."
     },
     "fields": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "string"
+     },
      "description": "Return only these fields. A comma-separated string or an array parameter (`fields[]=`) of field api_codes; unknown or non-public fields are skipped. The serial number is always returned."
     },
     "filters": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Filters, a JSON array of `{\"field\": \"<api_code>\", \"operator\": \"<op>\", \"value\": ...}` items (`field` can also be written as `api_code` / `trigger`); conditions are combined with AND.\n- All operators: `eq` `ne` `any_in` `none_in` `between` `not_between` `null` `not_null` `gte` `gt` `lte` `lt` `like` `not_like` `within_last`,\n  aliases `equal` / `not_equal` / `start` (=gte) / `end` (=lte). Each field type accepts only some of them; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
@@ -2378,7 +2497,8 @@
    {
     "name": "form_tokens",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "comma"
    }
   ],
   "paramNames": [
@@ -2401,7 +2521,13 @@
      "description": "Search keyword (at most 200 characters), fuzzy-matched in the form's public searchable fields."
     },
     "form_tokens": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "string"
+     },
      "description": "Search only these forms. Comma-separated form tokens, or an array parameter (`form_tokens[]=`)."
     }
    },
@@ -3286,12 +3412,14 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "sort",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "next",
@@ -3332,11 +3460,23 @@
      "description": "Fuzzy match on name (case-insensitive; matches both the public name and the in-product name). Accepts several values (`q[]=A&q[]=B`), matching forms whose name contains any of them. Equivalent to `filters=[{\"field\":\"form_name\",\"operator\":\"like\",\"value\":...}]`."
     },
     "filters": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Filters, a JSON array; conditions are combined with AND. Filterable fields and operators:\n| field | type | operators |\n|---|---|---|\n| `form_name` | text | `eq` `ne` `any_in` `none_in` `like` `not_like` |\n| `created_at` | time | `eq` `ne` `gte` `gt` `lte` `lt` `within_last` |\n| `last_entry_created_at` | time | same as above (forms that have never received an entry have no value) |\n| `entries_count` | integer | `eq` `ne` `gte` `gt` `lte` `lt` |\n\nThe value of `within_last` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month), meaning the window going back from now.\nExample: `[{\"field\":\"last_entry_created_at\",\"operator\":\"within_last\",\"value\":{\"unit\":\"day\",\"n\":7}}]`\n"
     },
     "sort": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Sort rules, a JSON array, each item `{\"field\": \"<field>\", \"order\": \"asc\"|\"desc\"}` (order defaults to asc), applied in order.\nSortable fields: `created_at`, `last_entry_created_at`, `entries_count`; any other field, an invalid order or unparseable JSON returns 400.\nWith `sort`, `next` becomes a cursor of the form `row:<offset>`, usable only in requests with the same `sort`; rows with equal values may change order between pages.\n"
     },
     "next": {
@@ -6051,7 +6191,8 @@
    {
     "name": "filters",
     "in": "query",
-    "required": false
+    "required": false,
+    "array": "json"
    },
    {
     "name": "keyword",
@@ -6086,7 +6227,13 @@
      "description": "A form token, or an array of up to 10 tokens to count several forms in one call"
     },
     "filters": {
-     "type": "string",
+     "type": [
+      "string",
+      "array"
+     ],
+     "items": {
+      "type": "object"
+     },
      "description": "Filters, a JSON array of `{\"field\": \"<api_code>\", \"operator\": \"<op>\", \"value\": ...}` items (`field` can also be written as `api_code` / `trigger`); conditions are combined with AND.\n- All operators: `eq` `ne` `any_in` `none_in` `between` `not_between` `null` `not_null` `gte` `gt` `lte` `lt` `like` `not_like` `within_last`,\n  aliases `equal` / `not_equal` / `start` (=gte) / `end` (=lte). Each field type accepts only some of them; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {

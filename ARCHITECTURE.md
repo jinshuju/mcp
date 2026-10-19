@@ -62,7 +62,8 @@ The tool set matches the 60 tools documented at open.jinshuju.net/mcp one to one
    replays on every later request) would never reach the response headers, and tool-call events would land after the response and before the flush.
 4. The SDK validates arguments against `inputSchema` (`fromJsonSchema`: AJV on Node, @cfworker/json-schema on workerd).
    Invalid arguments return `isError` without sending a request: argument problems are stopped before they reach the API.
-5. `JinshujuApi.call` builds the URL: path parameters are `encodeURIComponent`ed, empty query values are left out, arrays are sent as `name[]=` (how the server reads arrays);
+5. `JinshujuApi.call` builds the URL: path parameters are `encodeURIComponent`ed, empty query values are left out, an array argument goes the way the spec describes the parameter
+   (one JSON text, one comma-separated value, or `name[]=` repeated for a `type: array` parameter), so the query is the same whether the model passed the array or its text;
    the request body = the arguments left after removing path / query parameters (flatten), or the `bodyParam` key; JSON / multipart (the base64 triple becomes a file again).
    When the API answers `401`, the credential refreshes once and retries (only meaningful for stdio OAuth sessions). For composite tools, `composites.ts` decides which request goes first
    and what to say on failure (creating an exam form: the form first, then the settings, and a rejected setting says plainly "The form was created"; editing an exam form: the settings first, and if they are rejected none of the other changes are sent).
