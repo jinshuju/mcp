@@ -5,7 +5,10 @@
  * What is captured:
  * - only $mcp_initialize and $mcp_tool_call; tools/list, resources/*, $identify and $exception are all dropped;
  * - a tool call records only argument names ($mcp_input_keys), never argument values or the result; a failure records
- *   its category and the truncated error;
+ *   the truncated error text, its bucket ($mcp_error_type: validation / permission / timeout / rate_limited / api_4xx /
+ *   api_5xx / internal, read off the text because the SDK types only thrown exceptions and our tools return isError
+ *   results) and, for an API failure, the HTTP status ($mcp_error_status);
+ * - mcp_caller_type tells Jiri's remaining in-house path (client name mcp, python-httpx user agent) from everyone else (external);
  * - intent: every tool gets a context argument where the model says what the user wants to do ($mcp_intent). The SDK
  *   scrubs emails / phone numbers / IPs / card numbers from it before sending; JINSHUJU_MCP_COLLECT_INTENT=false turns
  *   it off entirely (the argument is no longer offered and nothing is reported);
@@ -24,6 +27,7 @@ import { deriveSessionIdFromMCPSession, instrument, type BeforeSendFn } from '@p
 import { PostHog, type PostHogOptions } from 'posthog-node';
 import { sha256, userIdOf } from './auth.js';
 import type { Config } from './config.js';
+import { FORBIDDEN_HINT } from './result.js';
 import { TOOLS } from './tools.js';
 import { CONTEXT_ARGUMENT } from './validation.js';
 
@@ -50,6 +54,55 @@ const DECLARED_PARAMETER_NAMES = new Set<string>([
   'name',
   ...TOOLS.flatMap((tool) => Object.keys(tool.inputSchema.properties ?? {}))
 ]);
+
+/** The buckets PostHog's own MCP analytics uses for $mcp_error_type, so its dashboards read our events directly. */
+export type ErrorType = 'validation' | 'permission' | 'timeout' | 'rate_limited' | 'api_4xx' | 'api_5xx' | 'internal';
+
+/**
+ * An argument problem caught before any request goes out: the MCP SDK's prefix on a validation.ts failure, get_schema's
+ * unknown name, a composite tool given nothing to send, a path parameter left empty; and validation.ts's own phrasings,
+ * should the SDK ever stop prefixing them.
+ */
+const VALIDATION_ERROR =
+  /^(Input validation error|No schema named|Nothing to change|Missing path parameter|Unknown arguments)\b|Instance type|required property/;
+
+/**
+ * Buckets a failed tool call by its text, whose shapes are all ours: result.ts opens an API failure with `HTTP <status>:`
+ * and closes it with a hint, api.ts opens a TransportError with the reason, and the MCP SDK prefixes a validation failure.
+ * Anything else is an exception a tool threw, which is a bug of ours.
+ */
+export function classifyError(message: string): { type: ErrorType; status?: number } {
+  const http = /^HTTP (\d{3}):/.exec(message);
+  if (http) {
+    const status = Number(http[1]);
+    if (status === 429) return { type: 'rate_limited', status };
+    if (status === 403 && /\bscope\b/i.test(serverErrorLines(message))) return { type: 'permission', status };
+    return { type: status >= 500 ? 'api_5xx' : 'api_4xx', status };
+  }
+  if (VALIDATION_ERROR.test(message)) return { type: 'validation' };
+  if (/^Request timed out\b/.test(message)) return { type: 'timeout' };
+  return { type: 'internal' };
+}
+
+/** What the API itself said: the lines between result.ts's `HTTP <status>:` line and its hint (the 403 hint mentions scope itself). */
+function serverErrorLines(message: string): string {
+  return message
+    .split('\n')
+    .slice(1)
+    .filter((line) => line !== FORBIDDEN_HINT && !line.startsWith('⚠'))
+    .join('\n');
+}
+
+/**
+ * Who is calling: `jiri` for the in-house assistant's remaining path through this server, which runs on the Python MCP
+ * SDK's defaults (client name mcp, python-httpx user agent) and nothing else does; `external` for everyone else. The
+ * retired built-in server reported the same two values.
+ */
+export function callerTypeOf(clientName: unknown, userAgent: unknown): 'jiri' | 'external' {
+  return clientName === 'mcp' && typeof userAgent === 'string' && userAgent.startsWith('python-httpx/')
+    ? 'jiri'
+    : 'external';
+}
 
 export interface AnalyticsOptions {
   /** PostHog project token (phc_…) */
@@ -113,7 +166,6 @@ export class McpAnalytics {
       enableConversationId: false,
       enableExceptionAutocapture: false,
       identify: distinctId ? { distinctId } : null,
-      eventProperties: () => ({ mcp_caller_type: 'external' }),
       shouldRecordInputKey: (key, { declared }) => declared || DECLARED_PARAMETER_NAMES.has(key),
       beforeSend: this.beforeSend(sessionId),
       logger: warn
@@ -145,6 +197,13 @@ export class McpAnalytics {
         props.$session_id = sessionId;
       }
       if (event.event === '$mcp_initialize' && this.repeatedHandshake(String(props.$session_id ?? ''))) return null;
+      if (event.event === '$mcp_tool_call' && props.$mcp_is_error === true) {
+        // The SDK types a thrown exception by its class; an isError result is always "Error", so the bucket comes from the text.
+        const { type, status } = classifyError(String(props.$mcp_error_message ?? ''));
+        props.$mcp_error_type = type;
+        if (status !== undefined) props.$mcp_error_status = status;
+      }
+      props.mcp_caller_type = callerTypeOf(props.$mcp_client_name, props.$mcp_client_user_agent);
       return event;
     };
   }

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gunzipSync } from 'node:zlib';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import { CONTEXT_DESCRIPTION, McpAnalytics } from './analytics.js';
+import { callerTypeOf, classifyError, CONTEXT_DESCRIPTION, McpAnalytics, type ErrorType } from './analytics.js';
 import { createApp } from './app.js';
 import { TOOLS } from './tools.js';
 import { VERSION } from './version.js';
@@ -199,14 +199,26 @@ test('legacy handshake: only initialize and tool_call are reported, argument nam
     replay
   );
   assert.equal(failed.json?.result?.isError, true);
+  const invalid = await legacy(
+    h.app,
+    {
+      jsonrpc: '2.0',
+      id: 5,
+      method: 'tools/call',
+      params: { name: 'list_forms', arguments: { limit: 'ten', context: '列出十个表单' } }
+    },
+    replay
+  );
+  assert.equal(invalid.json?.result?.isError, true);
+  assert.equal(h.apiCalls.length, 2, 'invalid arguments never reach the API');
 
   // A repeated handshake on the same connection is not reported again
-  await legacy(h.app, { ...INITIALIZE, id: 5 });
+  await legacy(h.app, { ...INITIALIZE, id: 6 });
 
   const events = await h.events();
   assert.deepEqual(
     events.map((e) => e.event),
-    ['$mcp_initialize', '$mcp_tool_call', '$mcp_tool_call'],
+    ['$mcp_initialize', '$mcp_tool_call', '$mcp_tool_call', '$mcp_tool_call'],
     'no event for tools/list, $identify or the repeated handshake'
   );
   for (const e of events) {
@@ -218,7 +230,7 @@ test('legacy handshake: only initialize and tool_call are reported, argument nam
     assert.match(String(e.properties.$session_id), /^ses_[0-9a-f]{32}$/);
     assert.equal(e.properties.$session_id, events[0].properties.$session_id, 'one token, one session');
   }
-  const [initialize, call, failure] = events;
+  const [initialize, call, failure, rejected] = events;
   assert.equal(initialize.properties.$mcp_client_name, 'claude-ai');
   assert.equal(initialize.properties.$mcp_client_version, '0.1.0');
   assert.equal(initialize.properties.$mcp_protocol_version, '2025-06-18');
@@ -236,6 +248,12 @@ test('legacy handshake: only initialize and tool_call are reported, argument nam
   assert.equal(failure.properties.$mcp_tool_name, 'get_form');
   assert.equal(failure.properties.$mcp_is_error, true);
   assert.match(String(failure.properties.$mcp_error_message), /form cannot be found|404/);
+  assert.equal(failure.properties.$mcp_error_type, 'api_4xx', 'an isError result is bucketed, not typed "Error"');
+  assert.equal(failure.properties.$mcp_error_status, 404);
+  assert.equal(rejected.properties.$mcp_tool_name, 'list_forms');
+  assert.equal(rejected.properties.$mcp_is_error, true);
+  assert.equal(rejected.properties.$mcp_error_type, 'validation');
+  assert.equal('$mcp_error_status' in rejected.properties, false, 'no HTTP status when nothing was sent');
   const wire = JSON.stringify(h.batches);
   assert.doesNotMatch(wire, /13800138000/, 'argument values are not recorded');
   assert.doesNotMatch(wire, /秘密表单/, 'results are not recorded');
@@ -359,4 +377,110 @@ test('PostHog rejects the batch: the failure is logged to the console (and reach
     logged.some((args) => String(args[0]).includes('posthog flush failed')),
     `no log of the failed upload: ${JSON.stringify(logged.map((a) => String(a[0])))}`
   );
+});
+
+test('error buckets: API failures by status, a 403 naming the scope as permission, argument problems as validation, the rest by transport', () => {
+  const cases: [string, ErrorType, number?][] = [
+    [
+      'HTTP 404: get_form failed.\nform cannot be found\nThe resource does not exist or this credential cannot access it (check the token / serial number).',
+      'api_4xx',
+      404
+    ],
+    [
+      'HTTP 400: list_entries failed.\nUnknown field api_code(s): field_3.\nArguments or data failed validation: fix them as described above and retry.',
+      'api_4xx',
+      400
+    ],
+    [
+      'HTTP 401: list_forms failed.\nThe credential is invalid or expired: re-authorize, or use another access token.',
+      'api_4xx',
+      401
+    ],
+    [
+      'HTTP 403: list_forms failed.\nOAuth token scope is insufficient\nNo permission, a quota is used up, or the OAuth scope is insufficient.',
+      'permission',
+      403
+    ],
+    [
+      'HTTP 403: list_forms failed.\nNo permission, a quota is used up, or the OAuth scope is insufficient.',
+      'api_4xx',
+      403
+    ],
+    [
+      'HTTP 403: create_entry failed.\nThe quota of entries is used up\nNo permission, a quota is used up, or the OAuth scope is insufficient.',
+      'api_4xx',
+      403
+    ],
+    [
+      'HTTP 429: search_entries_in_forms failed.\nrate limit exceeded\nRate limit exceeded; retry in 30 seconds.',
+      'rate_limited',
+      429
+    ],
+    [
+      'HTTP 502: list_forms failed.\n<html>bad gateway</html>\nJinshuju server error; retry later, and report it if it keeps happening.',
+      'api_5xx',
+      502
+    ],
+    [
+      'HTTP 500: list_forms failed.\nJinshuju server error; retry later, and report it if it keeps happening.\n⚠ Server warnings about the arguments (X-API-Input-Warnings): scope ignored',
+      'api_5xx',
+      500
+    ],
+    [
+      'Input validation error: Invalid arguments for tool list_entries: limit: Instance type "string" is invalid. Expected "integer".',
+      'validation'
+    ],
+    [
+      'Input validation error: Invalid arguments for tool get_form: Unknown arguments: token. This tool accepts only: form_token',
+      'validation'
+    ],
+    ['Unknown arguments: report. This tool accepts only: name, fields', 'validation'],
+    ['form_token: Instance does not have required property "form_token".', 'validation'],
+    ['No schema named textfield. Similar names: TextFieldInput', 'validation'],
+    ['Nothing to change: pass exam_setting or form fields.', 'validation'],
+    ['Request timed out (GET /forms): The operation was aborted. Retry later.', 'timeout'],
+    ['Could not reach the Jinshuju API (GET /forms): fetch failed. Retry later.', 'internal'],
+    ['TypeError: Cannot read properties of undefined', 'internal'],
+    ['', 'internal']
+  ];
+  for (const [message, type, status] of cases)
+    assert.deepEqual(classifyError(message), status === undefined ? { type } : { type, status }, message);
+});
+
+test('caller type: the Python MCP SDK defaults Jiri still uses are jiri, everything else is external', () => {
+  assert.equal(callerTypeOf('mcp', 'python-httpx/0.28.1'), 'jiri');
+  assert.equal(callerTypeOf('mcp', 'node'), 'external');
+  assert.equal(callerTypeOf('claude-ai', 'python-httpx/0.28.1'), 'external');
+  assert.equal(callerTypeOf(undefined, undefined), 'external');
+});
+
+test("Jiri's remaining path (client name mcp over python-httpx) is reported with caller type jiri and its user agent", async () => {
+  const h = harness();
+  const agent = { 'User-Agent': 'python-httpx/0.28.1' };
+  const init = await legacy(
+    h.app,
+    { ...INITIALIZE, params: { ...INITIALIZE.params, clientInfo: { name: 'mcp', version: '0.1.0' } } },
+    agent
+  );
+  const replay = { ...agent, 'Mcp-Session-Id': init.res.headers.get('mcp-session-id')! };
+  await legacy(
+    h.app,
+    {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: { name: 'get_form', arguments: { form_token: 'AbCdEf', context: '读表单' } }
+    },
+    replay
+  );
+  const events = await h.events();
+  assert.deepEqual(
+    events.map((e) => e.event),
+    ['$mcp_initialize', '$mcp_tool_call']
+  );
+  for (const e of events) {
+    assert.equal(e.properties.$mcp_client_name, 'mcp');
+    assert.equal(e.properties.$mcp_client_user_agent, 'python-httpx/0.28.1');
+    assert.equal(e.properties.mcp_caller_type, 'jiri');
+  }
 });
