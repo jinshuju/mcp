@@ -27,6 +27,9 @@ function errorLines(res: ApiResponse): string[] {
   return lines;
 }
 
+/** The 403 hint; it names the scope itself, so analytics.ts leaves it out when looking for a scope failure in the API's own words. */
+export const FORBIDDEN_HINT = 'No permission, a quota is used up, or the OAuth scope is insufficient.';
+
 function hint(status: number, res: ApiResponse): string {
   switch (status) {
     case 400:
@@ -36,7 +39,7 @@ function hint(status: number, res: ApiResponse): string {
     case 402:
       return 'The current plan does not include API v1.';
     case 403:
-      return 'No permission, a quota is used up, or the OAuth scope is insufficient.';
+      return FORBIDDEN_HINT;
     case 404:
       return 'The resource does not exist or this credential cannot access it (check the token / serial number).';
     case 415:

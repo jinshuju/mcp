@@ -80,6 +80,10 @@ What is collected:
 - Only `$mcp_initialize` and `$mcp_tool_call` are kept; every other event (`$mcp_tools_list`, `$mcp_resources_*`, `$identify`, `$exception`) is dropped in `beforeSend`;
   `$mcp_parameters` / `$mcp_response` / `$mcp_tool_description`, which the SDK adds by default, are removed too — only argument names are recorded (`$mcp_input_keys`), not values or results.
   The SDK cannot read the declarations in what `fromJsonSchema` produces, so the full set of argument names comes from `tools.json`; key names the model makes up are recorded as `[redacted]`.
+- Failures: the SDK types only thrown exceptions, and our tools return `isError` results, so `beforeSend` buckets `$mcp_error_type` from the error text, whose shapes are all ours
+  (`HTTP <status>:` from `result.ts`, the transport reasons from `api.ts`, the MCP SDK's `Input validation error:` prefix on a `validation.ts` failure):
+  `validation` / `permission` (a 403 whose API error names the scope) / `rate_limited` (429) / `api_4xx` / `api_5xx` / `timeout` / `internal`, the buckets PostHog's own MCP dashboards use;
+  an API failure also carries `$mcp_error_status`. `mcp_caller_type` is `jiri` for the Python MCP SDK defaults Jiri's remaining path runs on (client name `mcp`, `python-httpx` user agent), `external` otherwise.
 - Intent: the SDK injects `context` into every tool's inputSchema, and `tools/call` strips it before validation and before the handler;
   `context` still arrives when collection is off or the client uses a cached tool list, so `validation.ts` always accepts and discards it, and it never reaches the API.
   The SDK's other injections (`llm_model`, `conversation_id`, `get_more_tools`, `send_feedback`) are all off.
@@ -133,7 +137,7 @@ over twenty thousand tokens; as one line plus a `get_schema` tool, the model rea
 - `api.test.ts` guards URL / body / multipart / refresh on 401 / transport errors;
 - `server.test.ts` runs the full tools/list, tools/call, composite request order and failure messages, and resources through `InMemoryTransport` + `@modelcontextprotocol/client`;
 - `app.test.ts` runs the 401 challenge, PRM, caching and the legacy handshake through Hono's `app.request`;
-- `analytics.test.ts` injects a fake PostHog ingest and guards what is collected: which events, argument names without values, `context` never reaching the API, one session across both protocol versions, and behaviour when turned off or not configured.
+- `analytics.test.ts` injects a fake PostHog ingest and guards what is collected: which events, argument names without values, `context` never reaching the API, one session across both protocol versions, the error buckets and caller type, and behaviour when turned off or not configured.
 
 ## Evals (evals/)
 
