@@ -2,11 +2,11 @@
   "generatedFrom": {
     "title": "Jinshuju API v1",
     "version": "1.0",
-    "sha256": "54912d2240cc55de"
+    "sha256": "288548a94e3932e7"
   },
   "baseUrl": "https://jinshuju.net/api/v1",
   "toolCount": 60,
-  "operationCount": 123,
+  "operationCount": 128,
   "tools": {
     "list_forms": "listForms",
     "get_form": "getForm",
@@ -95,6 +95,7 @@
   "tags": {
     "Forms": "Forms: list, structure, create and edit, plus field display rules, cooperators, copy, move and other related operations.",
     "Form Settings": "Form settings: submission settings, access policy, Webhook, theme, closing rules, exam / evaluation scene settings.",
+    "Plugins": "Plugin center plugins (check-in for now). A plugin campaign is bound to one form, and only its creator can see and change it. The account must have enabled the plugin in the plugin center, or the request returns 402.",
     "Entries": "Form entries: list, query, create, update, delete and batch operations.",
     "Tables": "Tables (kind=table): structure and entries; field types are limited to the column types tables support.",
     "Views": "Form / table views (view filters, sort, column configuration) and reading entries through a view.",

@@ -81,7 +81,7 @@
  "getForm": {
   "operationId": "getForm",
   "summary": "Show a form's structure",
-  "description": "Returns the form's name, public fill URL (`url`), description, field definitions and settings. Each element of `fields` is a single-key object `{ \"<api_code>\": {...} }`, in field order.\nThe following are included when the matching parameter is `true`:\n- `include_analytics`: each analysable field's definition carries `analytics`;\n- `include_theme`: carries `theme` (the form theme);\n- `include_field_rules`: carries `field_rules` (field display rules);\n- `include_extended_attributes`: carries `extended_attributes` (source-tracking links);\n- `include_transactions`: carries `transactions` (payment statistics) when the form is bound to a payment account.",
+  "description": "Returns the form's name, `kind`, `scene`, public URL (`url`), description, field definitions and settings. Each element of `fields` is a single-key object `{ \"<api_code>\": {...} }`, in field order.\nAlso answers for a table or a quick payment form token; `kind` says which it is.\nThe following are included when the matching parameter is `true`:\n- `include_analytics`: each analysable field's definition carries `analytics`;\n- `include_theme`: carries `theme` (the form theme);\n- `include_field_rules`: carries `field_rules` (field display rules);\n- `include_extended_attributes`: carries `extended_attributes` (source-tracking links);\n- `include_transactions`: carries `transactions` (payment statistics) when the form is bound to a payment account.",
   "tag": "Forms",
   "method": "get",
   "path": "/forms/{form_token}",
@@ -2884,6 +2884,127 @@
    "read_entries"
   ],
   "responseSchema": "EntryListResponse"
+ },
+ "listCheckinCampaigns": {
+  "operationId": "listCheckinCampaigns",
+  "summary": "List check-in campaigns",
+  "description": "Lists the check-in campaigns the caller created, newest first. With an account-level credential, returns the ones the account owner created.",
+  "tag": "Plugins",
+  "method": "get",
+  "path": "/plugins/checkin/campaigns",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "limit"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ]
+ },
+ "createCheckinCampaign": {
+  "operationId": "createCheckinCampaign",
+  "summary": "Create a check-in campaign",
+  "description": "Turns check-in on for a form. The caller must be able to reach the form.\n- Same limits as picking a form in the web app: returns 400 when the form has WeChat red envelope, lucky wheel, certificate or confirmation code on, is bound to a plugin that takes over the after-submit redirect (a check-in campaign with a check-in code included), or its after-submit action is not the default message. Turn that off first.\n- Only one check-in campaign is in effect on a form at a time; creating one turns off the one that was in effect.\n- Without `checkin_field_api_code`, the form's first mobile field is used, then its first name field; with neither, returns 400. The check-in field cannot be changed afterwards.\n- The campaign belongs to the caller, or to the account owner with an account-level credential. The caller is also added as a verifier.\n- `enable_checkin_code` (on by default) rewrites the form's after-submit redirect and data push URL to the check-in code page, and overrides any Webhook already on the form (and the other way round).",
+  "tag": "Plugins",
+  "method": "post",
+  "path": "/plugins/checkin/campaigns",
+  "params": [],
+  "paramNames": [],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "CheckinCampaign"
+ },
+ "getCheckinCampaign": {
+  "operationId": "getCheckinCampaign",
+  "summary": "Get a check-in campaign",
+  "description": "Returns the campaign's settings, how many have checked in, and its check-in, verifier invite and management links. Only campaigns the caller created.",
+  "tag": "Plugins",
+  "method": "get",
+  "path": "/plugins/checkin/campaigns/{id}",
+  "params": [
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "id"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "CheckinCampaign"
+ },
+ "updateCheckinCampaign": {
+  "operationId": "updateCheckinCampaign",
+  "summary": "Update a check-in campaign",
+  "description": "Updates only the keys present in the body; PUT is accepted too. Only campaigns the caller created.\nTurning it back on with `enabled: true` turns off any other campaign in effect on the form.",
+  "tag": "Plugins",
+  "method": "patch",
+  "path": "/plugins/checkin/campaigns/{id}",
+  "params": [
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "id"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "CheckinCampaign"
+ },
+ "deleteCheckinCampaign": {
+  "operationId": "deleteCheckinCampaign",
+  "summary": "Delete a check-in campaign",
+  "description": "Deletes the campaign and unbinds it from the form; its check-in records are no longer visible. To pause check-in only, PATCH `enabled: false`.",
+  "tag": "Plugins",
+  "method": "delete",
+  "path": "/plugins/checkin/campaigns/{id}",
+  "params": [
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "id"
+  ],
+  "successStatus": 204,
+  "scopes": [
+   "form_setting"
+  ]
  },
  "listOpensearchQueries": {
   "operationId": "listOpensearchQueries",
