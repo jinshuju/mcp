@@ -57,7 +57,7 @@ The service is stateless and needs no database, KV or Durable Objects.
 
 ## Evals
 
-`evals/` is an automated, multi-model evaluation built from real usage: 42 tasks (categories 找表单 / 读数据 / 统计汇总 / 建表单 / 改设置 / 批量写入 / 导入 — find forms, read entries, aggregate, create forms, change settings, batch writes, import)
+`evals/` is an automated, multi-model evaluation built from real usage: 52 tasks (categories 找表单 / 读数据 / 统计汇总 / 建表单 / 改设置 / 批量写入 / 导入 — find forms, read entries, aggregate, create forms, change settings, batch writes, import)
 run by several models against this repository's MCP, are scored by assertions, produce pass-rate and token tables by model × category,
 and write every run into a Jinshuju form. Usage, task format and metrics are in [evals/README.md](evals/README.md).
 
