@@ -132,6 +132,64 @@ test("a shared parameter's descriptionAppend goes only to the operations that re
   }
 });
 
+/** Query parameters declared with `content: application/json`: the array itself, typed by the content schema, or its JSON text. */
+const JSON_TEXT_PARAMS: Record<string, string[]> = {
+  list_forms: ['filters', 'sort'],
+  list_tables: ['filters', 'sort'],
+  check_field_data: ['checks'],
+  preview_field_type_change: ['checks'],
+  list_entries: ['filters', 'sort'],
+  count_entries: ['filters'],
+  aggregate_entries: ['metrics', 'dimensions', 'filters'],
+  get_form_data_summary: ['filters'],
+  search_entries_in_forms: ['filters'],
+  list_my_submitted_entries: ['filters']
+};
+
+test('a query parameter declared with content: application/json takes the array itself, typed by the content schema, or its JSON text', () => {
+  const found: Record<string, string[]> = {};
+  for (const t of TOOLS) {
+    const properties = t.inputSchema.properties as Record<string, Record<string, unknown>>;
+    for (const p of t.params) {
+      if (!p.json) continue;
+      (found[t.name] ??= []).push(p.name);
+      assert.equal(p.array, undefined, `${t.name}.${p.name} is one query value, not name[]=`);
+      const schema = properties[p.name];
+      assert.deepEqual(schema.type, ['array', 'string'], `${t.name}.${p.name}`);
+      const items = schema.items as Record<string, unknown>;
+      assert.equal(items.type, 'object', `${t.name}.${p.name}: items are typed`);
+      assert.ok(Object.keys(items.properties as object).length > 0, `${t.name}.${p.name}: items have properties`);
+      assert.ok(
+        Array.isArray((schema.examples as unknown[] | undefined)?.[0]),
+        `${t.name}.${p.name}: the example is an array`
+      );
+      assert.match(
+        String(schema.description),
+        /an array of (?:\d+ to \d+ |at most \d+ )?[A-Z]\w+ objects/,
+        `${t.name}.${p.name}`
+      );
+    }
+    // openapi tells HTTP callers to stringify these themselves; here the runtime does it, so no tool says so
+    for (const [name, schema] of Object.entries(properties)) {
+      assert.doesNotMatch(
+        String(schema.description ?? ''),
+        /JSON string|JSON\.stringify|do not pass the array/,
+        `${t.name}.${name}`
+      );
+    }
+  }
+  assert.deepEqual(found, JSON_TEXT_PARAMS);
+  // ScopeCondition is inlined: filters names its keys and operators without a get_schema call
+  const filters = (
+    TOOLS.find((t) => t.name === 'list_entries')!.inputSchema.properties as Record<string, Record<string, unknown>>
+  ).filters;
+  const condition = filters.items as { required: string[]; properties: Record<string, { enum?: string[] }> };
+  assert.deepEqual(condition.required, ['field', 'operator']);
+  assert.ok(condition.properties.operator.enum?.includes('any_in'));
+  // count_entries across several forms goes through its own operation, whose filters is JSON text too
+  assert.equal(OPERATIONS.countEntriesAcrossForms.params.find((p) => p.name === 'filters')?.json, true);
+});
+
 test('path parameters are in inputSchema.required, and flattened body properties are at the top level', () => {
   const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
   for (const t of TOOLS) {
