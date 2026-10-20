@@ -67,6 +67,8 @@ tags:
   description: 'Forms: list, structure, create and edit, plus field display rules, cooperators, copy, move and other related operations.'
 - name: Form Settings
   description: 'Form settings: submission settings, access policy, Webhook, theme, closing rules, exam / evaluation scene settings.'
+- name: Plugins
+  description: Plugin center plugins (check-in for now). A plugin campaign is bound to one form, and only its creator can see and change it. The account must have enabled the plugin in the plugin center, or the request returns 402.
 - name: Entries
   description: 'Form entries: list, query, create, update, delete and batch operations.'
 - name: Tables
@@ -3379,6 +3381,193 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  "/plugins/checkin/campaigns":
+    get:
+      tags:
+      - Plugins
+      summary: List check-in campaigns
+      description: |
+        Lists the check-in campaigns the caller created, newest first. With an account-level credential, returns the ones the account owner created.
+        OAuth scope: form_setting
+      operationId: listCheckinCampaigns
+      parameters:
+      - name: form_token
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Only the campaigns bound to this form
+      - name: limit
+        in: query
+        required: false
+        description: How many to return, 50 by default and 100 at most. There is no paging; `total` is the full count and `count` the number returned
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      responses:
+        '200':
+          description: Check-in campaigns
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CheckinCampaign'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+      - Plugins
+      summary: Create a check-in campaign
+      description: |
+        Turns check-in on for a form. The caller must be able to reach the form.
+        - Same limits as picking a form in the web app: returns 400 when the form has WeChat red envelope, lucky wheel, certificate or confirmation code on, is bound to a plugin that takes over the after-submit redirect (a check-in campaign with a check-in code included), or its after-submit action is not the default message. Turn that off first.
+        - Only one check-in campaign is in effect on a form at a time; creating one turns off the one that was in effect.
+        - Without `checkin_field_api_code`, the form's first mobile field is used, then its first name field; with neither, returns 400. The check-in field cannot be changed afterwards.
+        - The campaign belongs to the caller, or to the account owner with an account-level credential. The caller is also added as a verifier.
+        - `enable_checkin_code` (on by default) rewrites the form's after-submit redirect and data push URL to the check-in code page, and overrides any Webhook already on the form (and the other way round).
+        OAuth scope: form_setting
+      operationId: createCheckinCampaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckinCampaignCreateInput'
+      responses:
+        '201':
+          description: The check-in campaign created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinCampaign'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  "/plugins/checkin/campaigns/{id}":
+    get:
+      tags:
+      - Plugins
+      summary: Get a check-in campaign
+      description: |
+        Returns the campaign's settings, how many have checked in, and its check-in, verifier invite and management links. Only campaigns the caller created.
+        OAuth scope: form_setting
+      operationId: getCheckinCampaign
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Check-in campaign id
+      responses:
+        '200':
+          description: Check-in campaign
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinCampaign'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags:
+      - Plugins
+      summary: Update a check-in campaign
+      description: |
+        Updates only the keys present in the body; PUT is accepted too. Only campaigns the caller created.
+        Turning it back on with `enabled: true` turns off any other campaign in effect on the form.
+        OAuth scope: form_setting
+      operationId: updateCheckinCampaign
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Check-in campaign id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckinCampaignUpdateInput'
+      responses:
+        '200':
+          description: The check-in campaign as saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinCampaign'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+      - Plugins
+      summary: Delete a check-in campaign
+      description: |
+        Deletes the campaign and unbinds it from the form; its check-in records are no longer visible. To pause check-in only, PATCH `enabled: false`.
+        OAuth scope: form_setting
+      operationId: deleteCheckinCampaign
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Check-in campaign id
+      responses:
+        '204':
+          description: Deleted; empty body
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   "/opensearch/queries":
     get:
       tags:
@@ -5679,6 +5868,7 @@ components:
       - entries_count
       - last_entry_created_at
       - creator
+      - folder_token
       properties:
         name:
           type: string
@@ -5704,6 +5894,11 @@ components:
           description: When the latest entry was received (UTC); null when the form has never received an entry
         creator:
           $ref: '#/components/schemas/Creator'
+        folder_token:
+          type:
+          - string
+          - 'null'
+          description: Token of the folder the current identity put this form in (for an account token, the account owner's); null when the form is not in a folder
         transactions:
           $ref: '#/components/schemas/FormTransactions'
     FormListResponse:
@@ -7034,6 +7229,11 @@ components:
           - rich_text
         entry_submit_mode:
           type: string
+          enum:
+          - show_message
+          - redirect
+          - reports
+          - exam_score
         success_redirect_url:
           type: string
         success_redirect_fields:
@@ -7042,6 +7242,10 @@ components:
             type: string
         open_entry_action:
           type: string
+          enum:
+          - hide
+          - view
+          - edit
         open_entry_message:
           type: string
         open_entry_cancel_reservation:
@@ -7131,6 +7335,14 @@ components:
           type: string
         allowed_audience:
           type: string
+          enum:
+          - public
+          - internal
+          - private
+          - weixin_qiye_followers_only
+          - weixin_followers_only
+          - submitter_only
+          - gd_user_only
         weixin_limited:
           type: boolean
         submission_region_limited:
@@ -7331,8 +7543,8 @@ components:
         goods_items:
           type: array
           items:
-            $ref: '#/components/schemas/GoodsItemInput'
-          description: Replaces the whole list; carry api_code to keep the identity of an item
+            $ref: '#/components/schemas/GoodsItemUpdateInput'
+          description: Replaces the whole list; carry api_code to keep the identity of an item. An existing item keeps whatever it leaves out, so a reorder lists just the api_codes in the new order
         reservation_items:
           type: array
           items:
@@ -7452,7 +7664,58 @@ components:
         media_type:
           type: object
           additionalProperties: false
-          description: 'Allowed file types: type is a preset group, and type=custom must list the extensions in value'
+          description: 'Allowed file types: type is one preset group, whose extensions x-groups lists, or custom with the extensions listed in value. To allow several groups, write type=custom with the union of their extensions in value'
+          x-groups:
+            doc:
+            - txt
+            - pdf
+            - doc
+            - docx
+            - xls
+            - xlsx
+            - ppt
+            - pptx
+            - wps
+            - rtf
+            - hlp
+            image:
+            - jpg
+            - jpeg
+            - png
+            - gif
+            - bmp
+            - psd
+            - tif
+            - heic
+            - heif
+            video:
+            - mkv
+            - mp4
+            - avi
+            - swf
+            - wmv
+            - rmvb
+            - mov
+            - mpg
+            audio:
+            - mp3
+            - flac
+            - ape
+            - wma
+            - wav
+            - aac
+            - m4a
+            - au
+            - ram
+            - mmf
+            - aif
+            compress:
+            - rar
+            - zip
+            - 7z
+            - gz
+            - arj
+            - z
           properties:
             type:
               type: string
@@ -8459,6 +8722,203 @@ components:
           items:
             $ref: '#/components/schemas/FormIntervalCommentInput'
       additionalProperties: false
+    CheckinDateSetting:
+      type: object
+      description: A date range check-in is open in. Check-in works on the days within the range that fall on `periods`, inside the duration. For several durations, pass several date_settings
+      required:
+      - start_date
+      - end_date
+      - periods
+      - durations
+      properties:
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        periods:
+          type: array
+          minItems: 1
+          description: Weekdays check-in is open on; list all seven for every day
+          items:
+            type: string
+            enum:
+            - Monday
+            - Tuesday
+            - Wednesday
+            - Thursday
+            - Friday
+            - Saturday
+            - Sunday
+        durations:
+          type: array
+          minItems: 1
+          maxItems: 1
+          description: The time of day check-in is open; exactly one
+          items:
+            type: object
+            required:
+            - start
+            - end
+            properties:
+              start:
+                type: string
+                pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                description: Start time, HH:MM
+              end:
+                type: string
+                pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                description: End time, HH:MM
+            additionalProperties: false
+      additionalProperties: false
+    CheckinGeoLocation:
+      type: object
+      description: Location limit; check-in works only within `range` meters of the coordinates
+      required:
+      - longitude
+      - latitude
+      - range
+      properties:
+        location_name:
+          type: string
+        address:
+          type: string
+        longitude:
+          type: number
+        latitude:
+          type: number
+        range:
+          type: integer
+          minimum: 1
+          description: Radius check-in is allowed in, in meters
+      additionalProperties: false
+    CheckinCampaign:
+      type: object
+      description: Check-in campaign
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        form_token:
+          type: string
+          description: The form it is bound to
+        enabled:
+          type: boolean
+          description: Whether it is in effect
+        checkin_field_api_code:
+          type: string
+          description: Field registrants check in with (usually the mobile number), matched against their entries
+        display_field_api_code:
+          type:
+          - string
+          - 'null'
+          description: Field shown when verifying (usually the name)
+        enable_checkin_code:
+          type: boolean
+          description: Whether submitting goes on to the check-in code page
+        date_settings:
+          type: array
+          description: When check-in is open; empty means any time
+          items:
+            $ref: '#/components/schemas/CheckinDateSetting'
+        geo_location:
+          description: Location limit; null means anywhere
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CheckinGeoLocation'
+        checkin_count:
+          type: integer
+          description: How many have checked in
+        checkin_url:
+          type: string
+          description: Link registrants scan to check themselves in
+        verifier_invite_url:
+          type: string
+          description: Link that invites a verifier, who can then verify check-ins on site
+        manage_url:
+          type: string
+          description: Page that manages the campaign in Jinshuju
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CheckinCampaignCreateInput:
+      type: object
+      title: CheckinCampaignCreateInput
+      description: Request body of POST /plugins/checkin/campaigns
+      required:
+      - form_token
+      properties:
+        form_token:
+          type: string
+          description: The form to turn check-in on for
+        checkin_field_api_code:
+          type: string
+          description: Check-in field; defaults to the first mobile field, then the first name field. Cannot be changed afterwards
+        name:
+          type: string
+          minLength: 1
+          description: Campaign name; the form name by default
+        display_field_api_code:
+          type:
+          - string
+          - 'null'
+          description: Field shown when verifying, not the check-in field; null clears it
+        enable_checkin_code:
+          type: boolean
+          description: After submitting, go on to the check-in code page; registrants show the code on site
+        checkin_field_required_unique:
+          type: boolean
+          description: true makes the check-in field required and unique, so no registrant is left unable to check in
+        date_settings:
+          type: array
+          description: Replaces the check-in times as a whole; an empty list means any time
+          items:
+            $ref: '#/components/schemas/CheckinDateSetting'
+        geo_location:
+          description: Sets the location limit; null lifts it
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CheckinGeoLocation'
+      additionalProperties: false
+    CheckinCampaignUpdateInput:
+      type: object
+      title: CheckinCampaignUpdateInput
+      description: Request body of PATCH /plugins/checkin/campaigns/{id}; only the keys present are written
+      properties:
+        enabled:
+          type: boolean
+          description: false pauses check-in and unbinds it from the form; true turns it back on
+        name:
+          type: string
+          minLength: 1
+          description: Campaign name
+        display_field_api_code:
+          type:
+          - string
+          - 'null'
+          description: Field shown when verifying, not the check-in field; null clears it
+        enable_checkin_code:
+          type: boolean
+          description: After submitting, go on to the check-in code page; registrants show the code on site
+        checkin_field_required_unique:
+          type: boolean
+          description: true makes the check-in field required and unique, so no registrant is left unable to check in
+        date_settings:
+          type: array
+          description: Replaces the check-in times as a whole; an empty list means any time
+          items:
+            $ref: '#/components/schemas/CheckinDateSetting'
+        geo_location:
+          description: Sets the location limit; null lifts it
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CheckinGeoLocation'
+      additionalProperties: false
     EvaluationComment:
       type: object
       description: |
@@ -9337,12 +9797,12 @@ components:
           type:
           - string
           - 'null'
-          description: Email
+          description: Email; null when the user has not bound one (a placeholder address made at signup counts as not bound)
         mobile:
           type:
           - string
           - 'null'
-          description: Mobile number
+          description: Mobile number; null when the user has not bound one
         role:
           type: string
           enum:
@@ -11096,7 +11556,58 @@ components:
         media_type:
           type: object
           additionalProperties: false
-          description: 'Allowed file types: type is a preset group, and type=custom must list the extensions in value'
+          description: 'Allowed file types: type is one preset group, whose extensions x-groups lists, or custom with the extensions listed in value. To allow several groups, write type=custom with the union of their extensions in value'
+          x-groups:
+            doc:
+            - txt
+            - pdf
+            - doc
+            - docx
+            - xls
+            - xlsx
+            - ppt
+            - pptx
+            - wps
+            - rtf
+            - hlp
+            image:
+            - jpg
+            - jpeg
+            - png
+            - gif
+            - bmp
+            - psd
+            - tif
+            - heic
+            - heif
+            video:
+            - mkv
+            - mp4
+            - avi
+            - swf
+            - wmv
+            - rmvb
+            - mov
+            - mpg
+            audio:
+            - mp3
+            - flac
+            - ape
+            - wma
+            - wav
+            - aac
+            - m4a
+            - au
+            - ram
+            - mmf
+            - aif
+            compress:
+            - rar
+            - zip
+            - 7z
+            - gz
+            - arj
+            - z
           properties:
             type:
               type: string
@@ -13807,7 +14318,6 @@ components:
                     not:
                       enum:
                       - PageBreak
-                      - GoodsField
                       - MultipleBlanksField
                       - WidgetContact
                       - WidgetVideo
@@ -14071,6 +14581,29 @@ components:
           examples:
           - - calculable
             - choices_layout
+        setting_specs:
+          type: object
+          description: What each key of `settings` may hold, keyed by setting, as the JSON Schema the create request validates it against (the setting's schema in `<Type>Input`). An attachment's `media_type` also carries `x-groups`, the extensions of each preset group. Omitted when the type has no settings
+          additionalProperties:
+            type: object
+          examples:
+          - media_type:
+              type: object
+              x-groups:
+                audio:
+                - mp3
+                - wav
+              properties:
+                type:
+                  type: string
+                  enum:
+                  - unlimited
+                  - audio
+                  - custom
+                value:
+                  type: array
+                  items:
+                    type: string
         summary:
           type: string
           description: A short explanation of what this field is and how to write it. Omitted when `kind=table`
@@ -14437,6 +14970,7 @@ components:
               - name
               - matched
               - serial_numbers
+              - folder_token
               properties:
                 form_token:
                   type: string
@@ -14450,6 +14984,11 @@ components:
                   description: Serial numbers of some matching entries, at most 50
                   items:
                     type: integer
+                folder_token:
+                  type:
+                  - string
+                  - 'null'
+                  description: Token of the folder the current identity put this form in (for an account token, the account owner's); null when the form is not in a folder
             - $ref: '#/components/schemas/EntryFormUnavailable'
       examples:
       - total: 3
@@ -14461,6 +15000,7 @@ components:
           - 12
           - 57
           - 88
+          folder_token: null
     EntryStatsResponse:
       type: object
       required:
@@ -16522,3 +17062,173 @@ components:
         related_label:
           type: string
           description: Name of the reverse column, used only when the reverse column is created; defaults to the name of this table
+    GoodsItemUpdateInput:
+      type: object
+      title: GoodsItemUpdateInput
+      additionalProperties: false
+      description: A goods item; one with api_code is an existing item and keeps whatever it leaves out
+      properties:
+        name:
+          type: string
+          description: Goods name
+        layout:
+          type: string
+          enum:
+          - without_images
+          - price_only
+          - images
+          - text_options
+          description: Layout
+        api_code:
+          type: string
+          description: Keeps the identity of the item on edit; when left out, an existing item is matched by name
+        description:
+          type: string
+          description: Goods description
+        position:
+          type: integer
+          minimum: 0
+        hidden:
+          type: boolean
+        price:
+          type: number
+          minimum: 0
+        original_price:
+          type: number
+          minimum: 0
+          description: Original price, shown struck through
+        predefined_number:
+          type: integer
+          minimum: 0
+          description: Default quantity
+        fixed_number:
+          type: boolean
+          description: The quantity cannot be changed
+        inventory:
+          type: integer
+          minimum: 0
+          description: Stock; with specifications, set it on each sku instead
+        inventory_reset:
+          type: boolean
+        min_purchase_quantity:
+          type: integer
+          minimum: 0
+        max_purchase_quantity:
+          type: integer
+          minimum: 0
+        dimensions:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - label
+            - options
+            properties:
+              api_code:
+                type: string
+                description: Keeps the identity on edit
+              label:
+                type: string
+                description: Dimension name, such as `尺寸`
+              options:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                  - label
+                  properties:
+                    label:
+                      type: string
+                    value:
+                      type: string
+                      description: Generated when left out; customized marks a custom amount option
+          description: Specification dimensions
+        skus:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - specification
+            properties:
+              specification:
+                type: object
+                additionalProperties:
+                  type: string
+                description: Keyed by dimension api_code or name; each value is an option value or name
+              price:
+                type: number
+                minimum: 0
+              original_price:
+                type: number
+                minimum: 0
+              inventory:
+                type: integer
+                minimum: 0
+              inventory_reset:
+                type: boolean
+              min_purchase_quantity:
+                type: integer
+                minimum: 0
+              max_purchase_quantity:
+                type: integer
+                minimum: 0
+          description: Specification combinations; specification must name one option for every dimension
+        image_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+          description: Goods image URLs for layout=images
+        image_base64s:
+          type: array
+          items:
+            type: string
+          description: Base64 goods images for layout=images
+      dependentRequired:
+        dimensions:
+        - skus
+        skus:
+        - dimensions
+      if:
+        not:
+          required:
+          - api_code
+      then:
+        required:
+        - name
+        - layout
+        allOf:
+        - description: The price_only / text_options layouts require specifications
+          if:
+            properties:
+              layout:
+                enum:
+                - price_only
+                - text_options
+          then:
+            required:
+            - dimensions
+            - skus
+        - description: The images layout needs at least one image
+          if:
+            properties:
+              layout:
+                const: images
+          then:
+            anyOf:
+            - required:
+              - image_urls
+              properties:
+                image_urls:
+                  minItems: 1
+            - required:
+              - image_base64s
+              properties:
+                image_base64s:
+                  minItems: 1

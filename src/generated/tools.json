@@ -4368,7 +4368,7 @@
  {
   "operationId": "getCurrentUser",
   "summary": "Show the current user",
-  "description": "Show the current user\nReturns the user behind the current credential. With an account-level credential (no specific user), returns the account owner.",
+  "description": "Show the current user\nReturns the user behind the current credential. With an account-level credential (no specific user), returns the account owner.\nReturns schema \"CurrentUser\" (see get_schema).",
   "tag": "Account",
   "method": "get",
   "path": "/me",
@@ -4385,64 +4385,6 @@
    "type": "object",
    "properties": {},
    "additionalProperties": false
-  },
-  "outputSchema": {
-   "type": "object",
-   "required": [
-    "id",
-    "name",
-    "email",
-    "mobile",
-    "role",
-    "billing_account_id",
-    "created_at"
-   ],
-   "properties": {
-    "id": {
-     "type": "string",
-     "description": "User ID"
-    },
-    "name": {
-     "type": [
-      "string",
-      "null"
-     ],
-     "description": "Display name"
-    },
-    "email": {
-     "type": [
-      "string",
-      "null"
-     ],
-     "description": "Email"
-    },
-    "mobile": {
-     "type": [
-      "string",
-      "null"
-     ],
-     "description": "Mobile number"
-    },
-    "role": {
-     "type": "string",
-     "enum": [
-      "owner",
-      "admin",
-      "worker",
-      "outworker"
-     ],
-     "description": "Role in the account"
-    },
-    "billing_account_id": {
-     "type": "string",
-     "description": "ID of the account the user belongs to"
-    },
-    "created_at": {
-     "type": "string",
-     "format": "date-time",
-     "description": "Signed up at (UTC)"
-    }
-   }
   },
   "annotations": {
    "readOnlyHint": true,
