@@ -1,0 +1,153 @@
+# JSON-array parameters (filters / sort / fields / metrics / dimensions / checks / form_tokens).
+# Source: production tool calls between 2026-10-13 and 2026-10-20 that failed validation with
+# `Instance type "array" is invalid. Expected "string"` (448 calls, 16 clients): the model passed a real array where the
+# tool declared JSON text. Each task below is rewritten from one of those intents against the fixtures, phrased so that the
+# natural call carries the array-typed parameter; on a server that refuses the array, the model needs a retry or fails.
+- id: arr-01
+  category: 读数据
+  title: Newest entries, selected columns, sorted by a date field
+  source: production failures 2026-10 — list_entries with fields + sort as arrays (monitoring a form for its newest submissions, newest first)
+  prompt: 员工信息登记表里最近入职的 3 个人是谁？按入职日期从新到旧排，只要姓名、部门和入职日期三列。
+  fixtures: [employees]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [list_entries]
+      must_not_call: [create_entry, update_entry, delete_entry]
+    answer:
+      contains: [刘洋, 李娜, 马超]
+      claims:
+        - 三个人按入职日期从新到旧依次是 刘洋（2026-06-08）、李娜（2026-02-16）、马超（2026-01-05）
+
+- id: arr-02
+  category: 读数据
+  title: Filtered rows with only two columns
+  source: production failures 2026-10 — list_entries with fields + filters as arrays (exporting a few columns of one group)
+  prompt: 把员工信息登记表里市场部员工的姓名和邮箱列出来，其他列不要。
+  fixtures: [employees]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [list_entries]
+    answer:
+      contains: [陈静, chenjing@example.com, 杨帆, yangfan@example.com, 周婷, zhouting@example.com]
+      not_contains: [张伟, 吴磊, 孙丽]
+
+- id: arr-03
+  category: 读数据
+  title: Top entries by amount within a status
+  source: production failures 2026-10 — list_entries with filters + sort as arrays (ranking entries of one status by a number)
+  prompt: 办公用品采购申请里已批准的申请中，金额最高的 3 笔是哪些？按金额从高到低，给出申请人、物品和金额。
+  fixtures: [orders]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [list_entries, aggregate_entries]
+    answer:
+      contains: [杨帆, 王强, 孙丽]
+      not_contains: [郑爽, 陈静]
+      claims:
+        - 三笔申请按金额从高到低依次是 杨帆 显示器 4800、王强 显示器 3000、孙丽 办公椅 2400
+
+- id: arr-04
+  category: 读数据
+  title: Count entries matching a condition
+  source: production failures 2026-10 — count_entries with filters as an array (intent "计数")
+  prompt: 办公用品采购申请里状态是「待审批」的申请有几条？
+  fixtures: [orders]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [count_entries, list_entries, aggregate_entries]
+    answer:
+      contains: ['4']
+
+- id: arr-05
+  category: 统计汇总
+  title: Latest and earliest date in a form
+  source: production failures 2026-10 — aggregate_entries with metrics as an array (finding the latest recorded date to decide a back-fill range)
+  prompt: 办公用品采购申请里最新一条申请的申请日期是哪天？最早的是哪天？
+  fixtures: [orders]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [aggregate_entries, list_entries]
+    answer:
+      contains_any: ['2026-10-06', '10 月 6 日', '10月6日']
+      claims:
+        - 最新的申请日期是 2026 年 10 月 6 日，最早的是 2026 年 9 月 2 日
+
+- id: arr-06
+  category: 统计汇总
+  title: Count and average per group
+  source: production failures 2026-10 — aggregate_entries with metrics + dimensions as arrays
+  prompt: 员工信息登记表按职级分一下，每个职级有几个人、平均月薪多少？
+  fixtures: [employees]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [aggregate_entries, get_form_data_summary, list_entries]
+    answer:
+      contains: [P5, P6, P7, M1]
+      claims:
+        - 四个职级的人数分别为 P5 5、P6 4、P7 1、M1 2
+        - 四个职级的平均月薪分别为 P5 15400、P6 22000、P7 32000、M1 27000（允许四舍五入）
+
+- id: arr-07
+  category: 找表单
+  title: Recently active forms, newest first
+  source: production failures 2026-10 — list_forms with filters / sort as arrays (checking whether a recent survey has responses)
+  prompt: 表单列表里最近 30 天有收到新数据的表单有哪些？按最后一次收到数据的时间从新到旧排，列出前 5 个和各自的数据条数。
+  max_turns: 6
+  expect:
+    tools:
+      must_call: [list_forms]
+    max_tool_calls: 4
+    answer:
+      claims:
+        - 列出了不超过 5 个表单，每个都给出了数据条数
+
+- id: arr-08
+  category: 改设置
+  title: Preview a field type change before editing
+  source: production failures 2026-10 — preview_field_type_change with checks as an array (checking whether changing a field's type loses data)
+  prompt: 我想把员工信息登记表的「职级」字段从下拉框改成单选题，先帮我预览一下会不会丢数据，不要真的改。
+  fixtures: [employees]
+  max_turns: 6
+  expect:
+    tools:
+      must_call: [preview_field_type_change]
+      must_not_call: [edit_form]
+    answer:
+      claims:
+        - 答复说明这个转换是支持的，12 条数据都会保留，不会丢数据
+
+- id: arr-09
+  category: 改设置
+  title: Check whether fields have data before deleting them
+  source: production failures 2026-10 — check_field_data with checks as an array (the check_field_data → edit_form pattern)
+  prompt: 新员工入职培训签到表里「工号」和「培训课程」这两个字段有没有收集过数据？如果都没有我再决定删不删。
+  fixtures: [training]
+  max_turns: 6
+  expect:
+    tools:
+      must_call: [check_field_data]
+      must_not_call: [edit_form]
+    answer:
+      claims:
+        - 答复说明「工号」和「培训课程」两个字段都没有收集过数据
+
+- id: arr-10
+  category: 读数据
+  title: Search a name in two named forms
+  source: production failures 2026-10 — search_entries_in_forms with form_tokens as an array (locating a person across a few forms)
+  prompt: 在「员工信息登记表（2026）」和「办公用品采购申请」这两个表里找一下「孙丽」，各出现几次？
+  fixtures: [employees, orders]
+  max_turns: 8
+  expect:
+    tools:
+      any_of: [search_entries_in_forms, list_entries, count_entries]
+    answer:
+      contains: [员工信息登记表, 办公用品采购申请]
+      claims:
+        - 孙丽在「员工信息登记表（2026）」中出现 1 次、在「办公用品采购申请」中出现 2 次
