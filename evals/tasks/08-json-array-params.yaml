@@ -151,3 +151,34 @@
       contains: [员工信息登记表, 办公用品采购申请]
       claims:
         - 孙丽在「员工信息登记表（2026）」中出现 1 次、在「办公用品采购申请」中出现 2 次
+
+- id: arr-11
+  category: 统计汇总
+  title: Summary of two named fields only
+  source: production failures 2026-10 — get_form_data_summary with fields as an array (summarising a few columns of a form)
+  prompt: 员工信息登记表只看「部门」和「技能」这两个字段：每个部门几个人，每项技能各有几个人会？其他字段不用管。
+  fixtures: [employees]
+  max_turns: 6
+  expect:
+    tools:
+      any_of: [get_form_data_summary, aggregate_entries, list_entries]
+    answer:
+      contains: [研发部, 市场部, 销售部, 人事部, Python, 数据分析]
+      claims:
+        - 部门人数分别为 研发部 5、市场部 3、销售部 2、人事部 2
+        - 技能人数分别为 Python 5、数据分析 4、Go 2、前端 2、Java 2
+
+- id: arr-12
+  category: 读数据
+  title: Search a name in three named forms
+  source: production failures 2026-10 — search_entries_in_forms with form_tokens as an array (the eval run that hit it on form_tokens)
+  prompt: 在「员工信息登记表（2026）」「办公用品采购申请」「秋季技术沙龙报名表」这三个表里搜一下「王强」，每个表各有几条？
+  fixtures: [employees, orders, signup]
+  max_turns: 8
+  expect:
+    tools:
+      any_of: [search_entries_in_forms, list_entries, count_entries]
+    answer:
+      contains: [员工信息登记表, 办公用品采购申请, 秋季技术沙龙报名表]
+      claims:
+        - 王强在「员工信息登记表（2026）」中有 1 条、在「办公用品采购申请」中有 2 条、在「秋季技术沙龙报名表」中没有

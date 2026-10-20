@@ -7,7 +7,7 @@ are scored by assertions, produce pass-rate and token tables by model × task ca
 ```
 evals/
   fixtures.yaml        Fixtures: the 5 forms and seed data the assertions rely on (versioned; anyone can re-seed)
-  tasks/*.yaml         Sample set: 52 tasks in 7 categories; each task = a natural-language input + expected assertions
+  tasks/*.yaml         Sample set: 54 tasks in 7 categories; each task = a natural-language input + expected assertions
   src/
     cli.ts             Entry point: seed / run / report / upload / reset / sweep / tasks / catalog
     fixtures.ts        Creates forms, seeds data, resets, and archives forms created during evals
@@ -53,7 +53,7 @@ The tasks come from real tool-call records in production:
 usage patterns were drawn from the tool sequences of sessions (e.g. `list_forms → get_form → count_entries`, the `get_form → edit_form` round trip,
 `count_entries` failing on several forms with a keyword and switching to `search_entries_in_forms`, the date-format error of `list_form_entry_stats`),
 then written up as tasks stratified into the 7 categories; each task's `source` field records the session pattern it came from.
-`tasks/08-json-array-params.yaml` adds ten tasks rewritten from calls that failed validation in production because the model passed a real array
+`tasks/08-json-array-params.yaml` adds twelve tasks rewritten from calls that failed validation in production because the model passed a real array
 to `filters` / `sort` / `fields` / `metrics` / `dimensions` / `checks` / `form_tokens`; they keep those parameters exercised across categories.
 
 Category names are the values used in `tasks/*.yaml` and `--category`:
@@ -61,8 +61,8 @@ Category names are the values used in `tasks/*.yaml` and `--category`:
 | Category               | Tasks | Covers                                                                                                                  |
 | ---------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------- |
 | 找表单 (find forms)    | 7     | Find forms by topic, read structure and links, plan quotas, wrong tokens, recently active forms                         |
-| 读数据 (read entries)  | 12    | Conditional filters, extremes, date ranges, cross-form search, submission counts, selected columns, sorting             |
-| 统计汇总 (aggregate)   | 9     | Grouped counts / averages, conditional sums, shares, monthly buckets, date extremes                                     |
+| 读数据 (read entries)  | 13    | Conditional filters, extremes, date ranges, cross-form search, submission counts, selected columns, sorting             |
+| 统计汇总 (aggregate)   | 10    | Grouped counts / averages, conditional sums, shares, monthly buckets, date extremes                                     |
 | 建表单 (create forms)  | 6     | Plain forms, unique constraints, exams, evaluations, copying, create form + settings                                    |
 | 改设置 (edit settings) | 10    | Rename / description, add fields, add choices, hint text, password, required + unique, delete fields, theme, pre-checks |
 | 批量写入 (batch write) | 5     | Add one entry, add in batch, batch update by condition, locate and edit, delete by condition                            |
