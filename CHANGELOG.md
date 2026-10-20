@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/jinshuju/mcp/compare/v0.2.0...v0.3.0) (2026-10-20)
+
+
+### Features
+
+* bucket tool failures for analytics and record the HTTP status ([7d9c340](https://github.com/jinshuju/mcp/commit/7d9c34019657ca73b95b906a7b1471310c901708))
+* take filters, sort, metrics, dimensions and checks as arrays ([f3627cb](https://github.com/jinshuju/mcp/commit/f3627cb76186a9b281c1c7e49218969901fe48d4))
+
 ## [0.2.0](https://github.com/jinshuju/mcp/compare/v0.1.0...v0.2.0) (2026-10-16)
 
 
