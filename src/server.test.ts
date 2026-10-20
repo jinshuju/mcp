@@ -98,6 +98,43 @@ test('tools/call: extra keys are named, along with the arguments the tool accept
   await close();
 });
 
+test('tools/call: filters and the other JSON-text parameters are accepted as the array or as its JSON text, and reach the API as one JSON value', async () => {
+  const { calls, fetchImpl } = fakeApi(
+    () =>
+      new Response('{"total":0,"count":0,"data":[],"next":null}', { headers: { 'Content-Type': 'application/json' } })
+  );
+  const { client, close } = await connect(fetchImpl);
+  const filters = [{ field: 'field_3', operator: 'any_in', value: ['选项 A'] }];
+  const sort = [{ api_code: 'created_at', order: 'desc' }];
+  const asArrays = await client.callTool({ name: 'list_entries', arguments: { form_token: 'AbCdEf', filters, sort } });
+  assert.equal(asArrays.isError, undefined);
+  const asText = await client.callTool({
+    name: 'list_entries',
+    arguments: { form_token: 'AbCdEf', filters: JSON.stringify(filters), sort: JSON.stringify(sort) }
+  });
+  assert.equal(asText.isError, undefined);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].url, calls[1].url);
+  assert.equal(new URL(calls[0].url).searchParams.get('filters'), JSON.stringify(filters));
+  assert.equal(new URL(calls[0].url).searchParams.get('sort'), JSON.stringify(sort));
+
+  // Neither: a bare object, or an item without the keys ScopeCondition requires, is refused before any request
+  const object = await client.callTool({
+    name: 'list_entries',
+    arguments: { form_token: 'AbCdEf', filters: { field: 'field_3', operator: 'eq', value: 1 } }
+  });
+  assert.equal(object.isError, true);
+  assert.match((object.content[0] as { text: string }).text, /filters/);
+  const incomplete = await client.callTool({
+    name: 'list_entries',
+    arguments: { form_token: 'AbCdEf', filters: [{ operator: 'eq', value: 1 }] }
+  });
+  assert.equal(incomplete.isError, true);
+  assert.match((incomplete.content[0] as { text: string }).text, /filters.*field/);
+  assert.equal(calls.length, 2);
+  await close();
+});
+
 test('tools/call: success returns text (plus structuredContent when there is an outputSchema) and sends Bearer and User-Agent', async () => {
   const payload = { total: 1, count: 1, data: [{ name: '报名表', token: 'AbCdEf' }], next: null };
   const { calls, fetchImpl } = fakeApi(
@@ -190,6 +227,10 @@ test('composite tools: create_exam_form creates the form, then writes the settin
   assert.equal(calls[0].url, 'https://api.test/api/v1/entries/count?form_tokens=A%2CB&filters=%5B%5D');
   await client.callTool({ name: 'count_entries', arguments: { form_token: 'A', keyword: 'x' } });
   assert.equal(calls[1].url, 'https://api.test/api/v1/forms/A/entries/count?keyword=x');
+  const window = [{ field: 'created_at', operator: 'within_last', value: { unit: 'day', n: 7 } }];
+  await client.callTool({ name: 'count_entries', arguments: { form_token: ['A', 'B'], filters: window } });
+  assert.equal(new URL(calls[2].url).pathname, '/api/v1/entries/count');
+  assert.equal(new URL(calls[2].url).searchParams.get('filters'), JSON.stringify(window));
 
   calls.length = 0;
   await client.callTool({ name: 'edit_field_rules', arguments: { form_token: 'T1', remove: [0] } });

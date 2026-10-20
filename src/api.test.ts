@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { buildUrl, buildBody, bodyPayload, JinshujuApi, TransportError } from './api.js';
 import { StaticCredential } from './credential.js';
 import { TOOLS } from './tools.js';
+import { OPERATIONS } from './composites.js';
 import type { ToolSpec } from './types.js';
 
 const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t])) as Record<string, ToolSpec>;
@@ -26,6 +27,25 @@ test('buildUrl: encodes path parameters, omits empty query values, serializes ar
   };
   const u2 = buildUrl(base, arrayTool, { tags: ['a', 'b'] });
   assert.equal(u2.search, '?tags%5B%5D=a&tags%5B%5D=b');
+});
+
+test('buildUrl: a content: application/json parameter goes as one JSON text, the same whether given as the array or as its JSON string', () => {
+  const filters = [{ field: 'field_3', operator: 'any_in', value: ['选项 A'] }];
+  const sort = [{ api_code: 'created_at', order: 'desc' }];
+  const fromArrays = buildUrl(base, byName.list_entries, { form_token: 'T', filters, sort });
+  const fromText = buildUrl(base, byName.list_entries, {
+    form_token: 'T',
+    filters: JSON.stringify(filters),
+    sort: JSON.stringify(sort)
+  });
+  assert.equal(fromArrays.search, fromText.search);
+  assert.equal(fromArrays.searchParams.get('filters'), '[{"field":"field_3","operator":"any_in","value":["选项 A"]}]');
+  assert.equal(fromArrays.searchParams.get('sort'), '[{"api_code":"created_at","order":"desc"}]');
+  assert.equal(fromArrays.searchParams.has('filters[]'), false);
+  // the operation count_entries uses across forms does the same, while form_tokens stays one comma-separated value
+  const across = buildUrl(base, OPERATIONS.countEntriesAcrossForms, { form_tokens: 'A,B', filters });
+  assert.equal(across.searchParams.get('filters'), JSON.stringify(filters));
+  assert.equal(across.searchParams.get('form_tokens'), 'A,B');
 });
 
 test('buildUrl: throws on a missing path parameter', () => {

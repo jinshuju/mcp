@@ -11,6 +11,8 @@ export interface ParamSpec {
   required: boolean;
   /** A query array is serialized as name[]=a&name[]=b (the server reads it as an array) */
   array?: boolean;
+  /** Declared with `content: application/json`: sent as one query value holding JSON text (a string is passed through as is) */
+  json?: boolean;
 }
 
 export interface BodySpec {

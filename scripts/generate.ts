@@ -220,6 +220,8 @@ interface ParamSpec {
   required: boolean;
   /** A query array is serialized as name[]=a&name[]=b (the server reads it as an array) */
   array?: boolean;
+  /** Declared with `content: application/json`: sent as one query value holding JSON text (a string is passed through as is) */
+  json?: boolean;
 }
 interface BodySpec {
   contentType: 'application/json' | 'multipart/form-data';
@@ -276,6 +278,24 @@ interface Built {
   summary: string;
 }
 
+/**
+ * A query parameter declared with `content: application/json` (filters / sort / metrics / dimensions / checks) travels as one
+ * query value holding the JSON text of an array. openapi.yaml tells HTTP callers to `JSON.stringify` it themselves; here the
+ * runtime does that (api.ts), so the tool takes the array itself, typed by the content schema, and the sentence about
+ * stringifying is dropped from the description. The JSON text is accepted too: models pass either, and a tool that refuses one
+ * of them costs a turn.
+ */
+const JSON_TEXT_PHRASE =
+  /a JSON string holding an array of (.+? objects) \(`JSON\.stringify` the array; do not pass the array itself\)/g;
+
+function jsonTextParam(media: Json): Json {
+  const inner = (media.schema as Json | undefined) ?? { type: 'array' };
+  const types = Array.isArray(inner.type) ? (inner.type as string[]) : [(inner.type as string | undefined) ?? 'array'];
+  const schema: Json = { ...inner, type: [...new Set([...types, 'string'])] };
+  if (!('examples' in schema) && Array.isArray(media.examples)) schema.examples = media.examples;
+  return schema;
+}
+
 /** Turns one operation into {operation table entry, inputSchema, outputSchema}. bodyMode: flatten / the nesting key. */
 function buildOperation(operationId: string, bodyMode: 'flatten' | string): Built {
   const raw = rawOps.get(operationId);
@@ -290,19 +310,26 @@ function buildOperation(operationId: string, bodyMode: 'flatten' | string): Buil
     const where = p.in as string;
     if (where !== 'path' && where !== 'query') continue; // header / cookie parameters are not exposed
     const name = p.name as string;
-    const schema = { ...((p.schema as Json) ?? { type: 'string' }) };
+    const media = ((p.content as Record<string, Json> | undefined) ?? {})['application/json'];
+    const schema = media ? jsonTextParam(media) : { ...((p.schema as Json) ?? { type: 'string' }) };
     // Append notes by components.parameters name (a shared parameter gets them in every operation that references it)
     const append =
       typeof rawParam.$ref === 'string' ? parameterOverrides[refName(rawParam.$ref)]?.descriptionAppend : undefined;
-    const description = append
-      ? `${((p.description as string | undefined) ?? '').trimEnd()}\n${append.trim()}`.trim()
-      : (p.description as string | undefined);
+    const text = p.description as string | undefined;
+    const original = media && text ? text.replace(JSON_TEXT_PHRASE, 'an array of $1') : text;
+    const description = append ? `${(original ?? '').trimEnd()}\n${append.trim()}`.trim() : original;
     if (description) schema.description = description;
     if (p.example !== undefined && !('examples' in schema)) schema.examples = [p.example];
     properties[name] = schema;
     const isRequired = where === 'path' || p.required === true;
     if (isRequired) required.push(name);
-    params.push({ name, in: where, required: isRequired, array: schema.type === 'array' || undefined });
+    params.push({
+      name,
+      in: where,
+      required: isRequired,
+      array: (!media && schema.type === 'array') || undefined,
+      json: media ? true : undefined
+    });
   }
 
   let body: BodySpec | undefined;

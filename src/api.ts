@@ -47,9 +47,10 @@ export function buildUrl(baseUrl: string, op: OperationSpec, args: Args): URL {
     if (p.in !== 'query') continue;
     const value = args[p.name];
     if (value === undefined || value === null || value === '') continue;
-    if (Array.isArray(value)) {
+    if (Array.isArray(value) && !p.json) {
       for (const item of value) url.searchParams.append(`${p.name}[]`, scalar(item));
     } else {
+      // A `content: application/json` parameter goes as one value: the array as JSON text, a string (JSON text already) as is
       url.searchParams.set(p.name, scalar(value));
     }
   }
