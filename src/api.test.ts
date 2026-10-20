@@ -48,6 +48,33 @@ test('buildUrl: a content: application/json parameter goes as one JSON text, the
   assert.equal(across.searchParams.get('form_tokens'), 'A,B');
 });
 
+test('buildUrl: an explode: false list (fields / form_tokens) goes as one comma-separated value, given as the array, the text or its JSON text', () => {
+  const asArray = buildUrl(base, byName.list_entries, { form_token: 'T', fields: ['field_1', 'field_2'] });
+  const asText = buildUrl(base, byName.list_entries, { form_token: 'T', fields: 'field_1,field_2' });
+  const asJson = buildUrl(base, byName.list_entries, { form_token: 'T', fields: '["field_1", "field_2"]' });
+  assert.equal(asArray.search, '?fields=field_1%2Cfield_2');
+  assert.equal(asText.search, asArray.search);
+  assert.equal(asJson.search, asArray.search);
+  assert.equal(asArray.searchParams.has('fields[]'), false);
+  // the summary does not read JSON text, so the runtime joins it; an empty list is left out like an empty string
+  const summary = buildUrl(base, byName.get_form_data_summary, { form_token: 'T', fields: '["field_1","field_3"]' });
+  assert.equal(summary.searchParams.get('fields'), 'field_1,field_3');
+  assert.equal(buildUrl(base, byName.get_entry, { form_token: 'T', serial_number: 1, fields: [] }).search, '');
+  for (const [tool, op] of [
+    [byName.search_entries_in_forms, 'searchEntriesAcrossForms'],
+    [byName.search_my_submitted_entries, 'searchMySubmittedEntries'],
+    [OPERATIONS.countEntriesAcrossForms, 'countEntriesAcrossForms']
+  ] as const) {
+    for (const form_tokens of [['A', 'B'], 'A,B', '["A","B"]']) {
+      assert.equal(
+        buildUrl(base, tool, { form_tokens }).searchParams.get('form_tokens'),
+        'A,B',
+        `${op} ${JSON.stringify(form_tokens)}`
+      );
+    }
+  }
+});
+
 test('buildUrl: throws on a missing path parameter', () => {
   assert.throws(() => buildUrl(base, byName.get_form, {}), /form_token/);
 });

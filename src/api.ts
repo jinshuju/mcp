@@ -47,7 +47,10 @@ export function buildUrl(baseUrl: string, op: OperationSpec, args: Args): URL {
     if (p.in !== 'query') continue;
     const value = args[p.name];
     if (value === undefined || value === null || value === '') continue;
-    if (Array.isArray(value) && !p.json) {
+    if (p.comma) {
+      const list = commaList(value);
+      if (list) url.searchParams.set(p.name, list);
+    } else if (Array.isArray(value) && !p.json) {
       for (const item of value) url.searchParams.append(`${p.name}[]`, scalar(item));
     } else {
       // A `content: application/json` parameter goes as one value: the array as JSON text, a string (JSON text already) as is
@@ -59,6 +62,22 @@ export function buildUrl(baseUrl: string, op: OperationSpec, args: Args): URL {
 
 function scalar(value: unknown): string {
   return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+/**
+ * An `explode: false` array as its one comma-separated value: the array joined, the comma-separated text as is, and the JSON text
+ * of an array (which models also pass, and which not every endpoint reads) joined like the array.
+ */
+function commaList(value: unknown): string {
+  let items = value;
+  if (typeof value === 'string' && value.trimStart().startsWith('[')) {
+    try {
+      items = JSON.parse(value);
+    } catch {
+      // not JSON: the text goes as is
+    }
+  }
+  return Array.isArray(items) ? items.map((item) => scalar(item).trim()).join(',') : scalar(value);
 }
 
 function decodeBase64(data: string): Uint8Array {

@@ -13,6 +13,8 @@ export interface ParamSpec {
   array?: boolean;
   /** Declared with `content: application/json`: sent as one query value holding JSON text (a string is passed through as is) */
   json?: boolean;
+  /** An array declared with `explode: false`: sent as one comma-separated value, whether given as the array, the text or its JSON text */
+  comma?: boolean;
 }
 
 export interface BodySpec {

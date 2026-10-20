@@ -135,6 +135,46 @@ test('tools/call: filters and the other JSON-text parameters are accepted as the
   await close();
 });
 
+test('tools/call: fields and form_tokens are accepted as the array, the comma-separated text or its JSON text, and reach the API as one comma-separated value', async () => {
+  const { calls, fetchImpl } = fakeApi(
+    () =>
+      new Response('{"total":0,"count":0,"data":[],"next":null}', { headers: { 'Content-Type': 'application/json' } })
+  );
+  const { client, close } = await connect(fetchImpl);
+  for (const fields of [['field_1', 'field_2'], 'field_1,field_2', '["field_1","field_2"]']) {
+    const result = await client.callTool({ name: 'list_entries', arguments: { form_token: 'AbCdEf', fields } });
+    assert.equal(result.isError, undefined, JSON.stringify(fields));
+  }
+  assert.deepEqual(
+    calls.map((c) => new URL(c.url).search),
+    Array(3).fill('?fields=field_1%2Cfield_2')
+  );
+
+  calls.length = 0;
+  for (const form_tokens of [['A', 'B'], 'A,B', '["A","B"]']) {
+    const result = await client.callTool({
+      name: 'search_my_submitted_entries',
+      arguments: { keyword: 'x', form_tokens }
+    });
+    assert.equal(result.isError, undefined, JSON.stringify(form_tokens));
+  }
+  assert.deepEqual(
+    calls.map((c) => new URL(c.url).searchParams.get('form_tokens')),
+    ['A,B', 'A,B', 'A,B']
+  );
+
+  // Neither: an item that is not a string is refused before any request
+  calls.length = 0;
+  const numbers = await client.callTool({
+    name: 'get_form_data_summary',
+    arguments: { form_token: 'AbCdEf', fields: [1, 2] }
+  });
+  assert.equal(numbers.isError, true);
+  assert.match((numbers.content[0] as { text: string }).text, /fields/);
+  assert.equal(calls.length, 0);
+  await close();
+});
+
 test('tools/call: success returns text (plus structuredContent when there is an outputSchema) and sends Bearer and User-Agent', async () => {
   const payload = { total: 1, count: 1, data: [{ name: '报名表', token: 'AbCdEf' }], next: null };
   const { calls, fetchImpl } = fakeApi(

@@ -4812,9 +4812,14 @@ paths:
         description: 'Required. Tokens (ids also accepted) of the forms or tables to count, comma-separated (or repeat `form_tokens[]=`), 1 to 10 after deduplication; returns 400 when empty, and 400 when more than 10.
 
           '
+        explode: false
         schema:
-          type: string
-        example: abc123,def456
+          type: array
+          items:
+            type: string
+        example:
+        - abc123
+        - def456
       - name: filters
         in: query
         required: false
@@ -4874,9 +4879,14 @@ paths:
         in: query
         required: false
         description: Tokens (ids also accepted) of the forms or tables to search, comma-separated (or repeat `form_tokens[]=`), at most 10 after deduplication. When omitted, every accessible form is searched.
+        explode: false
         schema:
-          type: string
-        example: abc123,def456
+          type: array
+          items:
+            type: string
+        example:
+        - abc123
+        - def456
       - name: filters
         in: query
         required: false
@@ -5044,9 +5054,14 @@ paths:
         in: query
         required: false
         description: Return only these fields. A comma-separated string or an array parameter (`fields[]=`) of field api_codes; unknown or non-public fields are skipped. The serial number is always returned.
+        explode: false
         schema:
-          type: string
-        example: field_1,field_2
+          type: array
+          items:
+            type: string
+        example:
+        - field_1
+        - field_2
       - $ref: '#/components/parameters/EntriesFilters'
       - $ref: '#/components/parameters/EntriesKeyword'
       - $ref: '#/components/parameters/EntriesIncludeLabels'
@@ -5106,9 +5121,14 @@ paths:
         in: query
         required: false
         description: Search only these forms. Comma-separated form tokens, or an array parameter (`form_tokens[]=`).
+        explode: false
         schema:
-          type: string
-        example: aBc123,dEf456
+          type: array
+          items:
+            type: string
+        example:
+        - aBc123
+        - dEf456
       responses:
         '200':
           description: Matches per form
@@ -5475,9 +5495,14 @@ components:
       in: query
       required: false
       description: Return only these fields. A JSON array, a comma-separated string or a repeated parameter, of field api_codes; the serial number is always returned. Returns 400 listing the available fields when an api_code is unknown.
+      explode: false
       schema:
-        type: string
-      example: field_1,field_2
+        type: array
+        items:
+          type: string
+      example:
+      - field_1
+      - field_2
     EntriesFilters:
       name: filters
       in: query
@@ -5644,9 +5669,14 @@ components:
       in: query
       required: false
       description: 'Summarize only these fields: field api_codes, comma-separated (or repeat `fields[]=`), returned in the order given. Defaults to every analyzable field. Returns 400, listing the analyzable fields, when a field is not analyzable or the caller has no permission to read it.'
+      explode: false
       schema:
-        type: string
-      example: field_1,field_3
+        type: array
+        items:
+          type: string
+      example:
+      - field_1
+      - field_3
     SummaryIncludeOverview:
       name: include_overview
       in: query

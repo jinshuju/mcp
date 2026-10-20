@@ -1291,7 +1291,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "filters",
@@ -1363,7 +1364,13 @@
      "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
     },
     "fields": {
-     "type": "string",
+     "type": [
+      "array",
+      "string"
+     ],
+     "items": {
+      "type": "string"
+     },
      "description": "Return only these fields. A JSON array, a comma-separated string or a repeated parameter, of field api_codes; the serial number is always returned. Returns 400 listing the available fields when an api_code is unknown."
     },
     "filters": {
@@ -1562,7 +1569,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "include_labels",
@@ -1595,7 +1603,13 @@
      "description": "Entry serial number"
     },
     "fields": {
-     "type": "string",
+     "type": [
+      "array",
+      "string"
+     ],
+     "items": {
+      "type": "string"
+     },
      "description": "Return only these fields. A JSON array, a comma-separated string or a repeated parameter, of field api_codes; the serial number is always returned. Returns 400 listing the available fields when an api_code is unknown."
     },
     "include_labels": {
@@ -2336,7 +2350,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "include_overview",
@@ -2377,7 +2392,13 @@
      "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
     },
     "fields": {
-     "type": "string",
+     "type": [
+      "array",
+      "string"
+     ],
+     "items": {
+      "type": "string"
+     },
      "description": "Summarize only these fields: field api_codes, comma-separated (or repeat `fields[]=`), returned in the order given. Defaults to every analyzable field. Returns 400, listing the analyzable fields, when a field is not analyzable or the caller has no permission to read it."
     },
     "include_overview": {
@@ -2480,7 +2501,8 @@
    {
     "name": "form_tokens",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "filters",
@@ -2510,7 +2532,13 @@
      "description": "Search keyword (at most 200 characters); returns 400 when empty."
     },
     "form_tokens": {
-     "type": "string",
+     "type": [
+      "array",
+      "string"
+     ],
+     "items": {
+      "type": "string"
+     },
      "description": "Tokens (ids also accepted) of the forms or tables to search, comma-separated (or repeat `form_tokens[]=`), at most 10 after deduplication. When omitted, every accessible form is searched."
     },
     "filters": {
@@ -2761,7 +2789,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "filters",
@@ -2820,7 +2849,13 @@
      "description": "Form token (`token` from `GET /my/forms`); a 24-character hexadecimal form id is also accepted."
     },
     "fields": {
-     "type": "string",
+     "type": [
+      "array",
+      "string"
+     ],
+     "items": {
+      "type": "string"
+     },
      "description": "Return only these fields. A comma-separated string or an array parameter (`fields[]=`) of field api_codes; unknown or non-public fields are skipped. The serial number is always returned."
     },
     "filters": {
@@ -2973,7 +3008,8 @@
    {
     "name": "form_tokens",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    }
   ],
   "paramNames": [
@@ -2996,7 +3032,13 @@
      "description": "Search keyword (at most 200 characters), fuzzy-matched in the form's public searchable fields."
     },
     "form_tokens": {
-     "type": "string",
+     "type": [
+      "array",
+      "string"
+     ],
+     "items": {
+      "type": "string"
+     },
      "description": "Search only these forms. Comma-separated form tokens, or an array parameter (`form_tokens[]=`)."
     }
    },

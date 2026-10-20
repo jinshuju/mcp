@@ -222,6 +222,8 @@ interface ParamSpec {
   array?: boolean;
   /** Declared with `content: application/json`: sent as one query value holding JSON text (a string is passed through as is) */
   json?: boolean;
+  /** An array declared with `explode: false`: sent as one comma-separated value, whether given as the array, the text or its JSON text */
+  comma?: boolean;
 }
 interface BodySpec {
   contentType: 'application/json' | 'multipart/form-data';
@@ -296,6 +298,16 @@ function jsonTextParam(media: Json): Json {
   return schema;
 }
 
+/**
+ * A query array declared with `explode: false` (fields / form_tokens) travels as one comma-separated value, `fields=a,b`, which
+ * the API validates as the array and every controller reads. The tool takes the array, and the comma-separated text the
+ * description talks about is accepted too (`type: [array, string]`); the runtime joins either into the one value (api.ts).
+ */
+function commaListParam(param: Json): Json {
+  const inner = (param.schema as Json | undefined) ?? { type: 'array' };
+  return { ...inner, type: ['array', 'string'] };
+}
+
 /** Turns one operation into {operation table entry, inputSchema, outputSchema}. bodyMode: flatten / the nesting key. */
 function buildOperation(operationId: string, bodyMode: 'flatten' | string): Built {
   const raw = rawOps.get(operationId);
@@ -311,7 +323,12 @@ function buildOperation(operationId: string, bodyMode: 'flatten' | string): Buil
     if (where !== 'path' && where !== 'query') continue; // header / cookie parameters are not exposed
     const name = p.name as string;
     const media = ((p.content as Record<string, Json> | undefined) ?? {})['application/json'];
-    const schema = media ? jsonTextParam(media) : { ...((p.schema as Json) ?? { type: 'string' }) };
+    const comma = !media && p.explode === false && (p.schema as Json | undefined)?.type === 'array';
+    const schema = media
+      ? jsonTextParam(media)
+      : comma
+        ? commaListParam(p)
+        : { ...((p.schema as Json) ?? { type: 'string' }) };
     // Append notes by components.parameters name (a shared parameter gets them in every operation that references it)
     const append =
       typeof rawParam.$ref === 'string' ? parameterOverrides[refName(rawParam.$ref)]?.descriptionAppend : undefined;
@@ -328,7 +345,8 @@ function buildOperation(operationId: string, bodyMode: 'flatten' | string): Buil
       in: where,
       required: isRequired,
       array: (!media && schema.type === 'array') || undefined,
-      json: media ? true : undefined
+      json: media ? true : undefined,
+      comma: comma || undefined
     });
   }
 

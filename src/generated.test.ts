@@ -190,6 +190,34 @@ test('a query parameter declared with content: application/json takes the array 
   assert.equal(OPERATIONS.countEntriesAcrossForms.params.find((p) => p.name === 'filters')?.json, true);
 });
 
+/** Query arrays declared with `explode: false`: the array itself or its comma-separated text, sent as one `name=a,b`. */
+const COMMA_LIST_PARAMS: Record<string, string[]> = {
+  list_entries: ['fields'],
+  get_entry: ['fields'],
+  get_form_data_summary: ['fields'],
+  search_entries_in_forms: ['form_tokens'],
+  list_my_submitted_entries: ['fields'],
+  search_my_submitted_entries: ['form_tokens']
+};
+
+test('a query array declared with explode: false takes the array of strings or its comma-separated text', () => {
+  const found: Record<string, string[]> = {};
+  for (const t of TOOLS) {
+    const properties = t.inputSchema.properties as Record<string, Record<string, unknown>>;
+    for (const p of t.params) {
+      if (!p.comma) continue;
+      (found[t.name] ??= []).push(p.name);
+      assert.equal(p.array, undefined, `${t.name}.${p.name} is one query value, not name[]=`);
+      assert.equal(p.json, undefined, `${t.name}.${p.name}`);
+      assert.deepEqual(properties[p.name].type, ['array', 'string'], `${t.name}.${p.name}`);
+      assert.deepEqual(properties[p.name].items, { type: 'string' }, `${t.name}.${p.name}`);
+    }
+  }
+  assert.deepEqual(found, COMMA_LIST_PARAMS);
+  // count_entries across several forms sends its form_tokens the same way
+  assert.equal(OPERATIONS.countEntriesAcrossForms.params.find((p) => p.name === 'form_tokens')?.comma, true);
+});
+
 test('path parameters are in inputSchema.required, and flattened body properties are at the top level', () => {
   const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
   for (const t of TOOLS) {

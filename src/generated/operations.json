@@ -266,7 +266,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "filters",
@@ -466,7 +467,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "include_overview",
@@ -623,7 +625,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "include_overview",
@@ -733,7 +736,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "include_labels",
@@ -2033,7 +2037,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "filters",
@@ -2233,7 +2238,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "include_overview",
@@ -2390,7 +2396,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "include_overview",
@@ -2444,7 +2451,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "include_labels",
@@ -3473,7 +3481,7 @@
     "name": "paid_status",
     "in": "query",
     "required": false,
-    "array": true
+    "comma": true
    },
    {
     "name": "payment_channel",
@@ -3544,7 +3552,7 @@
     "name": "paid_status",
     "in": "query",
     "required": false,
-    "array": true
+    "comma": true
    },
    {
     "name": "payment_channel",
@@ -3787,7 +3795,8 @@
    {
     "name": "form_tokens",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "filters",
@@ -3822,7 +3831,8 @@
    {
     "name": "form_tokens",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "filters",
@@ -3940,7 +3950,8 @@
    {
     "name": "fields",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    },
    {
     "name": "filters",
@@ -4006,7 +4017,8 @@
    {
     "name": "form_tokens",
     "in": "query",
-    "required": false
+    "required": false,
+    "comma": true
    }
   ],
   "paramNames": [
