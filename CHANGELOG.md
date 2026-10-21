@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/jinshuju/mcp/compare/v0.3.0...v0.3.1) (2026-10-21)
+
+
+### Fixes
+
+* take fields and form_tokens as arrays ([538d2ac](https://github.com/jinshuju/mcp/commit/538d2aceb618cc1625768faf95fd7a8da323dfbd))
+
 ## [0.3.0](https://github.com/jinshuju/mcp/compare/v0.2.0...v0.3.0) (2026-10-20)
 
 
