@@ -146,7 +146,7 @@ over twenty thousand tokens; as one line plus a `get_schema` tool, the model rea
 
 `evals/` is not published; it is a regression test for how well models get on with the tools: fixed tasks run by several models against this repository's MCP (in-process `buildServer`, or a deployment over Streamable HTTP),
 scored by assertions. The referee (fixture setup, state checks, writing results) goes straight to the open API (reusing `src/api.ts` and the operation table),
-never through an MCP under test. Design, task format and metrics are in [evals/README.md](evals/README.md); `evals.yml` runs on demand.
+never through an MCP under test. Design, task format and metrics are in [evals/README.md](evals/README.md); `evals.yml` runs after every push to `main`, and on demand.
 
 ## Release and sync
 

@@ -45,7 +45,8 @@ npm run eval -- upload <run_id> # writes the results into the Jinshuju form (ide
 
 Other `run` options: `--category 读数据,统计汇总`, `--sample 10` (deterministic sampling), `--repeat 3`, `--concurrency 5`,
 `--judge <model>`, `--run-id <id>`, `--resume` (continue after an interruption), `--description-limit 1024` (truncates tool descriptions when the gateway limits their length),
-`--mcp new,prod=https://jinshuju.net/mcp` (also runs against a deployment; `new` is this checkout, or `EVAL_NEW_MCP_URL` when set).
+`--mcp new,prod=https://jinshuju.net/mcp` (also runs against a deployment; `new` is this checkout, or `EVAL_NEW_MCP_URL` when set),
+`--min-pass-rate 95` (exit code 1 when the run's pass rate is under it; defaults to `EVAL_MIN_PASS_RATE`, and never fails when neither is set).
 
 ## Sample set
 
@@ -137,8 +138,10 @@ The form lives in the fixture folder, and its token is kept in `state/fixtures.j
 
 ## CI
 
-`.gitea/workflows/evals.yml`: on demand only (Actions → Evals → Run workflow; models, MCPs and tasks can be chosen).
+`.gitea/workflows/evals.yml`: runs after every push to `main` with the default models against the in-process MCP, and on demand (Actions → Evals → Run workflow; models, MCPs and tasks can be chosen).
+A docs-only push (`*.md`, `LICENSE`) skips it. Runs never overlap, since they share the eval account: a newer run cancels the one in progress.
 It needs the secrets `EVAL_JINSHUJU_ACCESS_TOKEN` and `EVAL_LLM_API_KEY`, and the variables `EVAL_LLM_BASE_URL`, `EVAL_MODELS` and `EVAL_JUDGE_MODEL`.
+The job fails when the pass rate is under `EVAL_MIN_PASS_RATE` (95 when the variable is unset); the results are still written to the form.
 The report ends the job log, and `evals/results/` is kept as an artifact for 90 days.
 
 ## Known limitations

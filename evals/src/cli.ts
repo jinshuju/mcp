@@ -7,6 +7,7 @@
  *       --models a,b  --mcp new,name=url  --tasks id,id  --category 读数据,统计汇总  --sample n
  *       --repeat n  --concurrency n  --judge model  --run-id id  --resume  --verbose  --no-upload
  *       --description-limit n            Truncate tool descriptions to n characters (for gateways with a 1024 limit)
+ *       --min-pass-rate n                Exit 1 when the run's pass rate is under n percent (default EVAL_MIN_PASS_RATE; unset never fails)
  *   report <run_id>                      Write report.md / summary.json
  *   upload <run_id>                      Write the results into the Jinshuju results form
  *   reset [alias...]                     Restore fixtures to what fixtures.yaml describes
@@ -25,7 +26,7 @@ import { loadConfig, requireLlm, type EvalConfig } from './config.js';
 import { loadFixturesSpec, requireState, resetFixture, seed, sweepCreatedForms } from './fixtures.js';
 import { connectMcp, parseTargets } from './mcp.js';
 import { writeReport } from './report.js';
-import { runMatrix } from './runner.js';
+import { readRecords, runMatrix } from './runner.js';
 import { loadTasks, selectTasks } from './tasks.js';
 import { uploadRun } from './upload.js';
 
@@ -159,7 +160,7 @@ async function main(): Promise<void> {
       const runId = str(flags['run-id']) ?? newRunId();
       const runDir = resolve(cfg.resultsDir, runId);
       mkdirSync(runDir, { recursive: true });
-      const records = await runMatrix({
+      await runMatrix({
         cfg,
         credential,
         api,
@@ -189,8 +190,16 @@ async function main(): Promise<void> {
           log(`⚠ Writing the results form failed: ${(error as Error).message}`);
         }
       }
-      const failed = records.filter((r) => !r.passed).length;
-      log(`Done: ${records.length - failed}/${records.length} passed`);
+      // The whole run, including what earlier `--resume` phases did
+      const records = readRecords(runDir);
+      const passed = records.filter((r) => r.passed).length;
+      const rate = records.length ? (100 * passed) / records.length : 0;
+      log(`Done: ${passed}/${records.length} passed (${Math.round(rate)}%)`);
+      const minPassRate = str(flags['min-pass-rate']) ? num(flags['min-pass-rate'], 0) : cfg.minPassRate;
+      if (minPassRate !== undefined && rate < minPassRate) {
+        log(`Pass rate ${Math.round(rate)}% is under the ${minPassRate}% floor (--min-pass-rate / EVAL_MIN_PASS_RATE)`);
+        process.exitCode = 1;
+      }
       return;
     }
     case 'report': {

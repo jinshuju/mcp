@@ -42,6 +42,8 @@ export interface EvalConfig {
   toolTimeoutMs: number;
   /** Most characters of a tool result passed to the model (defaults to the server's own truncation threshold) */
   maxToolResultChars: number;
+  /** Pass rate (percent) under which `run` exits 1; unset, a run never fails on its results */
+  minPassRate?: number;
 }
 
 function list(value: string | undefined, fallback: string[]): string[] {
@@ -55,6 +57,11 @@ function list(value: string | undefined, fallback: string[]): string[] {
 function int(value: string | undefined, fallback: number): number {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function percent(value: string | undefined): number | undefined {
+  const n = Number(value);
+  return value && Number.isFinite(n) && n >= 0 && n <= 100 ? n : undefined;
 }
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): EvalConfig {
@@ -76,7 +83,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     concurrency: int(env.EVAL_CONCURRENCY, 4),
     llmTimeoutMs: int(env.EVAL_LLM_TIMEOUT_MS, 240_000),
     toolTimeoutMs: int(env.EVAL_TOOL_TIMEOUT_MS, 120_000),
-    maxToolResultChars: int(env.EVAL_MAX_TOOL_RESULT_CHARS, 120_000)
+    maxToolResultChars: int(env.EVAL_MAX_TOOL_RESULT_CHARS, 120_000),
+    minPassRate: percent(env.EVAL_MIN_PASS_RATE)
   };
 }
 
