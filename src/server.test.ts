@@ -127,10 +127,10 @@ test('tools/call: filters and the other JSON-text parameters are accepted as the
   assert.match((object.content[0] as { text: string }).text, /filters/);
   const incomplete = await client.callTool({
     name: 'list_entries',
-    arguments: { form_token: 'AbCdEf', filters: [{ operator: 'eq', value: 1 }] }
+    arguments: { form_token: 'AbCdEf', filters: [{ field: 'field_3', value: 1 }] }
   });
   assert.equal(incomplete.isError, true);
-  assert.match((incomplete.content[0] as { text: string }).text, /filters.*field/);
+  assert.match((incomplete.content[0] as { text: string }).text, /filters.*operator/);
   assert.equal(calls.length, 2);
   await close();
 });

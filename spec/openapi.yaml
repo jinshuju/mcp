@@ -1682,6 +1682,13 @@ paths:
         - Returns 403 when the source form is frozen or its creator's account is disabled, with body `{ "errors": ..., "status_code": "form_forbidden" }` (not the common error shape).
         - `folder_token` takes a folder token or id; returns 404 when the folder does not exist or the caller lacks manage permission on it.
         - Returns 400 when copying fails (model validation does not pass).
+        - Notification rules are not copied by default; with `with_notification_rules: true` they are copied only when the caller is in the same account as the source form's creator, otherwise none are copied.
+        - Returns 403 when `with_notification_rules` is true and the caller cannot manage the source form.
+        - Copied SMS rules keep using the approved SMS template, so no new template review is needed.
+        - When a copied rule uses the entry share link or WeChat one-time subscription messages, the single entry sharing setting or the authorized official account is copied too.
+        - Copied rules sent at a specified time keep that time, and a time already past is not sent, so update it on the new form.
+        - A quickpay form's order notification is the new form's own default one; changes made to it on the source form are not copied.
+        - A rule that cannot be saved on the new form is skipped, e.g. a rule with the entry share link while the source form has single entry sharing turned off.
       operationId: copyForm
       parameters:
       - $ref: '#/components/parameters/FormToken'
@@ -1705,7 +1712,7 @@ paths:
         '402':
           $ref: '#/components/responses/PaymentRequired'
         '403':
-          description: Insufficient OAuth scope (error_description shape), or the source form or its creator is frozen (errors + status_code shape)
+          description: Insufficient OAuth scope or no manage permission for `with_notification_rules` (error_description shape), or the source form or its creator is frozen (errors + status_code shape)
           content:
             application/json:
               schema:
@@ -5909,12 +5916,19 @@ components:
       type: object
       description: One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.
       required:
-      - field
       - operator
       properties:
         field:
           type: string
-          description: What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists
+          description: What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead.
+        api_code:
+          type: string
+          deprecated: true
+          description: Deprecated alias of `field`; use `field`.
+        trigger:
+          type: string
+          deprecated: true
+          description: Deprecated alias of `field`; use `field`.
         operator:
           type: string
           enum:
@@ -9781,6 +9795,10 @@ components:
         folder_token:
           type: string
           description: Target folder token or id; when omitted, the copy is not put in a folder
+        with_notification_rules:
+          type: boolean
+          default: false
+          description: When true, the notification rules (SMS, email, WeChat, WeCom, DingTalk, webhook, mini program subscription messages) are copied too; see the endpoint description for the rules
       additionalProperties: false
     UploadedFormImage:
       type: object
@@ -10195,7 +10213,7 @@ components:
               description: Whether it is an organization plan
             expired:
               type: boolean
-              description: Whether the organization plan has expired
+              description: Whether the current paid plan has expired; false for accounts that have never paid
         usage:
           type:
           - object

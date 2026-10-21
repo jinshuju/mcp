@@ -183,8 +183,14 @@ test('a query parameter declared with content: application/json takes the array 
   const filters = (
     TOOLS.find((t) => t.name === 'list_entries')!.inputSchema.properties as Record<string, Record<string, unknown>>
   ).filters;
-  const condition = filters.items as { required: string[]; properties: Record<string, { enum?: string[] }> };
-  assert.deepEqual(condition.required, ['field', 'operator']);
+  const condition = filters.items as {
+    required: string[];
+    properties: Record<string, { enum?: string[]; deprecated?: boolean }>;
+  };
+  // `field` is not required: the API still reads the deprecated aliases `api_code` / `trigger` in its place
+  assert.deepEqual(condition.required, ['operator']);
+  assert.ok(condition.properties.field);
+  assert.equal(condition.properties.api_code?.deprecated, true);
   assert.ok(condition.properties.operator.enum?.includes('any_in'));
   // count_entries across several forms goes through its own operation, whose filters is JSON text too
   assert.equal(OPERATIONS.countEntriesAcrossForms.params.find((p) => p.name === 'filters')?.json, true);

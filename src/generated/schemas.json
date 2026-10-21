@@ -523,7 +523,7 @@
      },
      "expired": {
       "type": "boolean",
-      "description": "Whether the organization plan has expired"
+      "description": "Whether the current paid plan has expired; false for accounts that have never paid"
      }
     }
    },
@@ -2482,6 +2482,11 @@
    "folder_token": {
     "type": "string",
     "description": "Target folder token or id; when omitted, the copy is not put in a folder"
+   },
+   "with_notification_rules": {
+    "type": "boolean",
+    "default": false,
+    "description": "When true, the notification rules (SMS, email, WeChat, WeCom, DingTalk, webhook, mini program subscription messages) are copied too; see the endpoint description for the rules"
    }
   },
   "additionalProperties": false
@@ -25863,13 +25868,22 @@
   "type": "object",
   "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
   "required": [
-   "field",
    "operator"
   ],
   "properties": {
    "field": {
     "type": "string",
-    "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists"
+    "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+   },
+   "api_code": {
+    "type": "string",
+    "deprecated": true,
+    "description": "Deprecated alias of `field`; use `field`."
+   },
+   "trigger": {
+    "type": "string",
+    "deprecated": true,
+    "description": "Deprecated alias of `field`; use `field`."
    },
    "operator": {
     "type": "string",

@@ -77,13 +77,22 @@
       "type": "object",
       "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
       "required": [
-       "field",
        "operator"
       ],
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists"
+        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+       },
+       "api_code": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
+       },
+       "trigger": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
        },
        "operator": {
         "type": "string",
@@ -755,7 +764,7 @@
  {
   "operationId": "copyForm",
   "summary": "Copy a form",
-  "description": "Copy a form\nCopies the form and returns the new form (same shape as GET /forms/{form_token}). The new form's creator is the calling user (the account owner for an account token).\n- When the source form allows public copying (can_duplicated_in_public), the caller needs no access to the source form; otherwise a caller without access gets 404.\n- Returns 403 when the source form is frozen or its creator's account is disabled, with body `{ \"errors\": ..., \"status_code\": \"form_forbidden\" }` (not the common error shape).\n- `folder_token` takes a folder token or id; returns 404 when the folder does not exist or the caller lacks manage permission on it.\n- Returns 400 when copying fails (model validation does not pass).\nReturns schema \"Form\" (see get_schema).",
+  "description": "Copy a form\nCopies the form and returns the new form (same shape as GET /forms/{form_token}). The new form's creator is the calling user (the account owner for an account token).\n- When the source form allows public copying (can_duplicated_in_public), the caller needs no access to the source form; otherwise a caller without access gets 404.\n- Returns 403 when the source form is frozen or its creator's account is disabled, with body `{ \"errors\": ..., \"status_code\": \"form_forbidden\" }` (not the common error shape).\n- `folder_token` takes a folder token or id; returns 404 when the folder does not exist or the caller lacks manage permission on it.\n- Returns 400 when copying fails (model validation does not pass).\n- Notification rules are not copied by default; with `with_notification_rules: true` they are copied only when the caller is in the same account as the source form's creator, otherwise none are copied.\n- Returns 403 when `with_notification_rules` is true and the caller cannot manage the source form.\n- Copied SMS rules keep using the approved SMS template, so no new template review is needed.\n- When a copied rule uses the entry share link or WeChat one-time subscription messages, the single entry sharing setting or the authorized official account is copied too.\n- Copied rules sent at a specified time keep that time, and a time already past is not sent, so update it on the new form.\n- A quickpay form's order notification is the new form's own default one; changes made to it on the source form are not copied.\n- A rule that cannot be saved on the new form is skipped, e.g. a rule with the entry share link while the source form has single entry sharing turned off.\nReturns schema \"Form\" (see get_schema).",
   "tag": "Forms",
   "method": "post",
   "path": "/forms/{form_token}/copy",
@@ -795,6 +804,11 @@
     "folder_token": {
      "type": "string",
      "description": "Target folder token or id; when omitted, the copy is not put in a folder"
+    },
+    "with_notification_rules": {
+     "type": "boolean",
+     "default": false,
+     "description": "When true, the notification rules (SMS, email, WeChat, WeCom, DingTalk, webhook, mini program subscription messages) are copied too; see the endpoint description for the rules"
     }
    },
    "additionalProperties": false,
@@ -1382,13 +1396,22 @@
       "type": "object",
       "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
       "required": [
-       "field",
        "operator"
       ],
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists"
+        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+       },
+       "api_code": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
+       },
+       "trigger": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
        },
        "operator": {
         "type": "string",
@@ -2264,13 +2287,22 @@
       "type": "object",
       "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
       "required": [
-       "field",
        "operator"
       ],
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists"
+        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+       },
+       "api_code": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
+       },
+       "trigger": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
        },
        "operator": {
         "type": "string",
@@ -2415,13 +2447,22 @@
       "type": "object",
       "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
       "required": [
-       "field",
        "operator"
       ],
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists"
+        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+       },
+       "api_code": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
+       },
+       "trigger": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
        },
        "operator": {
         "type": "string",
@@ -2550,13 +2591,22 @@
       "type": "object",
       "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
       "required": [
-       "field",
        "operator"
       ],
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists"
+        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+       },
+       "api_code": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
+       },
+       "trigger": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
        },
        "operator": {
         "type": "string",
@@ -2867,13 +2917,22 @@
       "type": "object",
       "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
       "required": [
-       "field",
        "operator"
       ],
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists"
+        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+       },
+       "api_code": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
+       },
+       "trigger": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
        },
        "operator": {
         "type": "string",
@@ -3979,13 +4038,22 @@
       "type": "object",
       "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
       "required": [
-       "field",
        "operator"
       ],
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists"
+        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+       },
+       "api_code": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
+       },
+       "trigger": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
        },
        "operator": {
         "type": "string",
@@ -6767,13 +6835,22 @@
       "type": "object",
       "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
       "required": [
-       "field",
        "operator"
       ],
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists"
+        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+       },
+       "api_code": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
+       },
+       "trigger": {
+        "type": "string",
+        "deprecated": true,
+        "description": "Deprecated alias of `field`; use `field`."
        },
        "operator": {
         "type": "string",
