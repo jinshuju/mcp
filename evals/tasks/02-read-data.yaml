@@ -68,7 +68,9 @@
       any_of: [list_entries]
     answer:
       contains: [王芳, '13700000001', 测试账号, '13700000003']
-      not_contains: ['13700000002']
+      # Not a not_contains on 13700000002: the form has 3 rows, so a correct answer often adds the afternoon one as context.
+      claims:
+        - 上午场的名单恰好是王芳和测试账号两人；李明（13700000002）如果被提到，也是明确作为下午场，没有被算进上午场
 
 - id: read-06
   category: 读数据

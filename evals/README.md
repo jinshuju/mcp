@@ -87,6 +87,7 @@ Task format (`tasks/*.yaml`):
     answer: # final answer
       contains: ['16140'] # every substring (ignoring case and full-width digits); supports {{alias.token}} / {{alias.url}} / {{account.plan}}
       contains_any: [...]
+      not_contains: [...] # plain substring check; only for values a correct answer would never mention, otherwise use a claim
       regex: 'https?://…'
       claims: # facts the LLM judge checks one by one
         - 按部门的已批准金额为 研发部 6500、市场部 6400、销售部 840、人事部 2400
