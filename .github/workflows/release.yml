@@ -1,16 +1,12 @@
 name: Release
 
-# Two-step release, same as jinshuju/cli: release-please keeps a release PR open; merging it publishes to npm.
-#
-# Publishing uses npm trusted publishing (OIDC), so there is no NPM_TOKEN. npm will not let you configure a
-# trusted publisher for a package that does not exist yet, so the first version is published by hand and
-# everything after it is automatic.
-#
-# Commit subjects must be plain conventional commits: `#T17067 feat: ...` does not parse and the release
-# silently never happens. Put the ticket in a `Refs:` footer.
+# Publishes a release tag to npm with trusted publishing (OIDC), which only GitHub Actions can do, so there is no
+# NPM_TOKEN. The version is bumped and tagged on Gitea (.gitea/workflows/release.yml); the tag reaches this mirror and
+# is published from here. npm will not let you configure a trusted publisher for a package that does not exist yet, so
+# the first version was published by hand.
 on:
   push:
-    branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -21,30 +17,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release-please:
-    name: Maintain the release PR
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-      version: ${{ steps.release.outputs.version }}
-    steps:
-      - uses: googleapis/release-please-action@v4
-        id: release
-        with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-          # PRs opened with GITHUB_TOKEN do not trigger CI; a RELEASE_PLEASE_TOKEN (fine-grained PAT with
-          # contents and pull-requests write) makes the release PR show checks.
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
-
   publish:
     name: Publish to npm
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -53,8 +28,6 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.release-please.outputs.tag_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -65,6 +38,8 @@ jobs:
         run: |
           npm install -g npm@^11.5.1
           npm --version
+      - name: The tag names package.json's version
+        run: test "${GITHUB_REF_NAME}" = "v$(npm pkg get version | tr -d '"')"
       - run: npm ci
       - run: npm test
       - name: Verify npm publishes the manifest as written
@@ -81,8 +56,8 @@ jobs:
       - name: Summary
         run: |
           {
-            echo "### Published \`@jinshuju/mcp@${{ needs.release-please.outputs.version }}\`"
+            echo "### Published \`@jinshuju/mcp@${GITHUB_REF_NAME#v}\`"
             echo
-            echo "- tag: \`${{ needs.release-please.outputs.tag_name }}\`"
+            echo "- tag: \`${GITHUB_REF_NAME}\`"
             echo "- https://www.npmjs.com/package/@jinshuju/mcp"
           } >> "$GITHUB_STEP_SUMMARY"

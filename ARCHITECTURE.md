@@ -38,7 +38,7 @@ src/
   worker.ts       Cloudflare Workers entry (optional)
   stdio.ts        Local stdio entry (npm bin: jinshuju-mcp)
   config.ts       Environment variables -> Config
-  version.ts      Version number (kept in sync by release-please)
+  version.ts      Version number (kept in step with package.json by scripts/release.mjs)
   *.test.ts       node:test; no network, every fetch is injected
 ```
 
@@ -146,10 +146,11 @@ over twenty thousand tokens; as one line plus a `get_schema` tool, the model rea
 
 `evals/` is not published; it is a regression test for how well models get on with the tools: fixed tasks run by several models against this repository's MCP (in-process `buildServer`, or a deployment over Streamable HTTP),
 scored by assertions. The referee (fixture setup, state checks, writing results) goes straight to the open API (reusing `src/api.ts` and the operation table),
-never through an MCP under test. Design, task format and metrics are in [evals/README.md](evals/README.md); `evals.yml` runs on release, on openapi.yaml changes and every Monday.
+never through an MCP under test. Design, task format and metrics are in [evals/README.md](evals/README.md); `evals.yml` runs on demand.
 
 ## Release and sync
 
 - CI checks that `npm run generate` leaves no diff in `src/generated`, so the output never drifts.
 - `spec-sync.yml` fetches the live openapi.yaml daily and, when it changed, regenerates and opens a PR — a person only reviews the tool diff. `scripts/sync-summary.mjs` titles it from that diff (added / removed tools, new fields, updated tools), since the squash-merged title is the CHANGELOG line.
-- `release.yml` matches jinshuju/cli: release-please keeps a release PR, and merging it publishes to npm through OIDC.
+- `release.yml` on Gitea runs `scripts/release.mjs` on every push to main: the conventional commits since the last tag keep the release PR (`chore(main): release X.Y.Z`) current, and merging it tags the version and writes the release.
+- `.github/workflows/release.yml`, the one workflow left on GitHub, publishes the mirrored tag to npm through OIDC trusted publishing, which only GitHub Actions can do.
