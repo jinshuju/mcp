@@ -184,10 +184,37 @@ test('a query parameter declared with content: application/json takes the array 
     TOOLS.find((t) => t.name === 'list_entries')!.inputSchema.properties as Record<string, Record<string, unknown>>
   ).filters;
   const condition = filters.items as { required: string[]; properties: Record<string, { enum?: string[] }> };
-  assert.deepEqual(condition.required, ['field', 'operator']);
+  // field is required unless the deprecated api_code / trigger alias is given, which the API checks, so only operator is required here
+  assert.deepEqual(condition.required, ['operator']);
   assert.ok(condition.properties.operator.enum?.includes('any_in'));
   // count_entries across several forms goes through its own operation, whose filters is JSON text too
   assert.equal(OPERATIONS.countEntriesAcrossForms.params.find((p) => p.name === 'filters')?.json, true);
+});
+
+/** The query parameters openapi.yaml declares as arrays (explode: false): sent as name[]=, the comma-separated string accepted too. */
+const ARRAY_PARAMS: Record<string, string[]> = {
+  list_entries: ['fields'],
+  get_entry: ['fields'],
+  get_form_data_summary: ['fields'],
+  search_entries_in_forms: ['form_tokens'],
+  list_my_submitted_entries: ['fields'],
+  search_my_submitted_entries: ['form_tokens']
+};
+
+test('a query parameter declared as an array takes the array or the comma-separated string', () => {
+  const found: Record<string, string[]> = {};
+  for (const t of TOOLS) {
+    const properties = t.inputSchema.properties as Record<string, Record<string, unknown>>;
+    for (const p of t.params) {
+      if (!p.array) continue;
+      (found[t.name] ??= []).push(p.name);
+      assert.equal(p.json, undefined, `${t.name}.${p.name} is not JSON text`);
+      const schema = properties[p.name];
+      assert.deepEqual(schema.type, ['array', 'string'], `${t.name}.${p.name}`);
+      assert.deepEqual(schema.items, { type: 'string' }, `${t.name}.${p.name}: items are strings`);
+    }
+  }
+  assert.deepEqual(found, ARRAY_PARAMS);
 });
 
 test('path parameters are in inputSchema.required, and flattened body properties are at the top level', () => {

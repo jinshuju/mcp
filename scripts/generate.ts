@@ -312,6 +312,10 @@ function buildOperation(operationId: string, bodyMode: 'flatten' | string): Buil
     const name = p.name as string;
     const media = ((p.content as Record<string, Json> | undefined) ?? {})['application/json'];
     const schema = media ? jsonTextParam(media) : { ...((p.schema as Json) ?? { type: 'string' }) };
+    // A query array (fields / form_tokens) travels as name[]=a&name[]=b; the comma-separated string openapi.yaml also
+    // documents is accepted too and passed through as is, for the same reason the JSON text is above.
+    const isArray = !media && schema.type === 'array';
+    if (isArray) schema.type = ['array', 'string'];
     // Append notes by components.parameters name (a shared parameter gets them in every operation that references it)
     const append =
       typeof rawParam.$ref === 'string' ? parameterOverrides[refName(rawParam.$ref)]?.descriptionAppend : undefined;
@@ -327,7 +331,7 @@ function buildOperation(operationId: string, bodyMode: 'flatten' | string): Buil
       name,
       in: where,
       required: isRequired,
-      array: (!media && schema.type === 'array') || undefined,
+      array: isArray || undefined,
       json: media ? true : undefined
     });
   }
