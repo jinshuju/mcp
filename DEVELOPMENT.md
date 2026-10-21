@@ -53,6 +53,8 @@ After changing `mcp.overlay.yaml` or updating `spec/openapi.yaml`, run `npm run 
 
   to report to PostHog add the secret `POSTHOG_API_KEY`; to report to Sentry add `SENTRY_DSN`.
 
+  `.gitea/workflows/deploy.yml` does the same from Gitea Actions: on its own when a release lands on `main`, and on demand (Actions → Deploy → Run workflow). It checks, tests and deploys; rerunning an older run rolls back to its commit.
+
 The service is stateless and needs no database, KV or Durable Objects.
 
 ## Evals

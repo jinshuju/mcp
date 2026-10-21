@@ -1,0 +1,70 @@
+name: Deploy
+
+# Deploys the commit to WDL as the worker `jinshuju-mcp` (what `npm run wdl:deploy` does by hand). Runs on its own
+# when a release lands on main, and on demand (Actions → Deploy → Run workflow, from main). A rerun of an older run
+# deploys that run's commit again, which is how to roll back.
+#
+# A release lands as the fast-forward merge of the release pull request: one commit `chore(main): release X.Y.Z`,
+# the only kind of commit that writes src/version.ts, so that path is the trigger. The tag and the Gitea release come
+# afterwards from release.yml with the job token, and events raised by the actions user start no workflow, so neither
+# `release:` nor a tag push could be the trigger.
+#
+# Secrets / variables needed, on the repository or the jinshuju organization:
+#   secrets.WDL_ADMIN_TOKEN  Control-plane token of the namespace (what `wdl token` stores for deploys by hand)
+#   vars.WDL_CONTROL_URL     Control-plane URL
+#   vars.WDL_NS              Namespace the worker lives in
+on:
+  push:
+    branches: [main]
+    paths: [src/version.ts]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Queued deploys wait instead of being cancelled: a cancelled deploy may already have promoted its version.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to WDL
+    runs-on: docker
+    timeout-minutes: 20
+    container:
+      image: node:22
+    env:
+      # The CLI reads these instead of a token store (see `wdl --help`).
+      WDL_TOKEN_STORE: 'off'
+      WDL_NS: ${{ vars.WDL_NS }}
+      CONTROL_URL: ${{ vars.WDL_CONTROL_URL }}
+      ADMIN_TOKEN: ${{ secrets.WDL_ADMIN_TOKEN }}
+    steps:
+      - name: Check branch
+        run: |
+          if [ "$GITHUB_REF_NAME" != main ]; then
+            echo "production is deployed from main, got $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+      # Pinned to the run's commit, so a rerun deploys the same commit again.
+      - uses: builtin:checkout
+        with:
+          ref: ${{ github.sha }}
+      # A container job's workspace may belong to another user than the one running git, which git refuses by default.
+      - run: git config --global --add safe.directory '*'
+      - uses: self:actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-node22-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-node22-
+      - run: npm ci --ignore-scripts
+      - name: Check credentials are configured
+        run: |
+          test -n "$ADMIN_TOKEN" -a -n "$CONTROL_URL" -a -n "$WDL_NS" || { echo "secrets.WDL_ADMIN_TOKEN / vars.WDL_CONTROL_URL / vars.WDL_NS is missing"; exit 1; }
+      # The same gate as before a deploy by hand; CI runs on the same commit but in parallel with this job.
+      - run: npm run check
+      - run: npm test
+      # wdl bundles with the project's own wrangler (node_modules/.bin), uploads and promotes the new version.
+      - name: Deploy
+        run: npx --yes @wdl-dev/cli@1.9.2 deploy .

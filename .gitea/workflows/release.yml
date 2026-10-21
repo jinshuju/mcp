@@ -3,7 +3,7 @@ name: Release
 # Keeps the version moving, as release-please did on GitHub (scripts/release.mjs): every push to main refreshes the
 # release pull request `chore(main): release X.Y.Z` from the conventional commits since the last tag, and merging it
 # tags the version and writes the Gitea release. GitHub's release.yml then publishes the mirrored tag to npm with
-# trusted publishing, which only GitHub Actions can do.
+# trusted publishing, which only GitHub Actions can do, and deploy.yml deploys the merged release commit.
 #
 # Commit subjects must be plain conventional commits: `#T17067 feat: ...` does not parse and never releases. Put the
 # ticket in a footer; a `Release-As: X.Y.Z` footer sets the version.
