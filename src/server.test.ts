@@ -127,10 +127,37 @@ test('tools/call: filters and the other JSON-text parameters are accepted as the
   assert.match((object.content[0] as { text: string }).text, /filters/);
   const incomplete = await client.callTool({
     name: 'list_entries',
-    arguments: { form_token: 'AbCdEf', filters: [{ operator: 'eq', value: 1 }] }
+    arguments: { form_token: 'AbCdEf', filters: [{ field: 'field_3', value: 1 }] }
   });
   assert.equal(incomplete.isError, true);
-  assert.match((incomplete.content[0] as { text: string }).text, /filters.*field/);
+  assert.match((incomplete.content[0] as { text: string }).text, /filters.*operator/);
+  assert.equal(calls.length, 2);
+  await close();
+});
+
+test('tools/call: a query array such as fields is accepted as the array or as the comma-separated string, and reaches the API as name[]= or as is', async () => {
+  const { calls, fetchImpl } = fakeApi(
+    () =>
+      new Response('{"total":0,"count":0,"data":[],"next":null}', { headers: { 'Content-Type': 'application/json' } })
+  );
+  const { client, close } = await connect(fetchImpl);
+  const asArray = await client.callTool({
+    name: 'list_entries',
+    arguments: { form_token: 'AbCdEf', fields: ['field_1', 'field_2'] }
+  });
+  assert.equal(asArray.isError, undefined);
+  assert.deepEqual(new URL(calls[0].url).searchParams.getAll('fields[]'), ['field_1', 'field_2']);
+  const asText = await client.callTool({
+    name: 'list_entries',
+    arguments: { form_token: 'AbCdEf', fields: 'field_1,field_2' }
+  });
+  assert.equal(asText.isError, undefined);
+  assert.equal(new URL(calls[1].url).searchParams.get('fields'), 'field_1,field_2');
+
+  // Neither: refused before any request, naming the argument
+  const neither = await client.callTool({ name: 'list_entries', arguments: { form_token: 'AbCdEf', fields: 3 } });
+  assert.equal(neither.isError, true);
+  assert.match((neither.content[0] as { text: string }).text, /fields/);
   assert.equal(calls.length, 2);
   await close();
 });
