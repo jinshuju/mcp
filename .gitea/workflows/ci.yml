@@ -12,18 +12,26 @@ permissions:
 
 jobs:
   test:
-    name: Test (Node.js ${{ matrix.node-version }})
-    runs-on: ubuntu-latest
+    name: Test (Node.js ${{ matrix.node }})
+    # The docker runner runs the job inside the image, so each Node line comes straight from its official image.
+    runs-on: docker
+    timeout-minutes: 30
+    container:
+      image: node:${{ matrix.node }}
     strategy:
       fail-fast: false
       matrix:
-        node-version: [22.x, 24.x]
+        node: [22, 24]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: builtin:checkout
+      # A container job's workspace may belong to another user than the one running git, which git refuses by default.
+      - run: git config --global --add safe.directory '*'
+      # Was setup-node's cache: npm; stored in the runner's S3 cache.
+      - uses: self:actions/cache@v4
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
+          path: ~/.npm
+          key: npm-node${{ matrix.node }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-node${{ matrix.node }}-
       - run: npm ci --ignore-scripts
       - name: Generated code is up to date with spec/openapi.yaml + mcp.overlay.yaml
         run: |

@@ -1,0 +1,43 @@
+name: Sync openapi.yaml
+
+# Fetches the live openapi.yaml once a day; when it changed, regenerates the tools and opens a pull request
+# (scripts/open-sync-pr.mjs). This is how jinshuju/mcp follows openapi.yaml automatically: a person only reviews
+# the tool diff in the pull request.
+on:
+  schedule:
+    - cron: '17 1 * * *' # 09:17 Beijing time, daily
+  workflow_dispatch:
+
+# The job token pushes the branch and opens the pull request.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: docker
+    timeout-minutes: 30
+    container:
+      image: node:22
+    steps:
+      - uses: builtin:checkout
+      # A container job's workspace may belong to another user than the one running git, which git refuses by default.
+      - run: git config --global --add safe.directory '*'
+      - uses: self:actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-node22-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-node22-
+      - run: npm ci --ignore-scripts
+      - run: npm run spec:update
+      - name: Describe the tool changes
+        id: summary
+        run: node scripts/sync-summary.mjs
+      # Opened with the job token, the pull request runs no CI (Gitea ignores the events its own actions user raises,
+      # as GitHub did with GITHUB_TOKEN); a person reviews the tool diff.
+      - name: Open or update the pull request
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          PR_TITLE: ${{ steps.summary.outputs.title }}
+          PR_BODY: ${{ steps.summary.outputs.body }}
+        run: node scripts/open-sync-pr.mjs

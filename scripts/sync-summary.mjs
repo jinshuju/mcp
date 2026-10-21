@@ -2,7 +2,7 @@
 // The PR is squash-merged under its title, so the title is the line that lands in CHANGELOG.md.
 //
 // Usage: node scripts/sync-summary.mjs [base] [head]
-//   base defaults to HEAD, head to the working tree. Under GitHub Actions it writes `title` and `body` to $GITHUB_OUTPUT.
+//   base defaults to HEAD, head to the working tree. In a workflow job it also writes `title` and `body` to $GITHUB_OUTPUT.
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';

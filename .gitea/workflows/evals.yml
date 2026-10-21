@@ -1,7 +1,7 @@
 name: Evals
 
 # MCP evals: on demand only (Actions → Evals → Run workflow).
-# Secrets / vars needed:
+# Secrets / variables needed, on the repository or the jinshuju organization:
 #   secrets.EVAL_JINSHUJU_ACCESS_TOKEN  Access token of the eval account (a dedicated account; its fixture data is reset again and again)
 #   secrets.EVAL_LLM_API_KEY            Key for the OpenAI-compatible gateway
 #   vars.EVAL_LLM_BASE_URL              Gateway URL, e.g. https://<gateway>/v1
@@ -41,21 +41,26 @@ concurrency:
 jobs:
   evals:
     name: Run MCP evals
-    runs-on: ubuntu-latest
+    runs-on: docker
     timeout-minutes: 300
+    container:
+      image: node:22
     env:
       JINSHUJU_ACCESS_TOKEN: ${{ secrets.EVAL_JINSHUJU_ACCESS_TOKEN }}
       LLM_BASE_URL: ${{ vars.EVAL_LLM_BASE_URL }}
       LLM_API_KEY: ${{ secrets.EVAL_LLM_API_KEY }}
-      EVAL_MODELS: ${{ inputs.models || vars.EVAL_MODELS }}
+      EVAL_MODELS: ${{ github.event.inputs.models || vars.EVAL_MODELS }}
       EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL }}
       EVAL_CONCURRENCY: '4'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: builtin:checkout
+      # A container job's workspace may belong to another user than the one running git, which git refuses by default.
+      - run: git config --global --add safe.directory '*'
+      - uses: self:actions/cache@v4
         with:
-          node-version: 22.x
-          cache: npm
+          path: ~/.npm
+          key: npm-node22-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-node22-
       - run: npm ci --ignore-scripts
       - name: Check credentials are configured
         run: |
@@ -63,20 +68,27 @@ jobs:
           test -n "$LLM_BASE_URL" -a -n "$LLM_API_KEY" || { echo "vars.EVAL_LLM_BASE_URL / secrets.EVAL_LLM_API_KEY is missing"; exit 1; }
       - name: Seed fixtures
         run: npm run eval -- seed --reset
+      # The run id is prefixed `gitea-`, not the GitHub runs' `gha-`: run numbers start over here, and the results form
+      # skips a run id it has already seen.
       - name: Run matrix
         run: |
-          args=(--mcp "${{ inputs.mcp || 'new' }}" --repeat "${{ inputs.repeat || '1' }}" --run-id "gha-${{ github.run_number }}")
-          [ -n "${{ inputs.tasks }}" ] && args+=(--tasks "${{ inputs.tasks }}")
-          [ -n "${{ inputs.category }}" ] && args+=(--category "${{ inputs.category }}")
+          args=(--mcp "${{ github.event.inputs.mcp || 'new' }}" --repeat "${{ github.event.inputs.repeat || '1' }}" --run-id "gitea-${{ github.run_number }}")
+          [ -n "${{ github.event.inputs.tasks }}" ] && args+=(--tasks "${{ github.event.inputs.tasks }}")
+          [ -n "${{ github.event.inputs.category }}" ] && args+=(--category "${{ github.event.inputs.category }}")
           npm run eval -- run "${args[@]}"
-      - name: Publish report to job summary
+      # Gitea has no job summary, so the report ends the job log.
+      - name: Print the report
         if: always()
         run: |
           f=$(ls -d evals/results/*/ 2>/dev/null | head -1)
-          [ -n "$f" ] && cat "$f/report.md" >> "$GITHUB_STEP_SUMMARY" || true
-      - uses: actions/upload-artifact@v4
+          [ -n "$f" ] && cat "$f/report.md" || true
+      - id: artifact
+        uses: self:actions/upload-artifact@v4
         if: always()
         with:
           name: eval-results
           path: evals/results/
           retention-days: 90
+      # upload-artifact prints GitHub's .../artifacts/<id> link, which 404s on Gitea: its download link takes the name.
+      - if: always() && steps.artifact.outputs.artifact-id != ''
+        run: echo "Download from Gitea at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/eval-results?attempt=${{ github.run_attempt }}"
