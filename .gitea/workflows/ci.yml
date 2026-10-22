@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+# A newer push to a pull request cancels its runs still in progress; every push to main keeps its own run.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Test (Node.js ${{ matrix.node }})
