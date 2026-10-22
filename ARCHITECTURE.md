@@ -45,7 +45,7 @@ src/
 Dependency direction: `app` / `stdio` → `server` → `tools` → `composites` → `result` → `api` → `credential`; `types`, `config` and `version` depend on nothing.
 `analytics` is used only by `app` / `node` (stdio does not report), and depends on `auth` (token hash), `tools` (the full set of argument names) and `validation` (the `context` argument name).
 
-The tool set matches the 60 tools documented at open.jinshuju.net/mcp one to one (the overlay's `include` is the mapping): 54 map one to one onto operations,
+The tool set is the 60 tools documented at open.jinshuju.net/mcp plus `delete_form` (the overlay's `include` is the mapping): 55 map one to one onto operations,
 `edit_field_rules` is a projection of `field_rules` in the `updateForm` request body, and the 4 exam / evaluation create and edit tools and `count_entries` are composite tools.
 `operations.json` holds all 123 operations, so composite tools can call operations that are not exposed on their own (such as `updateExamSetting`).
 
@@ -138,7 +138,7 @@ over twenty thousand tokens; as one line plus a `get_schema` tool, the model rea
 
 `npm test` builds, then runs `node --test dist/*.test.js`. Every `fetch` is injected; tests touch no network and do not read the user's credential file:
 
-- `generated.test.ts` guards invariants of the generated output: one-to-one with the 60 documented tools, no `$ref`, required path parameters, flatten / nesting, input shapes of projections and composites, pointers, annotations;
+- `generated.test.ts` guards invariants of the generated output: the 60 documented tools plus the extra ones, no `$ref`, required path parameters, flatten / nesting, input shapes of projections and composites, pointers, annotations;
 - `api.test.ts` guards URL (including JSON-text query parameters) / body / multipart / refresh on 401 / transport errors;
 - `server.test.ts` runs the full tools/list, tools/call, composite request order and failure messages, and resources through `InMemoryTransport` + `@modelcontextprotocol/client`;
 - `app.test.ts` runs the 401 challenge, PRM, caching and the legacy handshake through Hono's `app.request`;

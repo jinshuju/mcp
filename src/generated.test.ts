@@ -4,7 +4,7 @@ import { TOOLS, SCHEMAS } from './tools.js';
 import { OPERATIONS } from './composites.js';
 import { META } from './server.js';
 
-/** The 60 tools documented at open.jinshuju.net/mcp: this server's tool set must match them one to one. */
+/** The 60 tools documented at open.jinshuju.net/mcp: this server's tool set is these plus EXTRA, and nothing more. */
 const BUILTIN = [
   'aggregate_entries',
   'check_field_data',
@@ -73,11 +73,13 @@ const RENAMED: Record<string, string> = {
   prepare_form_image_upload: 'upload_form_image',
   prepare_import_file_upload: 'upload_import_file'
 };
+/** Tools beyond the documented set. */
+const EXTRA = ['delete_form'];
 
-test('the tool set matches the 60 documented tools one to one', () => {
+test('the tool set is the 60 documented tools plus EXTRA', () => {
   const names = new Set(TOOLS.map((t) => t.name));
   assert.equal(BUILTIN.length, 60);
-  const expected = BUILTIN.map((n) => RENAMED[n] ?? n);
+  const expected = [...BUILTIN.map((n) => RENAMED[n] ?? n), ...EXTRA];
   for (const name of expected) assert.ok(names.has(name), `missing ${name}`);
   const extra = [...names].filter((n) => !expected.includes(n));
   assert.deepEqual(extra, [], `unexpected tools: ${extra.join(', ')}`);
@@ -281,6 +283,7 @@ test('annotations are inferred from the HTTP method and the overlay can override
   const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
   assert.equal(byName.list_forms.annotations.readOnlyHint, true);
   assert.equal(byName.delete_entry.annotations.destructiveHint, true);
+  assert.equal(byName.delete_form.annotations.destructiveHint, true);
   assert.equal(byName.create_entry.annotations.readOnlyHint, false);
   assert.ok(byName.create_form.description.includes('get_schema'));
   assert.deepEqual(byName.list_entries.scopes, ['read_entries']);

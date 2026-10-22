@@ -49,11 +49,11 @@ To check it works, ask the assistant to "list my Jinshuju forms".
 
 ## Tools
 
-60 tools with the same names as those documented for the [Jinshuju MCP Server](https://open.jinshuju.net/mcp). Each tool maps to one operation in openapi.yaml; a few combine two operations:
+The 60 tools documented for the [Jinshuju MCP Server](https://open.jinshuju.net/mcp), with the same names, plus delete_form. Each tool maps to one operation in openapi.yaml; a few combine two operations:
 
 | Category            | Tools                                                                                                                                                                                                                               |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Forms               | list_forms, get_form, create_form, edit_form, copy_form, move_form, list_form_cooperators, get_field_rules, edit_field_rules, check_field_data, preview_field_type_change, edit_theme                                               |
+| Forms               | list_forms, get_form, create_form, edit_form, copy_form, delete_form, move_form, list_form_cooperators, get_field_rules, edit_field_rules, check_field_data, preview_field_type_change, edit_theme                                  |
 | Exams / evaluations | create_exam_form, edit_exam_form, create_evaluation_form, edit_evaluation_form (create / edit the form + its scene settings, two requests)                                                                                          |
 | Entries             | list_entries, get_entry, create_entry, update_entry, delete_entry, create_entries, patch_entries, count_entries, aggregate_entries, get_form_data_summary, search_entries_in_forms, list_form_entry_stats, import_entries_from_file |
 | What I submitted    | list_my_submitted_forms, list_my_submitted_entries, search_my_submitted_entries                                                                                                                                                     |

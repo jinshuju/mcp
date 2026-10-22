@@ -5,7 +5,7 @@
     "sha256": "ecaf2b639eaf7555"
   },
   "baseUrl": "https://jinshuju.net/api/v1",
-  "toolCount": 60,
+  "toolCount": 61,
   "operationCount": 129,
   "tools": {
     "list_forms": "listForms",
@@ -13,6 +13,7 @@
     "create_form": "createForm",
     "edit_form": "updateForm",
     "copy_form": "copyForm",
+    "delete_form": "deleteForm",
     "move_form": "moveFormToFolder",
     "list_form_cooperators": "listFormCooperators",
     "get_field_rules": "listFieldRules",

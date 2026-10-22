@@ -824,6 +824,60 @@
   }
  },
  {
+  "operationId": "deleteForm",
+  "summary": "Delete a form",
+  "description": "Delete a form\nMoves the form and its entries to the trash, from which the product can restore it; on success, returns the form token.",
+  "tag": "Forms",
+  "method": "delete",
+  "path": "/forms/{form_token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "name": "delete_form",
+  "title": "Delete a form",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "token"
+   ],
+   "properties": {
+    "token": {
+     "type": "string"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": true,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
   "operationId": "moveFormToFolder",
   "summary": "Move a form into a folder",
   "description": "Move a form into a folder\nMoves the form into a folder, or out of one (pass null as `folder_token`); PUT is accepted too. The move affects only the calling user's folder placement.\n- The request body must contain the `folder_token` key (its value may be null); otherwise 400.\n- `folder_token` takes only a folder token (not an id); returns 404 when the folder does not exist or the current user lacks manage permission on it.\n- The folder type (form / table) must match the form's type; otherwise 400.\n- To move a table, use `PATCH /tables/{table_token}/folder`.",

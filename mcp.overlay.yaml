@@ -1,7 +1,7 @@
 # MCP overlay
 #
 # openapi.yaml is the single source of truth; this file only says how to project it into MCP tools.
-# The tool set matches the 60 tools documented at https://open.jinshuju.net/mcp one to one (same names), and exposes nothing more.
+# The tool set is the 60 tools documented at https://open.jinshuju.net/mcp (same names) plus delete_form, and exposes nothing more.
 # After changing this file run `npm run generate`; its output in src/generated/ must be committed with it.
 
 # ---- 1. One-to-one tools: operationId -> tool name. Operations not listed here get no tool. ----
@@ -12,6 +12,7 @@ include:
   createForm: create_form
   updateForm: edit_form
   copyForm: copy_form
+  deleteForm: delete_form
   moveFormToFolder: move_form
   listFormCooperators: list_form_cooperators
   listFieldRules: get_field_rules
