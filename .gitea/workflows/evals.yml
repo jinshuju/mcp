@@ -78,6 +78,9 @@ jobs:
           test -n "$LLM_BASE_URL" -a -n "$LLM_API_KEY" || { echo "vars.EVAL_LLM_BASE_URL / secrets.EVAL_LLM_API_KEY is missing"; exit 1; }
       - name: Seed fixtures
         run: npm run eval -- seed --reset
+      # A run deletes the forms it created when it ends, but a cancelled or timed-out one never gets there.
+      - name: Delete forms earlier runs left
+        run: npm run eval -- sweep --hours 168
       # The run id is prefixed `gitea-`, not the GitHub runs' `gha-`: run numbers start over here, and the results form
       # skips a run id it has already seen.
       - name: Run matrix

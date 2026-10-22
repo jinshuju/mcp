@@ -142,6 +142,7 @@ The form lives in the fixture folder, and its token is kept in `state/fixtures.j
 
 `.gitea/workflows/evals.yml`: runs after every push to `main` with the default models against the in-process MCP, and on demand (Actions → Evals → Run workflow; models, MCPs and tasks can be chosen).
 A docs-only push (`*.md`, `LICENSE`) skips it. Runs never overlap, since they share the eval account: a newer run cancels the one in progress.
+A cancelled run never deletes the forms it created, so each run first deletes the non-fixture forms of the past week (`sweep --hours 168`).
 It needs the secrets `EVAL_JINSHUJU_ACCESS_TOKEN` and `EVAL_LLM_API_KEY`, and the variables `EVAL_LLM_BASE_URL`, `EVAL_MODELS` and `EVAL_JUDGE_MODEL`.
 The job fails when the pass rate is under `EVAL_MIN_PASS_RATE` (95 when the variable is unset); the results are still written to the form.
 The report ends the job log, and `evals/results/` is kept as an artifact for 90 days.
