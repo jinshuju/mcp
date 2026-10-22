@@ -67,3 +67,8 @@ and write every run into a Jinshuju form. Usage, task format and metrics are in 
 npm run eval -- seed     # prepares fixture data in the eval account
 npm run eval -- run      # all tasks × EVAL_MODELS → evals/results/<run_id>/report.md
 ```
+
+## Code review
+
+`.gitea/workflows/code-review.yml` has Claude review each pull request (`scripts/claude-review.sh`, guided by `.claude/agents/code-reviewer.md`): must-fix findings as inline comments, suggestions as PR comments, and an approval once none is left open.
+The first review adds the `AI Reviewed` label, and later pushes are not reviewed again until someone adds `AI Re-review`; `skip-code-review` skips the review. A red run only means bot comments are still unresolved; it blocks no merge.

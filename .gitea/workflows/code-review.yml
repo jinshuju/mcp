@@ -1,0 +1,51 @@
+name: Claude review
+
+# Claude reviews the pull request as the review bot (scripts/claude-review.sh, guided by .claude/agents/code-reviewer.md).
+# Runs on the `claude-review` runner, which has the claude CLI and its tools. Never blocks a merge: a red run only means
+# bot comments are still unresolved.
+#
+# When it runs:
+#   - a PR is opened, reopened or pushed to, and doesn't carry "AI Reviewed" yet (the first review adds it);
+#   - someone adds "AI Re-review" (the script removes it afterwards). `types: [labeled]` matches any label change,
+#     but github.event is the raw Gitea payload, whose action is `label_updated` (or `label_cleared`), never
+#     `labeled`. So a label event is told apart by that prefix, and the label set in the payload decides.
+#   A "skip-code-review" label skips it (checked in the script).
+#
+# Reads the org secrets CLAUDE_REVIEW_TOKEN (the review bot's token: write access to this repository's pull requests and
+# labels) and CLAUDE_CODE_OAUTH_TOKEN (the claude CLI's login; the runner host keeps none).
+#
+# It runs the PR's own script and agent file with those tokens. That adds no new exposure: Gitea runs a same-repo PR's
+# workflow files from its branch with secrets, so anyone who can push a branch can already read them. Keep push access
+# to people trusted with them. A PR from a fork gets no secrets, so it is not reviewed.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+
+# Queue, don't cancel: the script's own label change fires a label event, and that run must not cancel the review that
+# made it (its job is skipped anyway).
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository && (
+        (!startsWith(github.event.action, 'label') && !contains(github.event.pull_request.labels.*.name, 'AI Reviewed')) ||
+        (startsWith(github.event.action, 'label') && contains(github.event.pull_request.labels.*.name, 'AI Re-review'))
+      )
+    runs-on: claude-review
+    timeout-minutes: 15
+    defaults:
+      run:
+        # Login shell: the claude CLI is in the runner user's ~/.local/bin.
+        shell: bash -leo pipefail {0}
+    steps:
+      # The PR's code, for the rules and sources the review reads; the diff itself comes from the API.
+      - uses: builtin:checkout
+      - name: Review
+        env:
+          GITEA_TOKEN: ${{ secrets.CLAUDE_REVIEW_TOKEN }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: scripts/claude-review.sh
