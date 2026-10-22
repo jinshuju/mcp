@@ -1828,7 +1828,7 @@
    },
    "checkin_field_api_code": {
     "type": "string",
-    "description": "Check-in field; defaults to the first mobile field, then the first name field. Cannot be changed afterwards"
+    "description": "Check-in field, a mobile, name, email, ID card or single-line text field; defaults to the first mobile field, then the first name field. Cannot be changed afterwards"
    },
    "name": {
     "type": "string",
@@ -1840,7 +1840,7 @@
      "string",
      "null"
     ],
-    "description": "Field shown when verifying, not the check-in field; null clears it"
+    "description": "Field shown when verifying, not the check-in field; a mobile, name, email, ID card or single-line text field. null clears it"
    },
    "enable_checkin_code": {
     "type": "boolean",
@@ -1977,7 +1977,7 @@
      "string",
      "null"
     ],
-    "description": "Field shown when verifying, not the check-in field; null clears it"
+    "description": "Field shown when verifying, not the check-in field; a mobile, name, email, ID card or single-line text field. null clears it"
    },
    "enable_checkin_code": {
     "type": "boolean",
@@ -2486,7 +2486,7 @@
    "with_notification_rules": {
     "type": "boolean",
     "default": false,
-    "description": "When true, the notification rules (SMS, email, WeChat, WeCom, DingTalk, webhook, mini program subscription messages) are copied too; see the endpoint description for the rules"
+    "description": "Copy the notification rules too; takes manage permission on the source form, and copies none when the caller is outside the source form creator's account"
    }
   },
   "additionalProperties": false
