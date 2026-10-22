@@ -27,6 +27,8 @@ function harness(
     analytics?: boolean;
     collectIntent?: boolean;
     me?: Response;
+    /** The authorization server's token info; 401 (the token is not an OAuth token) by default */
+    tokenInfo?: Response;
     /** The first /batch never answers (until posthog's requestTimeout aborts it); later ones are normal */
     hangFirstBatch?: boolean;
     /** Every /batch answers with this status */
@@ -56,6 +58,9 @@ function harness(
       batches.push(JSON.parse(text));
       return new Response('{"status":1}', { headers: JSON_HEADERS });
     }
+    if (url === 'https://account.test/oauth/token/info') {
+      return options.tokenInfo?.clone() ?? new Response('{"error":"invalid_token"}', { status: 401 });
+    }
     if (url.endsWith('/me')) {
       if (headers.get('authorization') !== 'Bearer good')
         return new Response('{"error":"invalid_token"}', { status: 401 });
@@ -83,7 +88,11 @@ function harness(
           requestTimeoutMs: options.requestTimeoutMs
         });
   const app = createApp({
-    config: { apiBaseUrl: 'https://api.test/api/v1', publicUrls: ['https://mcp.test'] },
+    config: {
+      apiBaseUrl: 'https://api.test/api/v1',
+      authServer: 'https://account.test',
+      publicUrls: ['https://mcp.test']
+    },
     fetch: fetchImpl,
     authServerMetadata: AS,
     analytics
@@ -323,13 +332,29 @@ test('without PostHog: no context argument, receiving one is not an error, and n
   assert.equal(h.batches.length, 0);
 });
 
-test('GET /me gives no user: events are anonymous and no person is created', async () => {
+test('neither GET /me nor the token info names the user: events are anonymous and no person is created', async () => {
   const h = harness({ me: new Response('{"error":"forbidden"}', { status: 403, headers: JSON_HEADERS }) });
   await legacy(h.app, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'list_forms', arguments: {} } });
   const [call] = await h.events();
   assert.equal(call.event, '$mcp_tool_call');
   assert.equal(call.distinct_id, call.properties.$session_id);
   assert.equal(call.properties.$process_person_profile, false);
+});
+
+test('an OAuth token without the users scope: the user comes from the token info', async () => {
+  const h = harness({
+    me: new Response('{"error_description":"OAuth token scope is insufficient"}', {
+      status: 403,
+      headers: JSON_HEADERS
+    }),
+    tokenInfo: new Response('{"resource_owner_id":"u1","scope":["forms"],"expires_in":7200}', { headers: JSON_HEADERS })
+  });
+  await legacy(h.app, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'list_forms', arguments: {} } });
+  const [call] = await h.events();
+  assert.equal(call.event, '$mcp_tool_call');
+  assert.equal(call.distinct_id, 'u1');
+  assert.match(String(call.properties.$session_id), /^ses_[0-9a-f]{32}$/);
+  assert.notEqual(call.properties.$process_person_profile, false);
 });
 
 test("a PostHog client per request: one request's stuck upload does not hold up the next request's events", async () => {

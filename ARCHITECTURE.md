@@ -54,6 +54,8 @@ The tool set matches the 60 tools documented at open.jinshuju.net/mcp one to one
 1. The client sends `POST /mcp`. `app.ts` takes the Bearer token; without one it answers `401` + `WWW-Authenticate: Bearer resource_metadata=…`,
    from which the client finds account.jinshuju.net through `/.well-known/oauth-protected-resource/mcp` and runs OAuth.
 2. `TokenVerifier` looks the token's SHA-256 up in its cache; on a miss it calls `GET /me`. Only `401` means invalid (`403` means insufficient scope; the token itself is valid).
+   When `GET /me` does not answer `200` (an OAuth token without the `users` scope gets `403`), the user id comes from the authorization server's `GET /oauth/token/info`
+   (`resource_owner_id`, the same id; no name), which answers for any scope; personal and account tokens get `401` there and stay anonymous.
    The result is cached for 5 minutes, so a tool call does not spend an extra API request.
 3. `createMcpHandler` uses a factory to build an `McpServer` for this request (`buildServer`); the token is closed over in every tool handler.
    With `POSTHOG_API_KEY` set, the factory also runs `analytics.instrument(server, authInfo)`: the user id and the session id derived from the token are closed over in this one request.
@@ -88,7 +90,7 @@ What is collected:
 - Intent: the SDK injects `context` into every tool's inputSchema, and `tools/call` strips it before validation and before the handler;
   `context` still arrives when collection is off or the client uses a cached tool list, so `validation.ts` always accepts and discards it, and it never reaches the API.
   The SDK's other injections (`llm_model`, `conversation_id`, `get_more_tools`, `send_feedback`) are all off.
-- Identity and sessions: `identify` uses the user id from `GET /me`; `$session_id` is not the one the SDK opens per request but `ses_…` derived from the token's SHA-256
+- Identity and sessions: `identify` uses the user id from `GET /me` (or from the token info, see step 2 above); `$session_id` is not the one the SDK opens per request but `ses_…` derived from the token's SHA-256
   (one session per token), so even clients on 2026-07-28 with no handshake have their calls grouped together.
   `initialize` is reported once a day per session (deduplicated in process; best effort across Workers instances).
 - Sending: posthog-node batches. On Workers, `flush()` goes into `executionCtx.waitUntil` at the end of each request; on Node a timer does it, with `shutdown()` on SIGTERM.

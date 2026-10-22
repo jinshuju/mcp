@@ -56,7 +56,12 @@ export function createApp(options: AppOptions = {}): Hono {
   const cfg: Config = { ...DEFAULTS, ...options.config };
   const fetchImpl: typeof fetch = options.fetch ?? ((input, init) => fetch(input, init));
   const api = new JinshujuApi({ baseUrl: cfg.apiBaseUrl, fetch: fetchImpl, timeoutMs: cfg.timeoutMs });
-  const verifier = new TokenVerifier({ api, cacheTtlMs: cfg.tokenCacheTtlMs });
+  const verifier = new TokenVerifier({
+    api,
+    cacheTtlMs: cfg.tokenCacheTtlMs,
+    authServer: cfg.authServer,
+    fetch: fetchImpl
+  });
   const analytics =
     options.analytics === undefined ? analyticsFromConfig(cfg, fetchImpl) : (options.analytics ?? undefined);
   const instructions = analytics?.collectIntent ? `${INSTRUCTIONS}\n${CONTEXT_INSTRUCTIONS}` : INSTRUCTIONS;

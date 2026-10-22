@@ -12,7 +12,8 @@
  * - intent: every tool gets a context argument where the model says what the user wants to do ($mcp_intent). The SDK
  *   scrubs emails / phone numbers / IPs / card numbers from it before sending; JINSHUJU_MCP_COLLECT_INTENT=false turns
  *   it off entirely (the argument is no longer offered and nothing is reported);
- * - distinct_id = the Jinshuju user id (from GET /me); $session_id is derived from the token hash: one session per token;
+ * - distinct_id = the Jinshuju user id (from GET /me, or the token info when the token lacks the users scope; see
+ *   auth.ts); $session_id is derived from the token hash: one session per token;
  * - a session's initialize is reported at most once a day (deduplicated in process; best effort across Workers instances).
  *
  * Every other SDK injection stays off: no llm_model / conversation_id arguments, no get_more_tools / send_feedback tools.
