@@ -105,7 +105,7 @@ export interface Task {
   fixtures?: string[];
   /** Changes fixture data: reset before and after the run, and exclusive with other tasks */
   writes?: boolean;
-  /** Creates forms: after the run they are moved into the output folder */
+  /** Creates forms (marked in `tasks`); every form a run creates is deleted when the run ends */
   creates_forms?: boolean;
   /** Most model turns allowed (LLM calls), 12 by default */
   max_turns?: number;
@@ -138,7 +138,6 @@ export interface FixtureForm {
 
 export interface FixturesSpec {
   folder: string;
-  output_folder: string;
   results_form: string;
   forms: FixtureForm[];
 }
@@ -163,7 +162,6 @@ export interface FixtureState {
   account: { user_id: string; user_name: string; billing_account_id: string; billing_account_name: string };
   api_base_url: string;
   folder_token: string;
-  output_folder_token: string;
   seeded_at: string;
   forms: Record<string, SeededForm>;
   results_form_token?: string;

@@ -10,7 +10,6 @@
 # - A form with entries is reset to exactly these entries on seed.
 
 folder: MCP 评测数据（勿动）
-output_folder: MCP 评测产出（可删）
 results_form: MCP 评测结果（自动写入）
 
 forms:

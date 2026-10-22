@@ -10,7 +10,7 @@ evals/
   tasks/*.yaml         Sample set: 52 tasks in 7 categories; each task = a natural-language input + expected assertions
   src/
     cli.ts             Entry point: seed / run / report / upload / reset / sweep / tasks / catalog
-    fixtures.ts        Creates forms, seeds data, resets, and archives forms created during evals
+    fixtures.ts        Creates forms, seeds data, resets, and deletes forms created during evals
     tasks.ts           Loads and validates the sample set
     mcp.ts             Connects to the MCP under test (in-process buildServer or Streamable HTTP) with the same Jinshuju credential
     llm.ts             OpenAI-compatible chat/completions (retries, usage normalisation, MCP tools → function calling)
@@ -118,7 +118,8 @@ A task passes when all its assertions pass. `field` in assertions always uses th
 
 - `seed` creates the folder 「MCP 评测数据（勿动）」 ("MCP eval data (do not touch)") in the eval account, creates the 5 forms from `fixtures.yaml` and seeds their data; running it again only fills the differences.
 - Write tasks (`writes: true`) restore their fixture to the seed before and after running: delete extra entries, add missing ones, change edited values back, delete extra fields, restore settings and theme.
-- After form-creating tasks (`creates_forms: true`), forms created during the run are moved into the folder 「MCP 评测产出（可删）」 ("MCP eval output (deletable)"), because the open API has no endpoint to delete a form.
+- When a run ends, every non-fixture form created during it (by form-creating tasks, `creates_forms: true`, or a stray create in any other task) is deleted, that is moved to the trash, from which the product can restore it.
+  Not per task: tasks run concurrently, and another task's form may not have been asserted on yet. After an interrupted run, `npm run eval -- sweep [--hours n]` deletes what it left (24 hours by default).
 - Write tasks on the same fixture run one at a time; read tasks run concurrently; different fixtures do not affect each other.
 - Every result and assertion is read straight from the open API (`src/api.ts` reuses the main package's `JinshujuApi`), never through an MCP under test.
 
@@ -147,7 +148,6 @@ The report ends the job log, and `evals/results/` is kept as an artifact for 90 
 
 ## Known limitations
 
-- The open API has no endpoint to delete a form, so the output of form-creating tasks can only be archived into a folder and builds up in the account; use a dedicated eval account.
 - Import tasks only check that the data lands correctly: a model may write with `create_entries` instead of uploading a file; the tool sequence shows which path was taken.
 - When the plan does not support "show the score in exams" or "evaluation report", the server forces those settings to none, so no task asserts on them.
 - Live sessions do not record the natural-language intent, so task wording is reconstructed from tool sequences, not the user's exact words.

@@ -11,7 +11,7 @@
  *   report <run_id>                      Write report.md / summary.json
  *   upload <run_id>                      Write the results into the Jinshuju results form
  *   reset [alias...]                     Restore fixtures to what fixtures.yaml describes
- *   sweep [--hours n]                    Move non-fixture forms created in the last n hours into the output folder
+ *   sweep [--hours n]                    Delete non-fixture forms created in the last n hours (e.g. after an interrupted run)
  *   tasks                                List the sample set
  *   catalog                              Connect to the MCP(s) and print the version, tool count and catalog size
  */
@@ -116,9 +116,9 @@ async function main(): Promise<void> {
       const { api } = await makeApi(cfg);
       const state = requireState(cfg);
       const hours = num(flags.hours, 24);
-      const moved = await sweepCreatedForms(api, state, new Date(Date.now() - hours * 3_600_000), log);
-      for (const m of moved) log(`  ${m.token}  ${m.name}`);
-      log(`Moved ${moved.length} forms`);
+      const deleted = await sweepCreatedForms(api, state, new Date(Date.now() - hours * 3_600_000), log);
+      for (const d of deleted) log(`  ${d.token}  ${d.name}`);
+      log(`Deleted ${deleted.length} forms`);
       return;
     }
     case 'tasks': {

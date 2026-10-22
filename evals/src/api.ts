@@ -125,6 +125,11 @@ export class EvalApi {
     return this.op('moveFormToFolder', { form_token: token, folder_token: folderToken });
   }
 
+  /** Moves the form and its entries to the trash; the product can restore it. */
+  deleteForm(token: string) {
+    return this.op<{ token: string }>('deleteForm', { form_token: token });
+  }
+
   /** Exam / evaluation settings: a form of another scene returns 400 → undefined. */
   async sceneSetting(kind: 'exam' | 'evaluation', token: string): Promise<Record<string, unknown> | undefined> {
     const res = await this.raw(kind === 'exam' ? 'getExamSetting' : 'getEvaluationSetting', { form_token: token });

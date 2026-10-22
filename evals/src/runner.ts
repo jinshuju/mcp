@@ -1,5 +1,5 @@
 /**
- * Runs the matrix: tasks × models × MCPs (× repeats). Write tasks lock their fixture and reset it before and after; create-form tasks archive the forms they made.
+ * Runs the matrix: tasks × models × MCPs (× repeats). Write tasks lock their fixture and reset it before and after; once every job is done, the forms the run created are deleted.
  * Each run writes results/<run_id>/{meta.json, runs.jsonl, transcripts/*.json} and can be picked up again with --resume.
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -241,7 +241,6 @@ export async function runMatrix(options: RunOptions): Promise<RunRecord[]> {
       );
       try {
         if (write) for (const alias of aliases) await resetFixture(api, cfg, spec, state, alias, vlog);
-        if (task.creates_forms) await sweepCreatedForms(api, state, startedAt, vlog);
       } catch (error) {
         log(`  ⚠ ${label} cleanup failed: ${(error as Error).message}`);
       }
@@ -309,6 +308,13 @@ export async function runMatrix(options: RunOptions): Promise<RunRecord[]> {
     }
   });
   await Promise.all(workers);
+  // Not per job: jobs run concurrently, and the forms another job just created may not have been asserted on yet
+  try {
+    const deleted = await sweepCreatedForms(api, state, new Date(meta.started_at), log);
+    if (deleted.length) log(`Deleted ${deleted.length} forms created during the run`);
+  } catch (error) {
+    log(`⚠ Deleting the forms created during the run failed: ${(error as Error).message}`);
+  }
   meta.finished_at = new Date().toISOString();
   writeFileSync(resolve(runDir, 'meta.json'), `${JSON.stringify(meta, null, 2)}\n`);
   return records;

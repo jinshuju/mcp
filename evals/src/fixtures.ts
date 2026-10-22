@@ -149,7 +149,6 @@ export async function seed(
   log(`Account: ${me.name} <${me.email}> / ${billing.name}`);
 
   const folderToken = await ensureFolder(api, spec.folder, log);
-  const outputFolderToken = await ensureFolder(api, spec.output_folder, log);
 
   const state: FixtureState = {
     account: {
@@ -160,7 +159,6 @@ export async function seed(
     },
     api_base_url: api.api.baseUrl,
     folder_token: folderToken,
-    output_folder_token: outputFolderToken,
     seeded_at: new Date().toISOString(),
     forms: {},
     results_form_token: previous?.results_form_token
@@ -374,7 +372,7 @@ export async function resetFixture(
   saveState(cfg, state);
 }
 
-/** Moves forms created during the run (not fixtures) into the output folder; returns the forms moved. */
+/** Deletes (moves to the trash) the forms created since `since`, except fixtures; returns the forms deleted. */
 export async function sweepCreatedForms(
   api: EvalApi,
   state: FixtureState,
@@ -383,20 +381,19 @@ export async function sweepCreatedForms(
 ): Promise<{ token: string; name: string }[]> {
   const fixtureTokens = new Set(Object.values(state.forms).map((f) => f.token));
   if (state.results_form_token) fixtureTokens.add(state.results_form_token);
-  const rows = await api.listForms({ sort: [{ field: 'created_at', order: 'desc' }], limit: 100 });
-  const moved: { token: string; name: string }[] = [];
+  const rows = await api.listForms({ sort: [{ field: 'created_at', order: 'desc' }], limit: 1000 });
+  const deleted: { token: string; name: string }[] = [];
   for (const row of rows) {
     if (fixtureTokens.has(row.token)) continue;
     if (Date.parse(row.created_at) < since.getTime() - 60_000) break;
     try {
-      await api.moveFormToFolder(row.token, state.output_folder_token);
-      moved.push({ token: row.token, name: row.name });
+      await api.deleteForm(row.token);
+      deleted.push({ token: row.token, name: row.name });
     } catch (error) {
-      log(`  Moving form ${row.token} failed: ${(error as Error).message}`);
+      log(`  Deleting form ${row.token} failed: ${(error as Error).message}`);
     }
   }
-  if (moved.length) log(`  Moved ${moved.length} new forms into the output folder`);
-  return moved;
+  return deleted;
 }
 
 export type { FieldDef };
