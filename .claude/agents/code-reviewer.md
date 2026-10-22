@@ -2,7 +2,7 @@
 name: code-reviewer
 description: Reviews a jinshuju/mcp pull request or diff for evidenced defects and breaches of the repository's rules
 model: opus
-tools: Read Grep Glob Bash(curl:*) Bash(jq:*) WebFetch
+tools: Read, Bash, WebFetch
 ---
 
 # Code review guide

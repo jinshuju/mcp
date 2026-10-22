@@ -17,6 +17,20 @@ api() {
   curl -fsS -X "$method" -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" "$API/$path" "$@"
 }
 
+# Every page of a list endpoint, as one JSON array. This Gitea caps `limit` at 50 (max_response_items), so a single
+# request would quietly drop the rest.
+api_list() {
+  local path="$1" sep='?' page=1 items all='[]'
+  [[ "$path" != *\?* ]] || sep='&'
+  while :; do
+    items=$(api GET "$path${sep}limit=50&page=$page") || return 1
+    all=$(jq -c --argjson more "$items" '. + $more' <<< "$all")
+    [ "$(jq length <<< "$items")" -eq 50 ] || break
+    page=$((page + 1))
+  done
+  echo "$all"
+}
+
 BOT=$(api GET user | jq -r .login)
 
 echo "Checking PR labels..."
@@ -51,7 +65,7 @@ if [ "$DIFFS" = "[]" ]; then echo "No reviewable diff."; exit 0; fi
 HEAD_SHA=$(api GET "repos/$REPO/pulls/$PR" | jq -r .head.sha)
 
 echo "Fetching commits..."
-COMMITS=$(api GET "repos/$REPO/pulls/$PR/commits?limit=100" \
+COMMITS=$(api_list "repos/$REPO/pulls/$PR/commits" \
   | jq -c '[.[] | {sha: .sha[0:8], title: (.commit.message | split("\n")[0]), message: .commit.message}]')
 
 # --- 2. fetch the bot's existing feedback ---
@@ -61,7 +75,7 @@ COMMITS=$(api GET "repos/$REPO/pulls/$PR/commits?limit=100" \
 # "no comments" would let the unresolved check at the end pass.
 bot_review_comments() {
   local ids id page all=""
-  ids=$(api GET "repos/$REPO/pulls/$PR/reviews?limit=100" | jq -r --arg bot "$BOT" '.[] | select(.user.login == $bot) | .id') || return 1
+  ids=$(api_list "repos/$REPO/pulls/$PR/reviews" | jq -r --arg bot "$BOT" '.[] | select(.user.login == $bot) | .id') || return 1
   for id in $ids; do
     page=$(api GET "repos/$REPO/pulls/$PR/reviews/$id/comments") || return 1
     all+="$page"$'\n'
@@ -71,7 +85,7 @@ bot_review_comments() {
 
 echo "Fetching existing review comments..."
 INLINE=$(bot_review_comments)
-NOTES=$(api GET "repos/$REPO/issues/$PR/comments?limit=100" | jq -c --arg bot "$BOT" '[.[] | select(.user.login == $bot) | {id, body}]')
+NOTES=$(api_list "repos/$REPO/issues/$PR/comments" | jq -c --arg bot "$BOT" '[.[] | select(.user.login == $bot) | {id, body}]')
 DISCUSSIONS=$(jq -n -c --argjson inline "$INLINE" --argjson notes "$NOTES" '{inline_comments: $inline, pr_comments: $notes}')
 
 # --- 3. call Claude code-reviewer agent ---
@@ -110,8 +124,8 @@ Before posting anything new, go through the comments above.
 
 ## Step 2: review the code
 Read AGENT.md and ARCHITECTURE.md at the repository root with the Read tool first, then review by the guide in the agent
-definition. Use Read, Grep or Glob to read more source and tests when you need to confirm how the code is called; don't
-guess from the diff alone.
+definition. Read more source and tests (Read, or grep / git grep through Bash) when you need to confirm how the code is
+called; don't guess from the diff alone.
 
 ## Step 3: post only new feedback
 Post through the Gitea API, skipping anything an existing comment already covers.
@@ -146,7 +160,7 @@ claude -p --output-format stream-json --verbose --agent code-reviewer \
 # Later pushes to this PR are not reviewed until someone adds "AI Re-review"; the workflow keys off both labels.
 echo "Updating labels..."
 label_id() {
-  api GET "repos/$REPO/labels?limit=100" | jq -r --arg n "$1" '[.[] | select(.name == $n) | .id][0] // empty'
+  api_list "repos/$REPO/labels" | jq -r --arg n "$1" '[.[] | select(.name == $n) | .id][0] // empty'
 }
 # Prints the label's id, creating the label first if the repo doesn't have it. Two first reviews running at once
 # (the runner takes two jobs) can both miss the label: the one whose create then fails looks it up again.

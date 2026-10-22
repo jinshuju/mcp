@@ -14,9 +14,11 @@ name: Claude review
 # Reads the org secrets CLAUDE_REVIEW_TOKEN (the review bot's token: write access to this repository's pull requests and
 # labels) and CLAUDE_CODE_OAUTH_TOKEN (the claude CLI's login; the runner host keeps none).
 #
-# It runs the PR's own script and agent file with those tokens. That adds no new exposure: Gitea runs a same-repo PR's
-# workflow files from its branch with secrets, so anyone who can push a branch can already read them. Keep push access
-# to people trusted with them. A PR from a fork gets no secrets, so it is not reviewed.
+# It runs the PR's own script and agent file with those tokens, and the agent runs with bypassPermissions: a full shell
+# on the runner host, which a prompt injection in the PR gets too. That adds no new exposure: Gitea runs a same-repo
+# PR's workflow files from its branch with secrets, so anyone who can push a branch can already run any command on this
+# runner with them. Keep push access to people trusted with both. A PR from a fork gets no secrets, so it is not
+# reviewed.
 on:
   pull_request:
     types: [opened, reopened, synchronize, labeled]
