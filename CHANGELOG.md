@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.0](https://github.com/jinshuju/mcp/compare/v0.3.0...v0.4.0) (2026-10-23)
+
+
+### Features
+
+* add the delete_form tool ([6b08c64](https://github.com/jinshuju/mcp/commit/6b08c643eb1100f2b5179d3d670cc4ab1b5f6811))
+
+
+### Fixes
+
+* identify OAuth users whose token lacks the users scope ([5d73527](https://github.com/jinshuju/mcp/commit/5d73527024cfc5eef11990299e92d8bffddd1d54))
+* point get_schema misses at the right schema or tool ([3a2e9a9](https://github.com/jinshuju/mcp/commit/3a2e9a97582ecb5a729c2ce6f610df9514dc3a99))
+* take fields and form_tokens as arrays ([538d2ac](https://github.com/jinshuju/mcp/commit/538d2aceb618cc1625768faf95fd7a8da323dfbd))
+* update tool copy_form ([d6f12c0](https://github.com/jinshuju/mcp/commit/d6f12c077c292755e4c171ccd0df7cd1154bbf5d))
+
 ## [0.3.0](https://github.com/jinshuju/mcp/compare/v0.2.0...v0.3.0) (2026-10-20)
 
 
