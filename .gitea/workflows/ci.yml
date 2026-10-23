@@ -1,18 +1,49 @@
 name: CI
 
+# What every change goes through, in one run:
+#   test         every pull request and every push to main, on Node.js 22 and 24
+#   pre-release  after the tests pass on main: tags the version a merged release pull request set, and keeps the next
+#                release pull request current
+#   evals        after the tests pass on main with the defaults, or on demand (Actions → CI → Run workflow) with the
+#                inputs below
+# Releasing is deploy.yml (WDL, on the merged release commit) and GitHub's release.yml (npm, on the tag pre-release
+# pushes). Claude's review stays in code-review.yml: it also runs on label changes, and a label change running this
+# workflow would write its skipped jobs' statuses over the pull request's test results (one status per job name).
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      models:
+        description: Models for the evals (comma-separated); empty uses vars.EVAL_MODELS
+        required: false
+        default: ''
+      mcp:
+        description: MCPs the evals test (new, or name=url for a deployment)
+        required: false
+        default: new
+      tasks:
+        description: Run only these eval task ids (comma-separated)
+        required: false
+        default: ''
+      category:
+        description: Run only these eval categories (comma-separated)
+        required: false
+        default: ''
+      repeat:
+        description: Eval repeats per combination
+        required: false
+        default: '1'
 
 permissions:
   contents: read
 
-# A newer push to a pull request cancels its runs still in progress; every push to main keeps its own run.
+# A newer push to a pull request cancels its runs still in progress; every push to main keeps its own run, and so does
+# a manual run, which must not cancel the run of the push it was started on.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.sha }}
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -70,3 +101,108 @@ jobs:
             echo "::error::npm would rewrite package.json at publish time. Run 'npm pkg fix' and commit the result."
             exit 1
           fi
+
+  # Keeps the version moving, as release-please did on GitHub (scripts/release.mjs): every push to main refreshes the
+  # release pull request `chore(main): release X.Y.Z` from the conventional commits since the last tag, and once it is
+  # merged, tags the version and writes the Gitea release.
+  #
+  # Commit subjects must be plain conventional commits: `#T17067 feat: ...` does not parse and never releases. Put the
+  # ticket in a footer; a `Release-As: X.Y.Z` footer sets the version.
+  pre-release:
+    name: Pre-release
+    if: github.event_name == 'push'
+    needs: test
+    runs-on: docker
+    timeout-minutes: 10
+    container:
+      image: node:22
+    # The job token pushes the branch and the tag and opens the pull request.
+    permissions:
+      contents: write
+      pull-requests: write
+    # Queued across pushes, never cancelled: a cancelled run may have pushed the tag without writing the release.
+    concurrency:
+      group: pre-release
+      cancel-in-progress: false
+    steps:
+      - uses: builtin:checkout
+        with:
+          # The commits since the last tag.
+          fetch-depth: 0
+      # A container job's workspace may belong to another user than the one running git, which git refuses by default.
+      - run: git config --global --add safe.directory '*'
+      - env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+        run: node scripts/release.mjs
+
+  # Secrets / variables needed, on the repository or the jinshuju organization:
+  #   secrets.EVAL_JINSHUJU_ACCESS_TOKEN  Access token of the eval account (a dedicated account; its fixture data is reset again and again)
+  #   secrets.EVAL_LLM_API_KEY            Key for the OpenAI-compatible gateway
+  #   vars.EVAL_LLM_BASE_URL              Gateway URL, e.g. https://<gateway>/v1
+  #   vars.EVAL_MODELS                    Default models (comma-separated); unset uses the defaults in evals/src/config.ts
+  #   vars.EVAL_JUDGE_MODEL               Judge model (kept fixed so runs compare over time)
+  #   vars.EVAL_MIN_PASS_RATE             Pass rate (percent) under which the job fails; 95 when unset
+  evals:
+    name: Evals
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: docker
+    timeout-minutes: 300
+    container:
+      image: node:22
+    # One run at a time: the eval account and its fixtures are shared. A newer run cancels the one in progress.
+    concurrency:
+      group: evals
+      cancel-in-progress: true
+    env:
+      JINSHUJU_ACCESS_TOKEN: ${{ secrets.EVAL_JINSHUJU_ACCESS_TOKEN }}
+      LLM_BASE_URL: ${{ vars.EVAL_LLM_BASE_URL }}
+      LLM_API_KEY: ${{ secrets.EVAL_LLM_API_KEY }}
+      EVAL_MODELS: ${{ github.event.inputs.models || vars.EVAL_MODELS }}
+      EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL }}
+      EVAL_CONCURRENCY: '4'
+      # Models vary from run to run, so a single failed task is noise; a rate under the usual 95-99% is a regression.
+      EVAL_MIN_PASS_RATE: ${{ vars.EVAL_MIN_PASS_RATE || '95' }}
+    steps:
+      - uses: builtin:checkout
+      # A container job's workspace may belong to another user than the one running git, which git refuses by default.
+      - run: git config --global --add safe.directory '*'
+      - uses: self:actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-node22-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-node22-
+      - run: npm ci --ignore-scripts
+      - name: Check credentials are configured
+        run: |
+          test -n "$JINSHUJU_ACCESS_TOKEN" || { echo "secrets.EVAL_JINSHUJU_ACCESS_TOKEN is missing"; exit 1; }
+          test -n "$LLM_BASE_URL" -a -n "$LLM_API_KEY" || { echo "vars.EVAL_LLM_BASE_URL / secrets.EVAL_LLM_API_KEY is missing"; exit 1; }
+      - name: Seed fixtures
+        run: npm run eval -- seed --reset
+      # A run deletes the forms it created when it ends, but a cancelled or timed-out one never gets there.
+      - name: Delete forms earlier runs left
+        run: npm run eval -- sweep --hours 168
+      # The run id is prefixed `gitea-`, not the GitHub runs' `gha-`: run numbers start over here, and the results form
+      # skips a run id it has already seen.
+      - name: Run matrix
+        run: |
+          args=(--mcp "${{ github.event.inputs.mcp || 'new' }}" --repeat "${{ github.event.inputs.repeat || '1' }}" --run-id "gitea-${{ github.run_number }}")
+          [ -n "${{ github.event.inputs.tasks }}" ] && args+=(--tasks "${{ github.event.inputs.tasks }}")
+          [ -n "${{ github.event.inputs.category }}" ] && args+=(--category "${{ github.event.inputs.category }}")
+          npm run eval -- run "${args[@]}"
+      # Gitea has no job summary, so the report ends the job log.
+      - name: Print the report
+        if: always()
+        run: |
+          f=$(ls -d evals/results/*/ 2>/dev/null | head -1)
+          [ -n "$f" ] && cat "$f/report.md" || true
+      - id: artifact
+        uses: self:actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results
+          path: evals/results/
+          retention-days: 90
+      # upload-artifact prints GitHub's .../artifacts/<id> link, which 404s on Gitea: its download link takes the name.
+      - if: always() && steps.artifact.outputs.artifact-id != ''
+        run: echo "Download from Gitea at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/eval-results?attempt=${{ github.run_attempt }}"

@@ -1,9 +1,9 @@
 name: Release
 
 # Publishes a release tag to npm with trusted publishing (OIDC), which only GitHub Actions can do, so there is no
-# NPM_TOKEN. The version is bumped and tagged on Gitea (.gitea/workflows/release.yml); the tag reaches this mirror and
-# is published from here. npm will not let you configure a trusted publisher for a package that does not exist yet, so
-# the first version was published by hand.
+# NPM_TOKEN. The version is bumped and tagged on Gitea (the pre-release job of .gitea/workflows/ci.yml); the tag
+# reaches this mirror and is published from here. npm will not let you configure a trusted publisher for a package
+# that does not exist yet, so the first version was published by hand.
 on:
   push:
     tags: ['v*']

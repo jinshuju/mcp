@@ -148,12 +148,12 @@ over twenty thousand tokens; as one line plus a `get_schema` tool, the model rea
 
 `evals/` is not published; it is a regression test for how well models get on with the tools: fixed tasks run by several models against this repository's MCP (in-process `buildServer`, or a deployment over Streamable HTTP),
 scored by assertions. The referee (fixture setup, state checks, writing results) goes straight to the open API (reusing `src/api.ts` and the operation table),
-never through an MCP under test. Design, task format and metrics are in [evals/README.md](evals/README.md); `evals.yml` runs after every push to `main`, and on demand.
+never through an MCP under test. Design, task format and metrics are in [evals/README.md](evals/README.md); CI's `evals` job runs them after every push to `main`, and on demand.
 
 ## Release and sync
 
 - CI checks that `npm run generate` leaves no diff in `src/generated`, so the output never drifts.
 - `spec-sync.yml` fetches the live openapi.yaml daily and, when it changed, regenerates and opens a PR — a person only reviews the tool diff. `scripts/sync-summary.mjs` titles it from that diff (added / removed tools, new fields, updated tools), since the squash-merged title is the CHANGELOG line.
-- `release.yml` on Gitea runs `scripts/release.mjs` on every push to main: the conventional commits since the last tag keep the release PR (`chore(main): release X.Y.Z`) current, and merging it tags the version and writes the release.
+- CI's `pre-release` job runs `scripts/release.mjs` once the tests pass on a push to main: the conventional commits since the last tag keep the release PR (`chore(main): release X.Y.Z`) current, and merging it tags the version and writes the Gitea release.
 - `.github/workflows/release.yml`, the one workflow left on GitHub, publishes the mirrored tag to npm through OIDC trusted publishing, which only GitHub Actions can do.
 - `deploy.yml` deploys the release commit to WDL (and any commit of main on demand): it triggers on `src/version.ts` changing on main, because the tag and the release are made by the actions user, whose events start no workflow.

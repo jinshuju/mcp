@@ -6,8 +6,8 @@ name: Deploy
 #
 # A release lands as the fast-forward merge of the release pull request: one commit `chore(main): release X.Y.Z`,
 # the only kind of commit that writes src/version.ts, so that path is the trigger. The tag and the Gitea release come
-# afterwards from release.yml with the job token, and events raised by the actions user start no workflow, so neither
-# `release:` nor a tag push could be the trigger.
+# afterwards from ci.yml's pre-release job with the job token, and events raised by the actions user start no workflow,
+# so neither `release:` nor a tag push could be the trigger.
 #
 # Secrets / variables needed, on the repository or the jinshuju organization:
 #   secrets.WDL_ADMIN_TOKEN  Control-plane token of the namespace (what `wdl token` stores for deploys by hand)
