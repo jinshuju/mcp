@@ -72,6 +72,44 @@ export function schemaNames(): string[] {
   return Object.keys(SCHEMAS);
 }
 
+/** Lower-case words of a schema or tool name, without Input; edit reads as update, since tools say edit where schemas say Update. */
+function nameWords(name: string): Set<string> {
+  const words = name.match(/[A-Z]+(?![a-z])|[A-Z]?[a-z]+|\d+/g) ?? [];
+  return new Set(
+    words
+      .map((word) => word.toLowerCase())
+      .filter((word) => word !== 'input')
+      .map((word) => (word === 'edit' ? 'update' : word))
+  );
+}
+
+/** Schema names containing the name come first, then those sharing the most words with it. */
+function similarSchemaNames(name: string): string[] {
+  const lower = name.toLowerCase();
+  const words = nameWords(name);
+  const score = (candidate: string): number => {
+    if (candidate.toLowerCase().includes(lower)) return 2;
+    const other = nameWords(candidate);
+    const shared = [...words].filter((word) => other.has(word)).length;
+    return shared / new Set([...words, ...other]).size;
+  };
+  return schemaNames()
+    .map((candidate) => ({ candidate, score: score(candidate) }))
+    .filter((scored) => scored.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+    .map((scored) => scored.candidate);
+}
+
+/** get_schema's answer to an unknown name: a guessed tool input (EditFormInput) is pointed back at the tool, anything else gets similar names. */
+function unknownSchemaMessage(name: string): string {
+  const tool = TOOLS.find((t) => `${t.name.replaceAll('_', '')}input` === name.toLowerCase());
+  if (tool)
+    return `No schema named ${name}. ${tool.name} takes the arguments listed in its own inputSchema; there is no schema to look up for them.`;
+  const candidates = similarSchemaNames(name);
+  return `No schema named ${name}.${candidates.length ? ` Similar names: ${candidates.join(', ')}` : ''}`;
+}
+
 export function registerSchemaTools(server: McpServer, pointerSchemas: string[]): void {
   server.registerTool(
     'get_schema',
@@ -85,7 +123,10 @@ export function registerSchemaTools(server: McpServer, pointerSchemas: string[])
         {
           type: 'object',
           properties: {
-            name: { type: 'string', description: 'Schema name, e.g. FieldInput, TextFieldInput, FormSettingWriteInput' }
+            name: {
+              type: 'string',
+              description: 'Schema name, e.g. FieldInput, TextFieldInput, SingleSelectInput, FormSettingWriteInput'
+            }
           },
           required: ['name'],
           additionalProperties: false
@@ -96,20 +137,7 @@ export function registerSchemaTools(server: McpServer, pointerSchemas: string[])
     },
     async ({ name }) => {
       const schema = SCHEMAS[name];
-      if (!schema) {
-        const candidates = schemaNames()
-          .filter((n) => n.toLowerCase().includes(name.toLowerCase()))
-          .slice(0, 10);
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text',
-              text: `No schema named ${name}.${candidates.length ? ` Similar names: ${candidates.join(', ')}` : ''}`
-            }
-          ]
-        };
-      }
+      if (!schema) return { isError: true, content: [{ type: 'text', text: unknownSchemaMessage(name) }] };
       return { content: [{ type: 'text', text: JSON.stringify(schema) }] };
     }
   );

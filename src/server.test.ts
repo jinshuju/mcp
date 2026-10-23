@@ -359,6 +359,17 @@ test('get_schema and resources: pointer schemas can be read, and an unknown name
   const bad = await client.callTool({ name: 'get_schema', arguments: { name: 'textfield' } });
   assert.equal(bad.isError, true);
   assert.match((bad.content[0] as { text: string }).text, /TextFieldInput/);
+  const guesses: [string, RegExp][] = [
+    ['EditFormInput', /^No schema named EditFormInput\. edit_form takes the arguments listed in its own inputSchema/],
+    ['CreateExamFormInput', /create_exam_form takes the arguments listed in its own inputSchema/],
+    ['SingleSelectFieldInput', /Similar names: SingleSelectInput,/],
+    ['FieldRuleInput', /Similar names: .*FieldRuleWriteInput/]
+  ];
+  for (const [name, expected] of guesses) {
+    const guess = await client.callTool({ name: 'get_schema', arguments: { name } });
+    assert.equal(guess.isError, true);
+    assert.match((guess.content[0] as { text: string }).text, expected, name);
+  }
   const { resources } = await client.listResources();
   assert.ok(resources.some((r) => r.uri === 'jinshuju://schemas/FieldInput'));
   const read = await client.readResource({ uri: 'jinshuju://schemas/TextFieldInput' });

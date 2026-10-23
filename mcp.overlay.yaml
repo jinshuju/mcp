@@ -92,6 +92,7 @@ composites:
       an evaluation such as a psychological test, ability assessment, self-assessment questionnaire or training feedback uses create_evaluation_form.
       Questions must use exam question types (SingleSelect / MultiSelect / TrueOrFalse / DropDownSelect / FillInBlank / ShortAnswer / FillInNumber),
       each with answers (the correct answer and its score; the default absolute mode has one correct answer and scores only a fully correct response).
+      A question type's schema is the one FieldInput's x-variants names (SingleSelect → "SingleSelectInput"; see get_schema).
       Creates the form first, then applies exam_setting; if the settings are rejected, the form already exists and the result says so.
   edit_exam_form:
     kind: scene_form_update
@@ -113,6 +114,7 @@ composites:
       self-assessment questionnaire or training feedback; not create_form, and not create_exam_form (an exam with correct answers).
       A scored evaluation uses SingleSelect / MultiSelect / DropDownSelect / Rating / Nps: each question lists every choice with its score in answers
       and sets answer_setting_mode=relative (every choice scores, none is right or wrong; the default absolute accepts one correct answer and scores any other choice 0).
+      A question type's schema is the one FieldInput's x-variants names (SingleSelect → "SingleSelectInput"; see get_schema).
       Do not score with a regular choice field's calculable / operand_value. A feedback questionnaire uses regular fields (RatingField / MatrixScaleField / TextArea, etc.) without scores.
       Creates the form first, then applies evaluation_setting (the report after submission, comments by total score range, dimensions).
   edit_evaluation_form:
@@ -195,8 +197,8 @@ tools:
     descriptionAppend: The api_code of each field in the returned fields is its key when reading and writing entries.
   createForm:
     descriptionAppend: >-
-      Each item of fields branches on type: get_schema("FieldInput") lists the types, then get_schema("<Type>Input")
-      (e.g. "TextFieldInput") shows the properties that type accepts; do not guess field properties. For an exam or evaluation form use create_exam_form / create_evaluation_form.
+      Each item of fields branches on type: get_schema("FieldInput") maps each type to its schema in x-variants (TextField → "TextFieldInput",
+      SingleSelect → "SingleSelectInput"), and get_schema on that name shows the properties that type accepts; do not guess field properties or schema names. For an exam or evaluation form use create_exam_form / create_evaluation_form.
   updateForm:
     descriptionAppend: Before removing a field or choice, check_field_data tells whether it already has entries; removal cannot be undone. To change only field rules, use edit_field_rules.
   deleteEntry:

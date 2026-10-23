@@ -462,6 +462,10 @@ test('error buckets: API failures by status, a 403 naming the scope as permissio
     ['Unknown arguments: report. This tool accepts only: name, fields', 'validation'],
     ['form_token: Instance does not have required property "form_token".', 'validation'],
     ['No schema named textfield. Similar names: TextFieldInput', 'validation'],
+    [
+      'No schema named EditFormInput. edit_form takes the arguments listed in its own inputSchema; there is no schema to look up for them.',
+      'validation'
+    ],
     ['Nothing to change: pass exam_setting or form fields.', 'validation'],
     ['Request timed out (GET /forms): The operation was aborted. Retry later.', 'timeout'],
     ['Could not reach the Jinshuju API (GET /forms): fetch failed. Retry later.', 'internal'],
