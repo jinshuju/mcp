@@ -7,7 +7,7 @@ are scored by assertions, produce pass-rate and token tables by model × task ca
 ```
 evals/
   fixtures.yaml        Fixtures: the 5 forms and seed data the assertions rely on (versioned; anyone can re-seed)
-  tasks/*.yaml         Sample set: 52 tasks in 7 categories; each task = a natural-language input + expected assertions
+  tasks/*.yaml         Sample set: 53 tasks in 7 categories; each task = a natural-language input + expected assertions
   src/
     cli.ts             Entry point: seed / run / report / upload / reset / sweep / tasks / catalog
     fixtures.ts        Creates forms, seeds data, resets, and deletes forms created during evals
@@ -17,6 +17,7 @@ evals/
     agent.ts           Agent loop: system prompt + task → tool calls → final answer, recording tokens and the tool sequence per turn
     assertions.ts      Assertions: tool sequence / turns / answer substrings and regexes / LLM judge claims / real state after the run
     judge.ts           LLM-as-judge (the judge model is fixed and written into the results)
+    shell.ts           run_command for tasks with local files: curl / ls / cat / head / wc in a scratch working directory
     runner.ts          Task × model × MCP matrix, with read / write locks per fixture; writes results/<run_id>/
     report.ts          Aggregates into report.md / summary.json
     upload.ts          Writes to the Jinshuju form 「MCP 评测结果（自动写入）」 ("MCP eval results (written automatically)")
@@ -67,7 +68,7 @@ Category names are the values used in `tasks/*.yaml` and `--category`:
 | 建表单 (create forms)  | 6     | Plain forms, unique constraints, exams, evaluations, copying, create form + settings                                    |
 | 改设置 (edit settings) | 10    | Rename / description, add fields, add choices, hint text, password, required + unique, delete fields, theme, pre-checks |
 | 批量写入 (batch write) | 5     | Add one entry, add in batch, batch update by condition, locate and edit, delete by condition                            |
-| 导入 (import)          | 3     | CSV text, table text, back-filling with deduplication                                                                   |
+| 导入 (import)          | 4     | CSV text, table text, back-filling with deduplication, a CSV file on disk through an upload link                        |
 
 Task format (`tasks/*.yaml`):
 
@@ -79,6 +80,9 @@ Task format (`tasks/*.yaml`):
   prompt: 办公用品采购申请里，已批准的申请总金额是多少？再按部门分别算一下已批准的金额。
   fixtures: [orders] # fixtures it depends on; write tasks add writes: true, are reset before and after the run, and exclude other tasks
   max_turns: 8 # maximum model turns allowed
+  files: # optional: the user's local files, written into a scratch working directory; the model then also gets run_command (curl / ls / cat / head / wc there, no shell)
+    orders.csv: |
+      申请人,部门,…
   expect:
     tools: # must call / any one of / must not call
       any_of: [aggregate_entries, list_entries]
@@ -149,6 +153,7 @@ The report ends the job log, and `evals/results/` is kept as an artifact for 90 
 
 ## Known limitations
 
-- Import tasks only check that the data lands correctly: a model may write with `create_entries` instead of uploading a file; the tool sequence shows which path was taken.
+- Import tasks with pasted content only check that the data lands correctly: a model may write with `create_entries` instead of uploading a file; the tool sequence shows which path was taken.
+- run_command stands in for a client's shell but is not one: no pipes, redirection or variables, and no path outside its working directory.
 - When the plan does not support "show the score in exams" or "evaluation report", the server forces those settings to none, so no task asserts on them.
 - Live sessions do not record the natural-language intent, so task wording is reconstructed from tool sequences, not the user's exact words.

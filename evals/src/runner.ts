@@ -13,6 +13,7 @@ import type { EvalConfig } from './config.js';
 import { resetFixture, sweepCreatedForms } from './fixtures.js';
 import type { LlmConfig } from './llm.js';
 import { connectMcp, type McpTarget } from './mcp.js';
+import { createWorkdir } from './shell.js';
 import type { FixtureState, FixturesSpec, RunMeta, RunRecord, Task } from './types.js';
 
 /** Read-write lock: read tasks run together, a write task runs alone; FIFO, so nothing starves. */
@@ -173,11 +174,13 @@ export async function runMatrix(options: RunOptions): Promise<RunRecord[]> {
     try {
       if (write) for (const alias of aliases) await resetFixture(api, cfg, spec, state, alias, vlog);
       const mcp = await connectMcp(target, credential, cfg);
+      const workdir = task.files ? createWorkdir(task.files) : undefined;
       let trace;
       try {
         trace = await runAgent({
           task,
           mcp,
+          workdir,
           model,
           llm,
           maxTurns: task.max_turns ?? 12,
@@ -188,6 +191,7 @@ export async function runMatrix(options: RunOptions): Promise<RunRecord[]> {
         });
       } finally {
         await mcp.close().catch(() => {});
+        workdir?.remove();
       }
       const assertions = await evaluateTask(task, trace, {
         api,

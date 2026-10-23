@@ -1,4 +1,6 @@
-# 导入 (import): the user pastes spreadsheet content. The file goes up as base64 (upload_import_file), and a model may write with create_entries instead; scoring only checks that the entries land correctly, and the path taken shows in the tool sequence.
+# 导入 (import): the user pastes spreadsheet content, or (import-04) has the file on disk.
+# Pasted content may go up as a file (upload_import_file, or prepare_import_file_upload) or be written with create_entries; scoring only checks
+# that the entries land correctly, and the path taken shows in the tool sequence. A file on disk must go up through the upload link (prepare + curl).
 - id: import-01
   category: 导入
   title: Import CSV text
@@ -15,7 +17,7 @@
   max_turns: 8
   expect:
     tools:
-      any_of: [import_entries_from_file, create_entries, upload_import_file]
+      any_of: [import_entries_from_file, create_entries, upload_import_file, prepare_import_file_upload]
     state:
       - check: entry_count
         fixture: orders
@@ -50,7 +52,7 @@
   max_turns: 8
   expect:
     tools:
-      any_of: [import_entries_from_file, create_entries, upload_import_file]
+      any_of: [import_entries_from_file, create_entries, upload_import_file, prepare_import_file_upload]
     state:
       - check: entry_count
         fixture: signup
@@ -75,7 +77,7 @@
   max_turns: 10
   expect:
     tools:
-      any_of: [import_entries_from_file, create_entries, create_entry, upload_import_file]
+      any_of: [import_entries_from_file, create_entries, create_entry, upload_import_file, prepare_import_file_upload]
     state:
       - check: entry_count
         fixture: employees
@@ -89,3 +91,39 @@
         filters: [{ field: name, operator: eq, value: 宋江 }]
         min: 1
         all: { department: 市场部, level: P6, salary: 21000, email: songjiang@example.com }
+
+- id: import-04
+  category: 导入
+  title: Import a CSV file on disk through an upload link
+  source: production prepare_import_file_upload calls from agent clients with a shell (T17461)
+  prompt: 把当前目录下的 purchase-requests-oct.csv 导入到「办公用品采购申请」，表头和表单字段同名。
+  files:
+    purchase-requests-oct.csv: |
+      申请人,部门,物品,数量,单价,金额,申请日期,状态,用途说明
+      冯磊,研发部,笔记本电脑,1,6800,6800,2026-10-20,待审批,测试机
+      许晴,市场部,打印纸,20,30,600,2026-10-20,已批准,展会物料
+      邓超,销售部,键盘,2,199,398,2026-10-21,已批准,外勤备用
+      秦岚,人事部,办公椅,3,650,1950,2026-10-21,待审批,新工位
+      蒋文,研发部,显示器,2,1800,3600,2026-10-22,已驳回,双屏
+      沈畅,市场部,笔记本电脑,1,7200,7200,2026-10-22,待审批,设计用
+  fixtures: [orders]
+  writes: true
+  max_turns: 10
+  expect:
+    tools:
+      must_call: [prepare_import_file_upload, run_command, import_entries_from_file]
+      must_not_call: [upload_import_file]
+    state:
+      - check: entry_count
+        fixture: orders
+        equals: 21
+      - check: entries_match
+        fixture: orders
+        filters: [{ field: applicant, operator: eq, value: 蒋文 }]
+        min: 1
+        all: { department: 研发部, item: 显示器, quantity: 2, amount: 3600, apply_date: 2026-10-22, status: 已驳回 }
+      - check: entries_match
+        fixture: orders
+        filters: [{ field: applicant, operator: eq, value: 许晴 }]
+        min: 1
+        all: { item: 打印纸, quantity: 20, status: 已批准, purpose: 展会物料 }

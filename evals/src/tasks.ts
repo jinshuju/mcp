@@ -25,6 +25,10 @@ export function loadTasks(spec?: FixturesSpec, dir = resolve(EVALS_DIR, 'tasks')
         throw new Error(`${where}: category must be one of ${CATEGORIES.join(' / ')}`);
       if (!task.prompt?.trim()) throw new Error(`${where}: empty prompt`);
       if (!task.expect || typeof task.expect !== 'object') throw new Error(`${where}: missing expect`);
+      for (const name of Object.keys(task.files ?? {})) {
+        if (!/^[^/\\]+$/.test(name) || name === '.' || name === '..')
+          throw new Error(`${where}: file name ${name} must be a plain name`);
+      }
       const aliases = new Set(spec?.forms.map((f) => f.alias) ?? []);
       if (spec) {
         for (const alias of task.fixtures ?? []) {

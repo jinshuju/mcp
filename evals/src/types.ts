@@ -109,6 +109,8 @@ export interface Task {
   creates_forms?: boolean;
   /** Most model turns allowed (LLM calls), 12 by default */
   max_turns?: number;
+  /** The user's local files (name → content): written into a working directory the model reaches with run_command (see shell.ts) */
+  files?: Record<string, string>;
   expect: TaskExpect;
 }
 

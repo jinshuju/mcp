@@ -13,11 +13,14 @@ import {
   LlmError
 } from './llm.js';
 import { callTool, type ConnectedMcp } from './mcp.js';
+import { SHELL_TOOL, type Workdir } from './shell.js';
 import type { Task, ToolCallRecord, TurnUsage } from './types.js';
 
 export interface AgentOptions {
   task: Task;
   mcp: ConnectedMcp;
+  /** The task's files and the run_command tool over them (tasks with `files`) */
+  workdir?: Workdir;
   model: string;
   llm: LlmConfig;
   maxTurns: number;
@@ -66,7 +69,7 @@ export async function runAgent(options: AgentOptions): Promise<AgentTrace> {
   const { task, mcp, model, llm, log } = options;
   const today = options.today ?? new Date().toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
   const converted = mcpToolsToOpenAi(mcp.tools, { maxDescriptionChars: options.descriptionLimit });
-  const tools: OpenAiTool[] = converted.tools;
+  const tools: OpenAiTool[] = options.workdir ? [...converted.tools, options.workdir.tool] : converted.tools;
   const messages: ChatMessage[] = [
     { role: 'system', content: systemPrompt(mcp, today) },
     { role: 'user', content: task.prompt }
@@ -127,9 +130,11 @@ export async function runAgent(options: AgentOptions): Promise<AgentTrace> {
       const started = Date.now();
       const outcome = parseError
         ? { text: parseError, is_error: true, duration_ms: 0 }
-        : mcp.tools.some((t) => t.name === name)
-          ? await callTool(mcp, name, args, options.toolTimeoutMs)
-          : { text: `没有名为 ${name} 的工具`, is_error: true, duration_ms: 0 };
+        : options.workdir && name === SHELL_TOOL
+          ? await options.workdir.run(String(args.command ?? ''), options.toolTimeoutMs)
+          : mcp.tools.some((t) => t.name === name)
+            ? await callTool(mcp, name, args, options.toolTimeoutMs)
+            : { text: `没有名为 ${name} 的工具`, is_error: true, duration_ms: 0 };
       trace.tool_calls++;
       if (outcome.is_error) {
         trace.tool_errors++;
