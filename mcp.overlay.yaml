@@ -1,7 +1,6 @@
 # MCP overlay
 #
 # openapi.yaml is the single source of truth; this file only says how to project it into MCP tools.
-# The tool set is the 60 tools documented at https://open.jinshuju.net/mcp (same names) plus delete_form, and exposes nothing more.
 # After changing this file run `npm run generate`; its output in src/generated/ must be committed with it.
 
 # ---- 1. One-to-one tools: operationId -> tool name. Operations not listed here get no tool. ----
@@ -64,7 +63,11 @@ include:
   getCurrentUser: get_current_user
   getBillingAccount: get_current_billing_account
   listBillingAccountUsers: list_account_users
-  # Uploads. Presigned uploads (prepare_*_upload) are not in openapi; these upload directly (base64 through MCP) and take their names from the operations.
+  # Uploads. prepare_*_upload issue a one-time link the client POSTs a local file to (the bytes never pass through the model);
+  # upload_* send the content as base64 through MCP, which only works for small content.
+  prepareEntryAttachmentUpload: prepare_entry_attachment_upload
+  prepareFormImageUpload: prepare_form_image_upload
+  prepareImportFileUpload: prepare_import_file_upload
   uploadEntryAttachment: upload_entry_attachment
   uploadFormImage: upload_form_image
   uploadImportFile: upload_import_file
@@ -205,10 +208,8 @@ tools:
     annotations: { destructiveHint: true }
   createEntryImport:
     descriptionAppend: >-
-      Only for a file the client actually holds and has uploaded with upload_import_file. Table / CSV text pasted into the conversation goes straight to create_entries (at most 200 per batch); do not turn it into a file to import.
+      Only for a file the client actually holds and has uploaded with prepare_import_file_upload (or upload_import_file). Table / CSV text pasted into the conversation goes straight to create_entries (at most 200 per batch); do not turn it into a file to import.
   uploadImportFile:
-    # The openapi text is about HTTP authentication and multipart, which is noise to an MCP caller; replace it entirely.
-    description: >-
-      Uploads a spreadsheet file (xlsx / xls / csv) the client actually holds to the given form and returns the import attachment id; pass it as attachment_id to import_entries_from_file to start the import.
+    descriptionAppend: >-
+      The file goes through the tool call as Base64; a file on disk goes through prepare_import_file_upload instead.
       Table / CSV text pasted into the conversation does not go through here (do not encode it as base64 and upload it as a file); write it with create_entries (at most 200 per batch).
-      The file size is capped by the plan's Excel import limit, and the extension must be xls / xlsx / csv; otherwise returns 422 with the reason in error_description.

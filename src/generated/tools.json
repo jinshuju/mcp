@@ -455,7 +455,7 @@
          },
          {
           "type": "object",
-          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 12 in all.",
+          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 13 in all.",
           "required": [
            "type",
            "label"
@@ -475,7 +475,8 @@
              "LinkField",
              "AttachmentField",
              "FormulaField",
-             "RelationField"
+             "RelationField",
+             "SequenceField"
             ]
            },
            "label": {
@@ -1287,7 +1288,7 @@
  {
   "operationId": "updateFormTheme",
   "summary": "Update a form's theme",
-  "description": "Update a form's theme\nPartially updates the form's theme (colors, background, header image, typography, form container, submit button); PUT is accepted too.\n- The request body must contain at least one of primary_color / secondary_color / wallpaper / header / typography / form_container / submit_button (`generate_header_image` is turned into header.header_image_url, so it counts too); otherwise 400.\n- Header image source precedence: header_image_upload_token > header_image_base64 > header_image_url > header_image_attachment_id; when a header image is set and header.type is not given, header.type is set to image.\n- Background image source precedence: background_image_upload_token > background_image_url > background_image_attachment_id. Setting or removing the background image also removes the preset background image that comes with the theme template; the background color is kept.\n- `header_image_attachment_id` / `background_image_attachment_id` take the `attachment_id` returned by \"Upload a form image\" (image_type header / wallpaper); pass an empty string `\"\"` to remove the current image.\n- `header.carousel_images` replaces the carousel images as a whole: at most 5, not empty; each item gives one of image_upload_token / image_url / attachment_id, and an attachment_id must be a carousel image the form already has; when it is passed and header.type is not given, header.type is set to carousel.\n- Keys in `text_style` and `typography.*` use underscores (e.g. font_size); the server converts them to hyphenated CSS keys and merges them into the existing styles; the response uses the hyphenated keys.\n- `generate_header_image` has AI generate a header image and consumes AI points; returns 402 when points are insufficient, 400 when generation fails.\n- An image upload_token is the `form_image_token` used by \"Upload a form image\"; the image purpose it records must match (header / wallpaper / carousel), and its upload must be complete.",
+  "description": "Update a form's theme\nPartially updates the form's theme (colors, background, header image, typography, form container, submit button); PUT is accepted too.\n- The request body must contain at least one of primary_color / secondary_color / wallpaper / header / typography / form_container / submit_button (`generate_header_image` is turned into header.header_image_url, so it counts too); otherwise 400.\n- Header image source precedence: header_image_base64 > header_image_url > header_image_attachment_id; when a header image is set and header.type is not given, header.type is set to image.\n- Background image source precedence: background_image_url > background_image_attachment_id. Setting or removing the background image also removes the preset background image that comes with the theme template; the background color is kept.\n- `header_image_attachment_id` / `background_image_attachment_id` take the `attachment_id` returned by \"Upload a form image\" (image_type header / wallpaper); pass an empty string `\"\"` to remove the current image.\n- `header.carousel_images` replaces the carousel images as a whole: at most 5, not empty; each item gives one of image_url / attachment_id; when it is passed and header.type is not given, header.type is set to carousel.\n- Keys in `text_style` and `typography.*` use underscores (e.g. font_size); the server converts them to hyphenated CSS keys and merges them into the existing styles; the response uses the hyphenated keys.\n- `generate_header_image` has AI generate a header image and consumes AI points; returns 402 when points are insufficient, 400 when generation fails.",
   "tag": "Form Settings",
   "method": "patch",
   "path": "/forms/{form_token}/theme",
@@ -1509,7 +1510,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -1747,7 +1748,7 @@
     },
     "entry": {
      "type": "object",
-     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI); `{\"attachment_token\": \"...\"}` (pre-upload token) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"<color api_code or name>\"` |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"<color api_code or name>\"` |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
      "additionalProperties": true,
      "examples": [
       {
@@ -1832,7 +1833,7 @@
     },
     "entry": {
      "type": "object",
-     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI); `{\"attachment_token\": \"...\"}` (pre-upload token) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"<color api_code or name>\"` |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"<color api_code or name>\"` |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
      "additionalProperties": true,
      "examples": [
       {
@@ -1976,7 +1977,7 @@
      "maxItems": 200,
      "items": {
       "type": "object",
-      "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI); `{\"attachment_token\": \"...\"}` (pre-upload token) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"<color api_code or name>\"` |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+      "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"<color api_code or name>\"` |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
       "additionalProperties": true,
       "examples": [
        {
@@ -2097,7 +2098,7 @@
        },
        "entry": {
         "type": "object",
-        "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI); `{\"attachment_token\": \"...\"}` (pre-upload token) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"<color api_code or name>\"` |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+        "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"<color api_code or name>\"` |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
         "additionalProperties": true,
         "examples": [
          {
@@ -2400,7 +2401,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -2560,7 +2561,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -3030,7 +3031,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -3170,7 +3171,7 @@
  {
   "operationId": "createEntryImport",
   "summary": "Import entries from an uploaded spreadsheet",
-  "description": "Import entries from an uploaded spreadsheet\nAppends each row of a spreadsheet uploaded with \"Upload an import file\" as an entry of this form. Upload the file first to get the import attachment ID (`attachment_id`), then say here which column goes into which field.\nProblems that can be detected up front, such as the file, the plan's import limit, the header row and the column mapping, are checked before the job is created; a rejected import writes no entries. Error messages include the spreadsheet's actual layout (row and column range, and the header contents), so the request can be fixed and retried.\nOnce validation passes, returns `201` and the entries are written in the background: `201` means the job has started, not finished; poll \"Show an entry import job\" for the result.\n- `attachment_id` must be an import file the current user uploaded for this form, otherwise returns 400 (the file cannot be found; upload it again); returns 400 when the file is not xls / xlsx / csv or cannot be read.\n- `columns` must not be empty; each item names the target field with `field_api_code`, and the source column with `column_label` (the header text, which must exactly match the header cell after trimming leading and trailing spaces) or `sheet_column_index` (the column number); when both are given, `sheet_column_index` wins.\n- The field must be one this form can import into; one field cannot map to several columns; when several header columns share a name, use `sheet_column_index` instead; the column number must be within the spreadsheet's column range.\n- `header_row_index` defaults to the first row of the spreadsheet, and there must be data rows below it.\n- Every required field of the form must have a column, otherwise returns 400 listing the missing fields.\n- `unique_field_code` names a field to deduplicate on: when a row's value for that field already exists in the form's entries, the row is skipped (counted in `skip_count`).\n- Returns 404 `form cannot be found` when the form does not exist or is not accessible to the current caller.\nOnly for a file the client actually holds and has uploaded with upload_import_file. Table / CSV text pasted into the conversation goes straight to create_entries (at most 200 per batch); do not turn it into a file to import.",
+  "description": "Import entries from an uploaded spreadsheet\nAppends each row of a spreadsheet uploaded with \"Upload an import file\" as an entry of this form. Upload the file first to get the import attachment ID (`attachment_id`), then say here which column goes into which field.\nProblems that can be detected up front, such as the file, the plan's import limit, the header row and the column mapping, are checked before the job is created; a rejected import writes no entries. Error messages include the spreadsheet's actual layout (row and column range, and the header contents), so the request can be fixed and retried.\nOnce validation passes, returns `201` and the entries are written in the background: `201` means the job has started, not finished; poll \"Show an entry import job\" for the result.\n- `attachment_id` must be an import file the current user uploaded for this form, otherwise returns 400 (the file cannot be found; upload it again); returns 400 when the file is not xls / xlsx / csv or cannot be read.\n- `columns` must not be empty; each item names the target field with `field_api_code`, and the source column with `column_label` (the header text, which must exactly match the header cell after trimming leading and trailing spaces) or `sheet_column_index` (the column number); when both are given, `sheet_column_index` wins.\n- The field must be one this form can import into; one field cannot map to several columns; when several header columns share a name, use `sheet_column_index` instead; the column number must be within the spreadsheet's column range.\n- `header_row_index` defaults to the first row of the spreadsheet, and there must be data rows below it.\n- Every required field of the form must have a column, otherwise returns 400 listing the missing fields.\n- `unique_field_code` names a field to deduplicate on: when a row's value for that field already exists in the form's entries, the row is skipped (counted in `skip_count`).\n- Returns 404 `form cannot be found` when the form does not exist or is not accessible to the current caller.\nOnly for a file the client actually holds and has uploaded with prepare_import_file_upload (or upload_import_file). Table / CSV text pasted into the conversation goes straight to create_entries (at most 200 per batch); do not turn it into a file to import.",
   "tag": "Entries",
   "method": "post",
   "path": "/forms/{form_token}/entry_imports",
@@ -4274,7 +4275,7 @@
  {
   "operationId": "createTable",
   "summary": "Create a table",
-  "description": "Create a table\nCreates a table. Same as creating a form, except:\n- field types can only be the column types tables support: `TextArea`, `RadioButton`, `CheckBox`, `BooleanField`, `MobileField`, `NumberField`, `DateTimeField`, `EmailField`, `LinkField`, `AttachmentField`, `FormulaField`, `RelationField`;\n- attachment columns do not accept limit properties such as count / size limits, and number / formula columns have limited precision; a violation returns 400 listing the offending columns;\n- choice columns do not get an \"Other\" choice; `folder_token` must be a table folder; `layout` is not supported.\n- with `with_default_entries: true`, 3 blank entries are added after creation (as when creating a table in the product); by default none are added.\nReturns the table structure, including fields and views.\nReturns schema \"Table\" (see get_schema).",
+  "description": "Create a table\nCreates a table. Same as creating a form, except:\n- field types can only be the column types tables support: `TextArea`, `RadioButton`, `CheckBox`, `BooleanField`, `MobileField`, `NumberField`, `DateTimeField`, `EmailField`, `LinkField`, `AttachmentField`, `FormulaField`, `RelationField`, `SequenceField`;\n- attachment columns do not accept limit properties such as count / size limits, and number / formula columns have limited precision; a violation returns 400 listing the offending columns;\n- choice columns do not get an \"Other\" choice; `folder_token` must be a table folder; `layout` is not supported.\n- with `with_default_entries: true`, 3 blank entries are added after creation (as when creating a table in the product); by default none are added.\nReturns the table structure, including fields and views.\nReturns schema \"Table\" (see get_schema).",
   "tag": "Tables",
   "method": "post",
   "path": "/tables",
@@ -4308,7 +4309,7 @@
      "minItems": 1,
      "items": {
       "type": "object",
-      "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 12 in all.",
+      "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 13 in all.",
       "required": [
        "type",
        "label"
@@ -4328,7 +4329,8 @@
          "LinkField",
          "AttachmentField",
          "FormulaField",
-         "RelationField"
+         "RelationField",
+         "SequenceField"
         ]
        },
        "label": {
@@ -4446,7 +4448,7 @@
          },
          {
           "type": "object",
-          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 12 in all.",
+          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 13 in all.",
           "required": [
            "type",
            "label"
@@ -4466,7 +4468,8 @@
              "LinkField",
              "AttachmentField",
              "FormulaField",
-             "RelationField"
+             "RelationField",
+             "SequenceField"
             ]
            },
            "label": {
@@ -5248,7 +5251,7 @@
  {
   "operationId": "getBillingAccount",
   "summary": "Show the current account",
-  "description": "Show the current account\nReturns the account the current credential belongs to: plan, this month's usage and quota, feature trial status, and the bound payment merchant / WeChat Pay / Alipay accounts.\n`usage` is null when the account has no usage record for this month yet; for an add-on service with unlimited quota, only `unit`, `unlimited: true` and `consumed_quota` are returned.",
+  "description": "Show the current account\nReturns the account the current credential belongs to: plan, this month's usage and quota, feature trial status, and the bound payment merchant / WeChat Pay / Alipay accounts.\n`usage` is null when the account has no usage record for this month yet.",
   "tag": "Account",
   "method": "get",
   "path": "/billing_account",
@@ -5321,9 +5324,220 @@
   }
  },
  {
+  "operationId": "prepareEntryAttachmentUpload",
+  "summary": "Prepare an entry attachment upload",
+  "description": "Prepare an entry attachment upload\nIssues a one-time link for uploading a local file to an attachment field, or to an attachment column of a table field, without sending its bytes in a request body.\n- With a shell that can read the file and reach the network, run `curl -F file=@<path> <upload_url>`, then put the returned `attachment_id` in the field when creating or updating an entry.\n- Without one, or when curl fails (for example under a sandbox's network limits), send small content as Base64 to \"Upload an entry attachment\".",
+  "tag": "Uploads",
+  "method": "post",
+  "path": "/forms/{form_token}/entry_attachment_upload_urls",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "PreparedUpload",
+  "name": "prepare_entry_attachment_upload",
+  "title": "Prepare an entry attachment upload",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
+    },
+    "field_api_code": {
+     "type": "string",
+     "description": "api_code of the attachment field; for an attachment column in a table field, pass the table field's api_code"
+    },
+    "dimension_api_code": {
+     "type": "string",
+     "description": "api_code of the attachment column in a table field; required when `field_api_code` is a table field"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token",
+    "field_api_code"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "upload_url",
+    "expires_at"
+   ],
+   "properties": {
+    "upload_url": {
+     "type": "string",
+     "format": "uri",
+     "description": "One-time upload link: POST the file to it as the `file` part of `multipart/form-data`, without credentials; it answers `{ \"attachment_id\" }` (plus `url` for a `description` image), or 400 once used or expired or when the file breaks the size or type limits"
+    },
+    "expires_at": {
+     "type": "string",
+     "format": "date-time",
+     "description": "When the link expires (UTC)"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "prepareFormImageUpload",
+  "summary": "Prepare a form image upload",
+  "description": "Prepare a form image upload\nIssues a one-time link for uploading a local image for a form, without sending its bytes in a request body.\n- With a shell that can read the file and reach the network, run `curl -F file=@<path> <upload_url>`, then use the returned `attachment_id` (or `url`) as \"Upload a form image\" says for its `image_type`.\n- Without one, or when curl fails (for example under a sandbox's network limits), give a public image URL or a small Base64 image where the image goes.",
+  "tag": "Uploads",
+  "method": "post",
+  "path": "/form_image_upload_urls",
+  "params": [],
+  "paramNames": [],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "forms",
+   "form_setting"
+  ],
+  "responseSchema": "PreparedUpload",
+  "name": "prepare_form_image_upload",
+  "title": "Prepare a form image upload",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "image_type": {
+     "type": "string",
+     "enum": [
+      "field_choice",
+      "header",
+      "wallpaper",
+      "carousel",
+      "opensearch_header",
+      "description",
+      "goods_item",
+      "contact_widget"
+     ],
+     "description": "What the image is for"
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "image_type"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "upload_url",
+    "expires_at"
+   ],
+   "properties": {
+    "upload_url": {
+     "type": "string",
+     "format": "uri",
+     "description": "One-time upload link: POST the file to it as the `file` part of `multipart/form-data`, without credentials; it answers `{ \"attachment_id\" }` (plus `url` for a `description` image), or 400 once used or expired or when the file breaks the size or type limits"
+    },
+    "expires_at": {
+     "type": "string",
+     "format": "date-time",
+     "description": "When the link expires (UTC)"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
+  "operationId": "prepareImportFileUpload",
+  "summary": "Prepare an import file upload",
+  "description": "Prepare an import file upload\nIssues a one-time link for uploading a local spreadsheet (`.xlsx` / `.xls` / `.csv`) to import into the form, without sending its bytes in a request body.\n- With a shell that can read the file and reach the network, run `curl -F file=@<path> <upload_url>`, then pass the returned `attachment_id` to \"Import entries from an uploaded spreadsheet\"; read the header row from your local copy.\n- Without one, or when curl fails, the file cannot be uploaded: spreadsheets have no Base64 route.",
+  "tag": "Uploads",
+  "method": "post",
+  "path": "/forms/{form_token}/import_file_upload_urls",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 201,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "PreparedUpload",
+  "name": "prepare_import_file_upload",
+  "title": "Prepare an import file upload",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "form_token": {
+     "type": "string",
+     "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
+    }
+   },
+   "additionalProperties": false,
+   "required": [
+    "form_token"
+   ]
+  },
+  "outputSchema": {
+   "type": "object",
+   "required": [
+    "upload_url",
+    "expires_at"
+   ],
+   "properties": {
+    "upload_url": {
+     "type": "string",
+     "format": "uri",
+     "description": "One-time upload link: POST the file to it as the `file` part of `multipart/form-data`, without credentials; it answers `{ \"attachment_id\" }` (plus `url` for a `description` image), or 400 once used or expired or when the file breaks the size or type limits"
+    },
+    "expires_at": {
+     "type": "string",
+     "format": "date-time",
+     "description": "When the link expires (UTC)"
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": false,
+   "destructiveHint": false,
+   "idempotentHint": false,
+   "openWorldHint": false
+  }
+ },
+ {
   "operationId": "uploadEntryAttachment",
   "summary": "Upload an entry attachment",
-  "description": "Upload an entry attachment\nUploads a file ahead of time for a form's attachment field (or an attachment column in a table field) and returns the attachment ID; then, when creating / updating an entry, put that ID (or the upload token) into the matching field to bind it. An uploaded attachment that no entry references stays unused.\nAuthenticate in one of two ways:\n1. Regular API credentials (a Bearer token).\n2. A one-time upload token `attachment_token` (instead of regular credentials): the token starts with `entry_att_tok_`, is valid for 30 minutes, can be used only once, and is bound to the form, field, column and file metadata. When the request carries `attachment_token`, regular credentials are not checked and the request acts as the token's user; returns 400 `attachment_token is invalid or expired; prepare upload again` when the token is invalid, expired, already used, its user has been deleted, or it does not match the requested form / field / column; also returns 400 when the uploaded file's name, Content-Type or byte size does not match the token.\nReturns 401 when there are neither credentials nor `attachment_token`.\nSend the file content in one of two ways: the `file` field of `multipart/form-data`; or a Base64 string in the `base64` (or `data`) field of a JSON / form-encoded body (a `data:<mime>;base64,` prefix is allowed), with `file_name` (or `filename`) and `content_type`. Base64 content cannot exceed 5 MB once decoded; larger returns 400 `attachment exceeds 5MB limit`, and a decoding failure returns 400 `base64 is invalid`; returns 400 `file or base64 is required` when neither is given.\n`field_api_code` must point to an attachment field or a table field; for a table field, `dimension_api_code` must also be passed and point to an attachment column in that table field, otherwise returns 400; returns 404 when the field or column does not exist.\nThe file size is capped by the per-file limit set on the field (or column); a larger file returns 422, with the specific validation message in `error_description` (e.g. `文件超过了10 MB`); returns 422 `上传失败，请重试` when uploading to object storage fails (the server's wording is authoritative).\nReturns 404 `form cannot be found` when the form does not exist or is not accessible to the current identity.",
+  "description": "Upload an entry attachment\nUploads a file for an attachment field of the form, or for an attachment column of a table field.",
   "tag": "Uploads",
   "method": "post",
   "path": "/forms/{form_token}/entry_attachments",
@@ -5364,13 +5578,9 @@
      "type": "string",
      "description": "api_code of the attachment column in a table field; required when `field_api_code` is a table field"
     },
-    "attachment_token": {
-     "type": "string",
-     "description": "One-time upload token, starting with `entry_att_tok_`; when passed, it replaces the regular credentials"
-    },
     "base64": {
      "type": "string",
-     "description": "File content as a Base64 string, optionally with a `data:<mime>;base64,` prefix, at most 5 MB once decoded; the `data` key also works"
+     "description": "File content as a Base64 string, optionally with a `data:<mime>;base64,` prefix, at most 5 MB once decoded"
     },
     "data": {
      "type": "string",
@@ -5378,7 +5588,7 @@
     },
     "file_name": {
      "type": "string",
-     "description": "File name, defaults to `attachment`; the `filename` key also works"
+     "description": "File name, defaults to `attachment`"
     },
     "filename": {
      "type": "string",
@@ -5442,7 +5652,7 @@
  {
   "operationId": "uploadFormImage",
   "summary": "Upload a form image",
-  "description": "Upload a form image\nUploads an image that belongs to the form itself (a picture choice image, a header image, a background image, one frame of the header carousel, the header image of the form's public query page, or an inline image in the form description / a field description), and returns the image attachment ID. The image is not bound to any form yet; it takes effect only when a form or theme references it later.\nAuthenticate in one of two ways:\n1. Regular API credentials (a Bearer token). `image_type` must then say what the image is for, and can only be `header` (header image), `wallpaper` (background image), `opensearch_header` (public query page header image) or `description` (inline description image): pass the returned `attachment_id` to `header.header_image_attachment_id` / `wallpaper.background_image_attachment_id` of \"Update a form's theme\", or to `header.background_image.attachment_id` of \"Update a public query\"; `description` also returns the image address `url`, which goes into the `<img src>` of the form `description` or of a field's `notes`. When the form is saved, the image belongs to that form (at most 30 per form); images not used by any form within 7 days are cleaned up. Returns 400 `image_type must be one of: field_choice, header, wallpaper, carousel, opensearch_header, description.` when `image_type` is missing or not one of `field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header` / `description`; `field_choice` / `carousel` have nowhere that accepts an attachment ID, so they can only be uploaded with an upload token, otherwise returns 400.\n2. A one-time upload token `form_image_token` (instead of regular credentials): the token starts with `form_img_tok_`, is valid for 30 minutes, can be used only once, and has already recorded the image purpose (`field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header` / `description`; `image_type` is then ignored) and the file metadata; the uploaded file's original file name, Content-Type and byte size must match what the token recorded, otherwise returns 400. After a successful upload, do not use the returned `attachment_id` directly; instead reference the same token in a choice's `image_upload_token` in \"Create a form\" / \"Edit a form\", in `header.header_image_upload_token` / `wallpaper.background_image_upload_token` / `header.carousel_images[].image_upload_token` of \"Update a form's theme\", or in `header.background_image.image_upload_token` of \"Update a public query\"; for the `description` purpose nothing references the token, so use the returned `url` directly. Returns 400 `form_image_token is invalid or expired; prepare upload again` when the token does not exist, has expired, has been used, or its user has been deleted.\nReturns 401 when there are neither credentials nor a `form_image_token`. The request must be `multipart/form-data`, with the image binary in the `file` field; a missing file returns 400 `file is required`.",
+  "description": "Upload a form image\nUploads an image for a form; it takes effect once a form, theme or public query references it.\n- `field_choice` / `goods_item` / `contact_widget`: a choice's `attachment_id`, a goods item's `attachment_ids` or a contact widget image's `attachment_id` in \"Create a form\" / \"Edit a form\".\n- `header` / `wallpaper` / `carousel`: `header.header_image_attachment_id`, `wallpaper.background_image_attachment_id` or `header.carousel_images[].attachment_id` in \"Update a form's theme\".\n- `opensearch_header`: `header.background_image.attachment_id` in \"Update a public query\".\n- `description`: the returned `url`, in an `<img src>` of the form `description` or a field's `notes`; a form takes at most 30 such images.\n- An `attachment_id` is taken only where its `image_type` goes, and only while the image is unused or already that form's; an image nothing uses within 7 days is deleted.",
   "tag": "Uploads",
   "method": "post",
   "path": "/form_image_attachments",
@@ -5472,17 +5682,15 @@
       "wallpaper",
       "carousel",
       "opensearch_header",
-      "description"
+      "description",
+      "goods_item",
+      "contact_widget"
      ],
-     "description": "What the image is for; without an upload token it is required and can only be header / wallpaper / opensearch_header / description; ignored with an upload token"
-    },
-    "form_image_token": {
-     "type": "string",
-     "description": "One-time upload token, starting with `form_img_tok_`; when passed, it replaces the regular credentials"
+     "description": "What the image is for"
     },
     "file_base64": {
      "type": "string",
-     "description": "The image file; with an upload token, its file name, Content-Type and size must match what the token recorded. The file content as Base64 (a data URI prefix is fine)."
+     "description": "The image file. The file content as Base64 (a data URI prefix is fine)."
     },
     "file_name": {
      "type": "string",
@@ -5495,6 +5703,7 @@
    },
    "additionalProperties": false,
    "required": [
+    "image_type",
     "file_base64",
     "file_name",
     "content_type"
@@ -5508,7 +5717,7 @@
    "properties": {
     "attachment_id": {
      "type": "string",
-     "description": "Image attachment ID (see \"Upload a form image\")"
+     "description": "Image attachment ID; pass it where its `image_type` goes"
     },
     "url": {
      "type": "string",
@@ -5526,7 +5735,7 @@
  {
   "operationId": "uploadImportFile",
   "summary": "Upload an import file",
-  "description": "Upload an import file\nUploads a spreadsheet file (xlsx / xls / csv) the client actually holds to the given form and returns the import attachment id; pass it as attachment_id to import_entries_from_file to start the import. Table / CSV text pasted into the conversation does not go through here (do not encode it as base64 and upload it as a file); write it with create_entries (at most 200 per batch). The file size is capped by the plan's Excel import limit, and the extension must be xls / xlsx / csv; otherwise returns 422 with the reason in error_description.",
+  "description": "Upload an import file\nUploads a spreadsheet (`.xlsx` / `.xls` / `.csv`) for importing entries into the form.\nThe file goes through the tool call as Base64; a file on disk goes through prepare_import_file_upload instead. Table / CSV text pasted into the conversation does not go through here (do not encode it as base64 and upload it as a file); write it with create_entries (at most 200 per batch).",
   "tag": "Uploads",
   "method": "post",
   "path": "/forms/{form_token}/import_files",
@@ -5559,13 +5768,9 @@
      "type": "string",
      "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
     },
-    "import_file_token": {
-     "type": "string",
-     "description": "One-time upload token, starting with `import_file_tok_`; when passed, it replaces the regular credentials"
-    },
     "file_base64": {
      "type": "string",
-     "description": "The xlsx / xls / csv file to import; with an upload token, its file name, Content-Type and size must match what the token recorded. The file content as Base64 (a data URI prefix is fine)."
+     "description": "The xlsx / xls / csv file to import. The file content as Base64 (a data URI prefix is fine)."
     },
     "file_name": {
      "type": "string",
@@ -5996,7 +6201,7 @@
          },
          {
           "type": "object",
-          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 12 in all.",
+          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 13 in all.",
           "required": [
            "type",
            "label"
@@ -6016,7 +6221,8 @@
              "LinkField",
              "AttachmentField",
              "FormulaField",
-             "RelationField"
+             "RelationField",
+             "SequenceField"
             ]
            },
            "label": {
@@ -6513,7 +6719,7 @@
          },
          {
           "type": "object",
-          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 12 in all.",
+          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 13 in all.",
           "required": [
            "type",
            "label"
@@ -6533,7 +6739,8 @@
              "LinkField",
              "AttachmentField",
              "FormulaField",
-             "RelationField"
+             "RelationField",
+             "SequenceField"
             ]
            },
            "label": {
@@ -6948,7 +7155,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",

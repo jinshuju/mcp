@@ -19,7 +19,7 @@ info:
       - Personal access token: acts as that user, on the forms they created or that are shared with them;
       - Account access token (Enterprise plan): acts across the account, on all of its forms. Endpoints then have no "current user", and create operations are recorded under the account owner;
       - OAuth 2.0 token: the endpoints it can call are limited by the token's scope; insufficient scope returns `403`. Each endpoint's description states the scope it needs
-        (`forms` / `form_setting` / `read_entries` / `write_entries` / `submit_entries` / `read_contacts` / `users` / `public`).
+        (`forms` / `form_setting` / `read_entries` / `write_entries` / `submit_entries` / `read_contacts` / `users` / `routines` / `public`).
     - An invalid or revoked token returns `401`; a plan without API v1 returns `402`.
 
     ## Cooperator permissions
@@ -65,7 +65,7 @@ info:
     ## Input validation
     The server validates the path parameters, query parameters and JSON request body of every request against this document (except the multipart body of upload endpoints).
     - An invalid request returns `400` directly, with the response body `{ error_description, errors: [{ pointer, message, code }] }`; a request body that is not `application/json` returns `415`.
-    - Keys not listed in a request body schema are errors (except the field values of entry writes, which the form's field definitions decide).
+    - Keys not listed in a request body schema are errors, except where the schema says they are ignored (the routines body) and the field values of entry writes, which the form's field definitions decide.
 servers:
 - url: https://jinshuju.net/api/v1
   description: Production
@@ -79,7 +79,7 @@ tags:
 - name: Plugins
   description: Plugin center plugins (check-in for now). A plugin campaign is bound to one form, and only its creator can see and change it. The account must have enabled the plugin in the plugin center, or the request returns 402.
 - name: Entries
-  description: 'Form entries: list, query, create, update, delete and batch operations.'
+  description: 'Form entries: list, query, create, update, delete and batch operations, and sending SMS / email to entries.'
 - name: Tables
   description: 'Tables (kind=table): structure and entries; field types are limited to the column types tables support.'
 - name: Views
@@ -99,13 +99,15 @@ tags:
 - name: Contacts
   description: Contacts.
 - name: Account
-  description: 'Current user and account: members, e-invoices, payment history, SMS signature review status.'
+  description: 'Current user and account: members, e-invoices, payment history, SMS signatures and templates, SMTP accounts.'
 - name: Trade
   description: '小金商户: merchant and onboarding progress, payment orders, transaction statistics, refunds and payouts.'
 - name: Uploads
-  description: Uploading attachments, form images and import files.
+  description: Uploading attachments, form images, license images and import files.
 - name: Utilities
   description: Utility endpoints.
+- name: Routines
+  description: 'Routines (`自动任务`): instructions Jiri carries out as you, on a schedule or when data changes, and their runs. The rules and messages are those of the routines page; times are in Beijing time (+08:00). OAuth tokens need the `routines` scope. As routines run unattended and spend AI points, self-registered clients cannot get it; only a registered application with `routines` among its scopes (such as the Jinshuju CLI) can ask for it.'
 paths:
   "/forms":
     get:
@@ -1425,6 +1427,332 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  "/forms/{form_token}/notification_rules":
+    get:
+      tags:
+      - Form Settings
+      summary: List notification rules
+      description: |
+        Lists the form's notification rules, newest first, each with whether it can send right now.
+
+        OAuth scope: form_setting
+      operationId: listNotificationRules
+      parameters:
+      - $ref: '#/components/parameters/FormToken'
+      responses:
+        '200':
+          description: Notification rules
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NotificationRule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags:
+      - Form Settings
+      summary: Create a notification rule
+      description: |
+        Creates a notification rule; the body follows the schema of its `approach`. The rule sends for matching entries from then on, using the SMS / email balance, and shows on the form's notification settings page. SMS and WeChat messages are reviewed when they are sent.
+
+        OAuth scope: form_setting
+      operationId: createNotificationRule
+      parameters:
+      - $ref: '#/components/parameters/FormToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+              - required:
+                - approach
+                properties:
+                  approach:
+                    type: string
+                    enum:
+                    - SMS
+                    - EMAIL
+                    - WEIXIN_ONETIME
+                    - WXWORK
+                    - DING_TALK
+                    - WEBHOOK
+              - oneOf:
+                - $ref: '#/components/schemas/SMSNotificationRuleInput'
+                - $ref: '#/components/schemas/EmailNotificationRuleInput'
+                - $ref: '#/components/schemas/WeixinOnetimeNotificationRuleInput'
+                - $ref: '#/components/schemas/WxworkNotificationRuleInput'
+                - $ref: '#/components/schemas/DingTalkNotificationRuleInput'
+                - $ref: '#/components/schemas/WebhookNotificationRuleInput'
+                discriminator:
+                  propertyName: approach
+                  mapping:
+                    SMS: "#/components/schemas/SMSNotificationRuleInput"
+                    EMAIL: "#/components/schemas/EmailNotificationRuleInput"
+                    WEIXIN_ONETIME: "#/components/schemas/WeixinOnetimeNotificationRuleInput"
+                    WXWORK: "#/components/schemas/WxworkNotificationRuleInput"
+                    DING_TALK: "#/components/schemas/DingTalkNotificationRuleInput"
+                    WEBHOOK: "#/components/schemas/WebhookNotificationRuleInput"
+      responses:
+        '201':
+          description: The notification rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationRule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          description: The current plan does not include API v1, or does not include this approach (SMS is limited only by its balance)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 'Forbidden: the OAuth token lacks the required scope, or the caller is not a manager of the form'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/notification_rules/{id}":
+    get:
+      tags:
+      - Form Settings
+      summary: Get a notification rule
+      description: |
+        Returns the rule and whether it can send right now.
+
+        OAuth scope: form_setting
+      operationId: getNotificationRule
+      parameters:
+      - $ref: '#/components/parameters/FormToken'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Notification rule id
+      responses:
+        '200':
+          description: Notification rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationRule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    patch:
+      tags:
+      - Form Settings
+      summary: Update a notification rule
+      description: |
+        Changes the rule; the body takes only the keys of the rule's own `approach`, and `approach` itself cannot change.
+
+        OAuth scope: form_setting
+      operationId: updateNotificationRule
+      parameters:
+      - $ref: '#/components/parameters/FormToken'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Notification rule id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/SMSNotificationRuleInput'
+              - $ref: '#/components/schemas/EmailNotificationRuleInput'
+              - $ref: '#/components/schemas/WeixinOnetimeNotificationRuleInput'
+              - $ref: '#/components/schemas/WxworkNotificationRuleInput'
+              - $ref: '#/components/schemas/DingTalkNotificationRuleInput'
+              - $ref: '#/components/schemas/WebhookNotificationRuleInput'
+      responses:
+        '200':
+          description: The notification rule as saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationRule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          description: The current plan does not include API v1, or does not include this approach (SMS is limited only by its balance)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 'Forbidden: the OAuth token lacks the required scope, or the caller is not a manager of the form'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    delete:
+      tags:
+      - Form Settings
+      summary: Delete a notification rule
+      description: |
+        Deletes the rule and cancels what it has scheduled but not yet sent.
+
+        OAuth scope: form_setting
+      operationId: deleteNotificationRule
+      parameters:
+      - $ref: '#/components/parameters/FormToken'
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Notification rule id
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                properties:
+                  id:
+                    type: string
+                    description: Id of the deleted rule
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          description: 'Forbidden: the OAuth token lacks the required scope, or the caller is not a manager of the form'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/notification_rules/{id}/notifications":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - name: id
+      in: path
+      required: true
+      description: Notification rule id
+      schema:
+        type: string
+    get:
+      tags:
+      - Form Settings
+      summary: List a notification rule's sending records
+      operationId: listNotificationRuleNotifications
+      description: |
+        Lists the notifications a rule sent, newest first, with a summary of the matching records. Covers the last 180 days, as the form's notification log page does; notifications scheduled for later are not included.
+        OAuth scope: form_setting
+      parameters:
+      - name: start_date
+        in: query
+        required: false
+        description: Only notifications sent on or after this day, Beijing time (UTC+8)
+        schema:
+          type: string
+          format: date
+        example: '2026-10-01'
+      - name: end_date
+        in: query
+        required: false
+        description: Only notifications sent on or before this day, Beijing time (UTC+8)
+        schema:
+          type: string
+          format: date
+        example: '2026-10-31'
+      - name: status
+        in: query
+        required: false
+        description: Return only the notifications in this status
+        schema:
+          type: string
+          enum:
+          - SUCCESS
+          - FAILED
+          - WAITING
+          - AUDITING
+          - APPROVED
+          - REJECTED
+          - CANCELLED
+          - REVOKED
+      - name: limit
+        in: query
+        required: false
+        description: Page size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 50
+      - $ref: '#/components/parameters/EntryTaskNext'
+      - $ref: '#/components/parameters/EntriesSkip'
+      responses:
+        '200':
+          description: Sending records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: The form, or the notification rule on this form, does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   "/forms/{form_token}/theme":
     patch:
       tags:
@@ -1433,13 +1761,12 @@ paths:
       description: |
         Partially updates the form's theme (colors, background, header image, typography, form container, submit button); PUT is accepted too.
         - The request body must contain at least one of primary_color / secondary_color / wallpaper / header / typography / form_container / submit_button (`generate_header_image` is turned into header.header_image_url, so it counts too); otherwise 400.
-        - Header image source precedence: header_image_upload_token > header_image_base64 > header_image_url > header_image_attachment_id; when a header image is set and header.type is not given, header.type is set to image.
-        - Background image source precedence: background_image_upload_token > background_image_url > background_image_attachment_id. Setting or removing the background image also removes the preset background image that comes with the theme template; the background color is kept.
+        - Header image source precedence: header_image_base64 > header_image_url > header_image_attachment_id; when a header image is set and header.type is not given, header.type is set to image.
+        - Background image source precedence: background_image_url > background_image_attachment_id. Setting or removing the background image also removes the preset background image that comes with the theme template; the background color is kept.
         - `header_image_attachment_id` / `background_image_attachment_id` take the `attachment_id` returned by "Upload a form image" (image_type header / wallpaper); pass an empty string `""` to remove the current image.
-        - `header.carousel_images` replaces the carousel images as a whole: at most 5, not empty; each item gives one of image_upload_token / image_url / attachment_id, and an attachment_id must be a carousel image the form already has; when it is passed and header.type is not given, header.type is set to carousel.
+        - `header.carousel_images` replaces the carousel images as a whole: at most 5, not empty; each item gives one of image_url / attachment_id; when it is passed and header.type is not given, header.type is set to carousel.
         - Keys in `text_style` and `typography.*` use underscores (e.g. font_size); the server converts them to hyphenated CSS keys and merges them into the existing styles; the response uses the hyphenated keys.
         - `generate_header_image` has AI generate a header image and consumes AI points; returns 402 when points are insufficient, 400 when generation fails.
-        - An image upload_token is the `form_image_token` used by "Upload a form image"; the image purpose it records must match (header / wallpaper / carousel), and its upload must be complete.
 
         OAuth scope: form_setting
       operationId: updateFormTheme
@@ -2065,19 +2392,8 @@ paths:
       - Uploads
       summary: Upload an entry attachment
       operationId: uploadEntryAttachment
-      security:
-      - {}
-      - bearerAuth: []
       description: |
-        Uploads a file ahead of time for a form's attachment field (or an attachment column in a table field) and returns the attachment ID; then, when creating / updating an entry, put that ID (or the upload token) into the matching field to bind it. An uploaded attachment that no entry references stays unused.
-        Authenticate in one of two ways:
-        1. Regular API credentials (a Bearer token).
-        2. A one-time upload token `attachment_token` (instead of regular credentials): the token starts with `entry_att_tok_`, is valid for 30 minutes, can be used only once, and is bound to the form, field, column and file metadata. When the request carries `attachment_token`, regular credentials are not checked and the request acts as the token's user; returns 400 `attachment_token is invalid or expired; prepare upload again` when the token is invalid, expired, already used, its user has been deleted, or it does not match the requested form / field / column; also returns 400 when the uploaded file's name, Content-Type or byte size does not match the token.
-        Returns 401 when there are neither credentials nor `attachment_token`.
-        Send the file content in one of two ways: the `file` field of `multipart/form-data`; or a Base64 string in the `base64` (or `data`) field of a JSON / form-encoded body (a `data:<mime>;base64,` prefix is allowed), with `file_name` (or `filename`) and `content_type`. Base64 content cannot exceed 5 MB once decoded; larger returns 400 `attachment exceeds 5MB limit`, and a decoding failure returns 400 `base64 is invalid`; returns 400 `file or base64 is required` when neither is given.
-        `field_api_code` must point to an attachment field or a table field; for a table field, `dimension_api_code` must also be passed and point to an attachment column in that table field, otherwise returns 400; returns 404 when the field or column does not exist.
-        The file size is capped by the per-file limit set on the field (or column); a larger file returns 422, with the specific validation message in `error_description` (e.g. `文件超过了10 MB`); returns 422 `上传失败，请重试` when uploading to object storage fails (the server's wording is authoritative).
-        Returns 404 `form cannot be found` when the form does not exist or is not accessible to the current identity.
+        Uploads a file for an attachment field of the form, or for an attachment column of a table field.
 
         OAuth scope: write_entries
       parameters:
@@ -2097,9 +2413,6 @@ paths:
                 dimension_api_code:
                   type: string
                   description: api_code of the attachment column in a table field; required when `field_api_code` is a table field
-                attachment_token:
-                  type: string
-                  description: One-time upload token, starting with `entry_att_tok_`; when passed, it replaces the regular credentials
                 file:
                   type: string
                   description: The file to upload; pass either this or `base64`
@@ -2152,24 +2465,61 @@ paths:
                   error_description:
                     type: string
                     description: Why validation failed
+  "/forms/{form_token}/entry_attachment_upload_urls":
+    post:
+      tags:
+      - Uploads
+      summary: Prepare an entry attachment upload
+      operationId: prepareEntryAttachmentUpload
+      description: |
+        Issues a one-time link for uploading a local file to an attachment field, or to an attachment column of a table field, without sending its bytes in a request body.
+        - With a shell that can read the file and reach the network, run `curl -F file=@<path> <upload_url>`, then put the returned `attachment_id` in the field when creating or updating an entry.
+        - Without one, or when curl fails (for example under a sandbox's network limits), send small content as Base64 to "Upload an entry attachment".
+
+        OAuth scope: write_entries
+      parameters:
+      - $ref: '#/components/parameters/FormToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - field_api_code
+              properties:
+                field_api_code:
+                  type: string
+                  description: api_code of the attachment field; for an attachment column in a table field, pass the table field's api_code
+                dimension_api_code:
+                  type: string
+                  description: api_code of the attachment column in a table field; required when `field_api_code` is a table field
+              additionalProperties: false
+      responses:
+        '201':
+          description: Upload link issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreparedUpload'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   "/forms/{form_token}/import_files":
     post:
       tags:
       - Uploads
       summary: Upload an import file
       operationId: uploadImportFile
-      security:
-      - {}
-      - bearerAuth: []
       description: |
-        Uploads a spreadsheet file (`.xlsx` / `.xls` / `.csv`) for bulk-importing entries into the given form, and returns the import attachment ID; then pass it as `attachment_id` to "Import entries from an uploaded spreadsheet" (`POST /forms/{form_token}/entry_imports`) to start the import.
-        Authenticate in one of two ways:
-        1. Regular API credentials (a Bearer token).
-        2. A one-time upload token `import_file_token` (instead of regular credentials): the token starts with `import_file_tok_`, is valid for 30 minutes, can be used only once, and is bound to the form and the file metadata. When the request carries `import_file_token`, regular credentials are not checked, and the request acts as the user the token belongs to; the uploaded file's original file name, Content-Type and byte size must match what the token recorded, otherwise returns 400. Returns 400 `import_file_token is invalid or expired; prepare upload again` when the token does not exist, has expired, has been used, or its user has been deleted; returns 400 `import_file_token was issued for another form; prepare upload again` when the token belongs to another form.
-        Returns 401 when there are neither credentials nor an `import_file_token`.
-        The request must be `multipart/form-data`, with the file in the `file` field; a missing file returns 400 `file is required`.
-        The file size is capped by the plan's Excel import limit (in MB), and the extension must be xls / xlsx / csv; otherwise returns 422, with the validation details in `error_description` (with an upload token, the token stays usable, so the file can be uploaded again).
-        Returns 404 `form cannot be found` when the form does not exist or is not accessible to the current caller.
+        Uploads a spreadsheet (`.xlsx` / `.xls` / `.csv`) for importing entries into the form.
 
         OAuth scope: write_entries
       parameters:
@@ -2183,12 +2533,9 @@ paths:
               required:
               - file
               properties:
-                import_file_token:
-                  type: string
-                  description: One-time upload token, starting with `import_file_tok_`; when passed, it replaces the regular credentials
                 file:
                   type: string
-                  description: The xlsx / xls / csv file to import; with an upload token, its file name, Content-Type and size must match what the token recorded
+                  description: The xlsx / xls / csv file to import
                   contentMediaType: application/octet-stream
               additionalProperties: false
       responses:
@@ -2220,6 +2567,35 @@ paths:
                   error_description:
                     type: string
                     description: Why validation failed
+  "/forms/{form_token}/import_file_upload_urls":
+    post:
+      tags:
+      - Uploads
+      summary: Prepare an import file upload
+      operationId: prepareImportFileUpload
+      description: |
+        Issues a one-time link for uploading a local spreadsheet (`.xlsx` / `.xls` / `.csv`) to import into the form, without sending its bytes in a request body.
+        - With a shell that can read the file and reach the network, run `curl -F file=@<path> <upload_url>`, then pass the returned `attachment_id` to "Import entries from an uploaded spreadsheet"; read the header row from your local copy.
+        - Without one, or when curl fails, the file cannot be uploaded: spreadsheets have no Base64 route.
+
+        OAuth scope: write_entries
+      parameters:
+      - $ref: '#/components/parameters/FormToken'
+      responses:
+        '201':
+          description: Upload link issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreparedUpload'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   "/forms/{form_token}/entry_imports":
     post:
       tags:
@@ -2299,23 +2675,815 @@ paths:
           $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/sms_tasks/estimate":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    get:
+      tags:
+      - Entries
+      summary: Estimate an SMS task
+      operationId: estimateSmsTask
+      description: |
+        Picks the entries an SMS task would send to and counts the messages it would charge, without sending anything.
+        OAuth scope: read_entries
+        - `POST /forms/{form_token}/sms_tasks` with the same parameters picks the entries again when it runs, so its count changes if they changed in between.
+        - A cooperator picks only the entries visible to their role.
+      parameters:
+      - $ref: '#/components/parameters/EntryTaskEntryField'
+      - $ref: '#/components/parameters/EntriesFilters'
+      - $ref: '#/components/parameters/EntriesKeyword'
+      - $ref: '#/components/parameters/EntryTaskViewToken'
+      - $ref: '#/components/parameters/EntryTaskSelectAll'
+      - name: sms_template_id
+        in: query
+        required: true
+        description: SMS template to send with (`id` from `GET /sms/templates`)
+        schema:
+          type: string
+      - name: placeholder_keys
+        in: query
+        required: false
+        description: The same as `placeholder_keys` of `POST /forms/{form_token}/sms_tasks`, one `placeholder_keys[]=` per variable
+        schema:
+          type: array
+          items:
+            type: string
+      responses:
+        '200':
+          description: SMS task estimate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSTaskEstimate'
+        '400':
+          description: 'Invalid parameters, including: nothing narrows the entries and `select_all` is not true, `filters` has a `creator_id` condition or `serial_number` conditions matching no entry, `entry_field` is not a mobile field the caller can read, or the SMS template or its signature failed review'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, the view or the SMS template does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/sms_tasks":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    get:
+      tags:
+      - Entries
+      summary: List SMS tasks
+      operationId: listSmsTasks
+      description: |
+        Lists the SMS tasks of this form.
+        OAuth scope: read_entries
+      parameters:
+      - name: status
+        in: query
+        required: false
+        description: Return only the tasks in this status
+        schema:
+          type: string
+          enum:
+          - template_checking
+          - content_auditing
+          - approved
+          - rejected
+          - waiting_for_send
+          - sending
+          - all_sent
+          - partial_sent
+          - none_sent
+          - template_fail
+          - revoked
+          - template_deleted
+      - $ref: '#/components/parameters/EntryTaskStartDate'
+      - $ref: '#/components/parameters/EntryTaskEndDate'
+      - $ref: '#/components/parameters/EntryTaskListLimit'
+      - $ref: '#/components/parameters/EntryTaskNext'
+      - $ref: '#/components/parameters/EntriesSkip'
+      responses:
+        '200':
+          description: SMS tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryTaskListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags:
+      - Entries
+      summary: Send SMS to entries
+      operationId: createSmsTask
+      description: |
+        Creates an SMS task that sends a template message to each entry picked.
+        OAuth scope: write_entries
+        - Estimate first with `GET /forms/{form_token}/sms_tasks/estimate` and send with the same parameters; the entries are picked again when this runs.
+        - The task may wait in `template_checking` or `content_auditing` while the template or content is under review, and sends once approved.
+        - When the estimate's `can_send` is false the task is still created, and when sending finds the quota and balance short it stops, ending `none_sent` or `partial_sent` with the reason in `failed_reason`.
+        - Sent messages cannot be recalled, and retrying a request that succeeded sends again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SMSTaskCreateInput'
+      responses:
+        '201':
+          description: Created; returns the task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryTask'
+        '400':
+          description: Any 400 case of the estimate, `send_at` not a future time, or no entry to send to
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, the view or the SMS template does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/sms_tasks/{id}":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - $ref: '#/components/parameters/EntryTaskId'
+    get:
+      tags:
+      - Entries
+      summary: Show an SMS task
+      operationId: getSmsTask
+      description: |
+        Returns an SMS task of this form with its status and sending progress.
+        OAuth scope: read_entries
+      responses:
+        '200':
+          description: SMS task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryTask'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, or the task on this form, does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    patch:
+      tags:
+      - Entries
+      summary: Revoke an SMS task, or change one whose template failed review and send it again
+      operationId: updateSmsTask
+      description: |
+        Revokes an SMS task that has not started sending, or changes a `template_fail` task and sends it again, keeping its `id`.
+        OAuth scope: write_entries
+        - `revoked: true` revokes a `waiting_for_send` or `content_auditing` task so it never sends.
+        - Otherwise the body changes a `template_fail` task, keeping its entries. Estimate first with `GET /forms/{form_token}/sms_tasks/{id}/estimate`.
+        - A changed task goes through review and sending as one created by `POST /forms/{form_token}/sms_tasks`; sent messages cannot be recalled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SMSTaskUpdateInput'
+      responses:
+        '200':
+          description: The task after the change
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryTask'
+        '400':
+          description: The task's status does not allow the change, any 400 case of the change estimate, `send_at` not a future time, or a mobile number filled in its entries is not a valid one
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, the task on this form or the SMS template does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/sms_tasks/{id}/activities":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - $ref: '#/components/parameters/EntryTaskId'
+    get:
+      tags:
+      - Entries
+      summary: List an SMS task's sending results
+      operationId: listSmsTaskActivities
+      description: |
+        Lists the sending result of each mobile number an SMS task sent to.
+        OAuth scope: read_entries
+      parameters:
+      - $ref: '#/components/parameters/EntryTaskActivityStatus'
+      - name: mobile
+        in: query
+        required: false
+        description: Return only the records of this mobile number (exact match)
+        schema:
+          type: string
+      - $ref: '#/components/parameters/EntryTaskLimit'
+      - $ref: '#/components/parameters/EntryTaskNext'
+      - $ref: '#/components/parameters/EntriesSkip'
+      responses:
+        '200':
+          description: Sending results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSTaskActivityListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, or the task on this form, does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/sms_tasks/{id}/resend/estimate":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - $ref: '#/components/parameters/EntryTaskId'
+    get:
+      tags:
+      - Entries
+      summary: Estimate resending an SMS task
+      operationId: estimateSmsTaskResend
+      description: |
+        Picks the entries that resending an SMS task would send to and counts the messages it would charge, without sending anything.
+        OAuth scope: read_entries
+        - The entries are the task's entries with the `status` result in its sending results, narrowed by `filters` / `keyword` / `view_token`; no other entry is ever picked.
+        - An entry holding several numbers is picked when any of them got that result, and is sent to on all of them.
+        - `POST /forms/{form_token}/sms_tasks/{id}/resend` with the same parameters picks the entries again when it runs, so its count changes if they changed in between.
+        - A cooperator picks only the entries visible to their role.
+      parameters:
+      - $ref: '#/components/parameters/EntryTaskResendStatus'
+      - $ref: '#/components/parameters/EntriesFilters'
+      - $ref: '#/components/parameters/EntriesKeyword'
+      - $ref: '#/components/parameters/EntryTaskViewToken'
+      responses:
+        '200':
+          description: Estimate of resending the SMS task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSTaskEstimate'
+        '400':
+          description: Invalid filters, no entry of the task got that result, or the filters leave none of them; a `template_fail` task was never sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, or the task on this form, does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/sms_tasks/{id}/resend":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - $ref: '#/components/parameters/EntryTaskId'
+    post:
+      tags:
+      - Entries
+      summary: Resend an SMS task
+      operationId: resendSmsTask
+      description: |
+        Sends an SMS task again as a new task, to its entries with a given result in its sending results.
+        OAuth scope: write_entries
+        - Estimate first with `GET /forms/{form_token}/sms_tasks/{id}/resend/estimate` and send with the same parameters; the entries are picked again when this runs.
+        - The new task keeps the original's template, `entry_field` and `placeholder_keys` and is sent as by `POST /forms/{form_token}/sms_tasks`; the original task is left unchanged.
+        - Sent messages cannot be recalled, and retrying a request that succeeded sends again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntryTaskResendInput'
+      responses:
+        '201':
+          description: Created; returns the new task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryTask'
+        '400':
+          description: Any 400 case of the resend estimate, or no entry to send to
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, or the task on this form, does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/sms_tasks/{id}/estimate":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - $ref: '#/components/parameters/EntryTaskId'
+    get:
+      tags:
+      - Entries
+      summary: Estimate changing an SMS task whose template failed review
+      operationId: estimateSmsTaskChange
+      description: |
+        Estimates changing a `template_fail` SMS task and sending it again, without changing or sending anything.
+        OAuth scope: read_entries
+        - Counts the entries the task holds without reading them: content with variables gives a lower bound (`at_least`), and a table column `entry_field` gives null numbers and cost.
+      parameters:
+      - name: entry_field
+        in: query
+        required: false
+        description: The same as `entry_field` of `PATCH /forms/{form_token}/sms_tasks/{id}`; omitted, the task's current `entry_field`
+        schema:
+          type: string
+        example: field_2
+      - name: sms_template_id
+        in: query
+        required: true
+        description: SMS template to send with (`id` from `GET /sms/templates`)
+        schema:
+          type: string
+      - name: placeholder_keys
+        in: query
+        required: false
+        description: The same as `placeholder_keys` of `PATCH /forms/{form_token}/sms_tasks/{id}`, one `placeholder_keys[]=` per variable
+        schema:
+          type: array
+          items:
+            type: string
+      responses:
+        '200':
+          description: Estimate of changing the SMS task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSTaskEstimate'
+        '400':
+          description: The task is not `template_fail`, `entry_field` is not a mobile field the caller can read, or the SMS template or its signature failed review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, the task on this form or the SMS template does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/sms_tasks/{id}/auto_send":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - $ref: '#/components/parameters/EntryTaskId'
+    patch:
+      tags:
+      - Entries
+      summary: Send an SMS task created with auto_send false
+      operationId: sendSmsTask
+      description: |
+        Sends a task created with `auto_send` false once it has passed review, to the entries fixed at creation; a task given `send_at` waits until then.
+        OAuth scope: write_entries
+      responses:
+        '200':
+          description: The task after it starts sending, or after it is scheduled for its `send_at`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryTask'
+        '400':
+          description: The task was not created with `auto_send` false, has not passed review, is already sending, or a mobile number filled in its entries is not a valid one
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, or the task on this form, does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/email_tasks/estimate":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    get:
+      tags:
+      - Entries
+      summary: Estimate an email task
+      operationId: estimateEmailTask
+      description: |
+        Picks the entries an email task would send to and checks the quota, without sending anything.
+        OAuth scope: read_entries
+        - `POST /forms/{form_token}/email_tasks` with the same parameters picks the entries again when it runs, so its count changes if they changed in between.
+        - A cooperator picks only the entries visible to their role.
+      parameters:
+      - $ref: '#/components/parameters/EntryTaskEntryField'
+      - $ref: '#/components/parameters/EntriesFilters'
+      - $ref: '#/components/parameters/EntriesKeyword'
+      - $ref: '#/components/parameters/EntryTaskViewToken'
+      - $ref: '#/components/parameters/EntryTaskSelectAll'
+      - $ref: '#/components/parameters/SMTPAccountId'
+      responses:
+        '200':
+          description: Email task estimate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailTaskEstimate'
+        '400':
+          description: 'Invalid parameters, including: nothing narrows the entries and `select_all` is not true, `filters` has a `creator_id` condition or `serial_number` conditions matching no entry, or `entry_field` is not an email field the caller can read'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, the view or the SMTP account does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/email_tasks":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    get:
+      tags:
+      - Entries
+      summary: List email tasks
+      operationId: listEmailTasks
+      description: |
+        Lists the email tasks of this form.
+        OAuth scope: read_entries
+      parameters:
+      - name: status
+        in: query
+        required: false
+        description: Return only the tasks in this status
+        schema:
+          type: string
+          enum:
+          - waiting_for_send
+          - sending
+          - all_sent
+          - partial_sent
+          - none_sent
+      - $ref: '#/components/parameters/EntryTaskStartDate'
+      - $ref: '#/components/parameters/EntryTaskEndDate'
+      - $ref: '#/components/parameters/EntryTaskListLimit'
+      - $ref: '#/components/parameters/EntryTaskNext'
+      - $ref: '#/components/parameters/EntriesSkip'
+      responses:
+        '200':
+          description: Email tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryTaskListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags:
+      - Entries
+      summary: Send email to entries
+      operationId: createEmailTask
+      description: |
+        Creates an email task that sends an email to each entry picked, starting right away.
+        OAuth scope: write_entries
+        - Estimate first with `GET /forms/{form_token}/email_tasks/estimate` and send with the same parameters; the entries are picked again when this runs.
+        - When the estimate's `can_send` is false the task is still created, and when sending finds the quota and balance short it stops, ending `none_sent` or `partial_sent` with the reason in `failed_reason`.
+        - Sent emails cannot be recalled, and retrying a request that succeeded sends again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailTaskCreateInput'
+      responses:
+        '201':
+          description: Created; returns the task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryTask'
+        '400':
+          description: Any 400 case of the estimate, `content` referring to a field the form does not have, or no entry to send to
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, the view or the SMTP account does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/email_tasks/{id}":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - $ref: '#/components/parameters/EntryTaskId'
+    get:
+      tags:
+      - Entries
+      summary: Show an email task
+      operationId: getEmailTask
+      description: |
+        Returns an email task of this form with its status and sending progress.
+        OAuth scope: read_entries
+      responses:
+        '200':
+          description: Email task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryTask'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, or the task on this form, does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/email_tasks/{id}/activities":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - $ref: '#/components/parameters/EntryTaskId'
+    get:
+      tags:
+      - Entries
+      summary: List an email task's sending results
+      operationId: listEmailTaskActivities
+      description: |
+        Lists the sending result of each entry an email task sent to.
+        OAuth scope: read_entries
+      parameters:
+      - $ref: '#/components/parameters/EntryTaskActivityStatus'
+      - name: email
+        in: query
+        required: false
+        description: Return only the records whose `email` includes this address (exact match)
+        schema:
+          type: string
+      - $ref: '#/components/parameters/EntryTaskLimit'
+      - $ref: '#/components/parameters/EntryTaskNext'
+      - $ref: '#/components/parameters/EntriesSkip'
+      responses:
+        '200':
+          description: Sending results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailTaskActivityListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, or the task on this form, does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/email_tasks/{id}/resend/estimate":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - $ref: '#/components/parameters/EntryTaskId'
+    get:
+      tags:
+      - Entries
+      summary: Estimate resending an email task
+      operationId: estimateEmailTaskResend
+      description: |
+        Picks the entries that resending an email task would send to and checks the quota, without sending anything.
+        OAuth scope: read_entries
+        - The entries are the task's entries with the `status` result in its sending results, narrowed by `filters` / `keyword` / `view_token`; no other entry is ever picked.
+        - The emails go through the task's custom SMTP account, using no quota, while the account can still use it.
+        - `POST /forms/{form_token}/email_tasks/{id}/resend` with the same parameters picks the entries again when it runs, so its count changes if they changed in between.
+        - A cooperator picks only the entries visible to their role.
+      parameters:
+      - $ref: '#/components/parameters/EntryTaskResendStatus'
+      - $ref: '#/components/parameters/EntriesFilters'
+      - $ref: '#/components/parameters/EntriesKeyword'
+      - $ref: '#/components/parameters/EntryTaskViewToken'
+      responses:
+        '200':
+          description: Estimate of resending the email task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailTaskEstimate'
+        '400':
+          description: Invalid filters, no entry of the task got that result, or the filters leave none of them
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, or the task on this form, does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/email_tasks/{id}/resend":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - $ref: '#/components/parameters/EntryTaskId'
+    post:
+      tags:
+      - Entries
+      summary: Resend an email task
+      operationId: resendEmailTask
+      description: |
+        Sends an email task again as a new task, to its entries with a given result in its sending results.
+        OAuth scope: write_entries
+        - Estimate first with `GET /forms/{form_token}/email_tasks/{id}/resend/estimate` and send with the same parameters; the entries are picked again when this runs.
+        - The new task keeps the original's `entry_field`, subject, body and custom SMTP account and is sent as by `POST /forms/{form_token}/email_tasks`; the original task is left unchanged.
+        - Sent emails cannot be recalled, and retrying a request that succeeded sends again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntryTaskResendInput'
+      responses:
+        '201':
+          description: Created; returns the new task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntryTask'
+        '400':
+          description: Any 400 case of the resend estimate, or no entry to send to
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/EntryTaskForbidden'
+        '404':
+          description: The form, or the task on this form, does not exist or is not accessible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   "/form_image_attachments":
     post:
       tags:
       - Uploads
       summary: Upload a form image
       operationId: uploadFormImage
-      security:
-      - {}
-      - bearerAuth: []
       description: |
-        Uploads an image that belongs to the form itself (a picture choice image, a header image, a background image, one frame of the header carousel, the header image of the form's public query page, or an inline image in the form description / a field description), and returns the image attachment ID. The image is not bound to any form yet; it takes effect only when a form or theme references it later.
-        Authenticate in one of two ways:
-        1. Regular API credentials (a Bearer token). `image_type` must then say what the image is for, and can only be `header` (header image), `wallpaper` (background image), `opensearch_header` (public query page header image) or `description` (inline description image): pass the returned `attachment_id` to `header.header_image_attachment_id` / `wallpaper.background_image_attachment_id` of "Update a form's theme", or to `header.background_image.attachment_id` of "Update a public query"; `description` also returns the image address `url`, which goes into the `<img src>` of the form `description` or of a field's `notes`. When the form is saved, the image belongs to that form (at most 30 per form); images not used by any form within 7 days are cleaned up. Returns 400 `image_type must be one of: field_choice, header, wallpaper, carousel, opensearch_header, description.` when `image_type` is missing or not one of `field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header` / `description`; `field_choice` / `carousel` have nowhere that accepts an attachment ID, so they can only be uploaded with an upload token, otherwise returns 400.
-        2. A one-time upload token `form_image_token` (instead of regular credentials): the token starts with `form_img_tok_`, is valid for 30 minutes, can be used only once, and has already recorded the image purpose (`field_choice` / `header` / `wallpaper` / `carousel` / `opensearch_header` / `description`; `image_type` is then ignored) and the file metadata; the uploaded file's original file name, Content-Type and byte size must match what the token recorded, otherwise returns 400. After a successful upload, do not use the returned `attachment_id` directly; instead reference the same token in a choice's `image_upload_token` in "Create a form" / "Edit a form", in `header.header_image_upload_token` / `wallpaper.background_image_upload_token` / `header.carousel_images[].image_upload_token` of "Update a form's theme", or in `header.background_image.image_upload_token` of "Update a public query"; for the `description` purpose nothing references the token, so use the returned `url` directly. Returns 400 `form_image_token is invalid or expired; prepare upload again` when the token does not exist, has expired, has been used, or its user has been deleted.
-        Returns 401 when there are neither credentials nor a `form_image_token`. The request must be `multipart/form-data`, with the image binary in the `file` field; a missing file returns 400 `file is required`.
+        Uploads an image for a form; it takes effect once a form, theme or public query references it.
+        - `field_choice` / `goods_item` / `contact_widget`: a choice's `attachment_id`, a goods item's `attachment_ids` or a contact widget image's `attachment_id` in "Create a form" / "Edit a form".
+        - `header` / `wallpaper` / `carousel`: `header.header_image_attachment_id`, `wallpaper.background_image_attachment_id` or `header.carousel_images[].attachment_id` in "Update a form's theme".
+        - `opensearch_header`: `header.background_image.attachment_id` in "Update a public query".
+        - `description`: the returned `url`, in an `<img src>` of the form `description` or a field's `notes`; a form takes at most 30 such images.
+        - An `attachment_id` is taken only where its `image_type` goes, and only while the image is unused or already that form's; an image nothing uses within 7 days is deleted.
 
-        OAuth scope: forms when `image_type` (or the purpose the token recorded) is field_choice, opensearch_header or description; form_setting otherwise
+        OAuth scope: forms when `image_type` is field_choice, goods_item, contact_widget, opensearch_header or description; form_setting otherwise
       requestBody:
         required: true
         content:
@@ -2323,6 +3491,7 @@ paths:
             schema:
               type: object
               required:
+              - image_type
               - file
               properties:
                 image_type:
@@ -2334,13 +3503,12 @@ paths:
                   - carousel
                   - opensearch_header
                   - description
-                  description: What the image is for; without an upload token it is required and can only be header / wallpaper / opensearch_header / description; ignored with an upload token
-                form_image_token:
-                  type: string
-                  description: One-time upload token, starting with `form_img_tok_`; when passed, it replaces the regular credentials
+                  - goods_item
+                  - contact_widget
+                  description: What the image is for
                 file:
                   type: string
-                  description: The image file; with an upload token, its file name, Content-Type and size must match what the token recorded
+                  description: The image file
                   contentMediaType: application/octet-stream
               additionalProperties: false
       responses:
@@ -2352,6 +3520,100 @@ paths:
                 $ref: '#/components/schemas/UploadedFormImage'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/form_image_upload_urls":
+    post:
+      tags:
+      - Uploads
+      summary: Prepare a form image upload
+      operationId: prepareFormImageUpload
+      description: |
+        Issues a one-time link for uploading a local image for a form, without sending its bytes in a request body.
+        - With a shell that can read the file and reach the network, run `curl -F file=@<path> <upload_url>`, then use the returned `attachment_id` (or `url`) as "Upload a form image" says for its `image_type`.
+        - Without one, or when curl fails (for example under a sandbox's network limits), give a public image URL or a small Base64 image where the image goes.
+
+        OAuth scope: forms when `image_type` is field_choice, goods_item, contact_widget, opensearch_header or description; form_setting otherwise
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - image_type
+              properties:
+                image_type:
+                  type: string
+                  enum:
+                  - field_choice
+                  - header
+                  - wallpaper
+                  - carousel
+                  - opensearch_header
+                  - description
+                  - goods_item
+                  - contact_widget
+                  description: What the image is for
+              additionalProperties: false
+      responses:
+        '201':
+          description: Upload link issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreparedUpload'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  "/user/license_attachments":
+    post:
+      tags:
+      - Uploads
+      summary: Upload a license image
+      operationId: uploadUserLicenseAttachment
+      description: |
+        Uploads a business license or ID card image for `POST /sms/signatures` and `PATCH /sms/signatures/{id}`; only the uploader can use it.
+
+        OAuth scope: users
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - file
+              properties:
+                file:
+                  type: string
+                  description: jpg, jpeg, png or bmp image, up to 5 MB
+                  contentMediaType: application/octet-stream
+              additionalProperties: false
+      responses:
+        '201':
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadedLicenseAttachment'
+        '400':
+          description: "`file` is missing, not a jpg, jpeg, png or bmp image, or over 5 MB"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '402':
@@ -2401,7 +3663,7 @@ paths:
       operationId: createTable
       description: |
         Creates a table. Same as creating a form, except:
-        - field types can only be the column types tables support: `TextArea`, `RadioButton`, `CheckBox`, `BooleanField`, `MobileField`, `NumberField`, `DateTimeField`, `EmailField`, `LinkField`, `AttachmentField`, `FormulaField`, `RelationField`;
+        - field types can only be the column types tables support: `TextArea`, `RadioButton`, `CheckBox`, `BooleanField`, `MobileField`, `NumberField`, `DateTimeField`, `EmailField`, `LinkField`, `AttachmentField`, `FormulaField`, `RelationField`, `SequenceField`;
         - attachment columns do not accept limit properties such as count / size limits, and number / formula columns have limited precision; a violation returns 400 listing the offending columns;
         - choice columns do not get an "Other" choice; `folder_token` must be a table folder; `layout` is not supported.
         - with `with_default_entries: true`, 3 blank entries are added after creation (as when creating a table in the product); by default none are added.
@@ -3899,6 +5161,44 @@ paths:
           $ref: '#/components/responses/PaymentRequired'
         '403':
           $ref: '#/components/responses/Forbidden'
+  "/folders/{folder_token}":
+    parameters:
+    - name: folder_token
+      in: path
+      required: true
+      description: Folder token (`folder_token` from `GET /forms/{form_token}`, `GET /tables/{table_token}` or their listings)
+      schema:
+        type: string
+    get:
+      tags:
+      - Folders
+      summary: Show a folder
+      operationId: getFolder
+      description: |
+        Returns one folder the current user can manage.
+
+        OAuth scope: forms
+      responses:
+        '200':
+          description: Folder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: The folder does not exist or cannot be managed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   "/predefined_choices_sets":
     get:
       tags:
@@ -4287,7 +5587,7 @@ paths:
       description: |
         Returns the account the current credential belongs to: plan, this month's usage and quota, feature trial status, and the bound payment merchant / WeChat Pay / Alipay accounts.
         OAuth scope: users
-        `usage` is null when the account has no usage record for this month yet; for an add-on service with unlimited quota, only `unit`, `unlimited: true` and `consumed_quota` are returned.
+        `usage` is null when the account has no usage record for this month yet.
       responses:
         '200':
           description: Account details
@@ -4445,6 +5745,30 @@ paths:
                 $ref: '#/components/schemas/BillingAccountPaymentHistoriesResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/billing_account/paid_features":
+    get:
+      tags:
+      - Account
+      summary: List the paid features and whether the account has each
+      operationId: listBillingAccountPaidFeatures
+      description: |
+        Lists every paid feature with its Chinese name and whether the account has it now; one bought or granted on its own counts. Quotas, and whether each add-on service can still be used, are in `usage` of `GET /billing_account`.
+        OAuth scope: users
+      responses:
+        '200':
+          description: Paid features of the current account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingAccountPaidFeaturesResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '402':
@@ -4705,6 +6029,393 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SMSAuditStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/sms/signatures":
+    get:
+      tags:
+      - Account
+      summary: List SMS signatures
+      operationId: listSmsSignatures
+      description: |
+        Lists the account's SMS signatures, newest first. Pagination as in the form list; 50 per page by default, up to 1000.
+
+        OAuth scope: users
+      parameters:
+      - name: status
+        in: query
+        required: false
+        description: Only signatures in this review status
+        schema:
+          type: string
+          enum:
+          - CHECKING
+          - SUCCESS
+          - FAIL
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/OffsetNext'
+      - $ref: '#/components/parameters/EntriesSkip'
+      responses:
+        '200':
+          description: SMS signatures
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSSignatureListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags:
+      - Account
+      summary: Apply for an SMS signature
+      operationId: createSmsSignature
+      description: |
+        Applies for an SMS signature and submits it for review; follow the result with `GET /sms/signatures`.
+        - Upload the images with `POST /user/license_attachments` first.
+        - A signature the account already has under review or approved is returned unchanged.
+        - The materials also become the account's license and the user's ID card information.
+
+        OAuth scope: users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SMSSignatureCreateInput'
+      responses:
+        '201':
+          description: Submitted for review, or the signature the account already has
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSSignature'
+        '400':
+          description: A required key is missing, `type` is not allowed, an attachment was not uploaded by the current user, or the text is not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/sms/signatures/{id}":
+    patch:
+      tags:
+      - Account
+      summary: Update an SMS signature
+      operationId: updateSmsSignature
+      description: |
+        Changes a rejected signature of the account and submits it for review again.
+        - After a text change, its templates stay under the old text until each is updated with `PATCH /sms/templates/{id}`.
+
+        OAuth scope: users
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Signature ID
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SMSSignatureUpdateInput'
+      responses:
+        '200':
+          description: Submitted for review again
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSSignature'
+        '400':
+          description: The signature is not rejected, the text belongs to another account, an attachment was not uploaded by the current user, or the text is not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    delete:
+      tags:
+      - Account
+      summary: Delete an SMS signature
+      operationId: deleteSmsSignature
+      description: |
+        Deletes a rejected signature of the account together with all its templates, including other members' ones.
+
+        OAuth scope: users
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Signature ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                properties:
+                  id:
+                    type: string
+                    description: ID of the deleted signature
+        '400':
+          description: The signature is not rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/sms/templates":
+    get:
+      tags:
+      - Account
+      summary: List SMS templates
+      operationId: listSmsTemplates
+      description: |
+        Lists the templates the current user created and the ones other members share, newest first. Pagination as in the form list; 50 per page by default, up to 1000.
+
+        OAuth scope: users
+      parameters:
+      - name: q
+        in: query
+        required: false
+        description: Matches the content or the signature text, case-insensitive and partial
+        schema:
+          type: string
+      - name: scope
+        in: query
+        required: false
+        description: Only owned or only shared templates; both when omitted
+        schema:
+          type: string
+          enum:
+          - owned
+          - shared
+      - name: signature_id
+        in: query
+        required: false
+        description: Only templates under this signature
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        description: Only templates in this review status
+        schema:
+          type: string
+          enum:
+          - CHECKING
+          - SUCCESS
+          - FAIL
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/OffsetNext'
+      - $ref: '#/components/parameters/EntriesSkip'
+      responses:
+        '200':
+          description: SMS templates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSTemplateListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags:
+      - Account
+      summary: Submit an SMS template for review
+      operationId: createSmsTemplate
+      description: |
+        Submits an SMS template for review under a notification signature the account has applied for, even one still under review; follow the result with `GET /sms/templates`.
+
+        OAuth scope: users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SMSTemplateCreateInput'
+      responses:
+        '201':
+          description: Submitted for review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSTemplate'
+        '400':
+          description: The signature is not an applied-for notification signature with `channel` normal, or the content is empty, contains `【】` or carries `$(...)` variables
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/sms/templates/{id}":
+    patch:
+      tags:
+      - Account
+      summary: Update an SMS template
+      operationId: updateSmsTemplate
+      description: |
+        Changes a template the current user created and submits it for review again; an approved one cannot be sent until approved again.
+
+        OAuth scope: users
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Template ID
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SMSTemplateUpdateInput'
+      responses:
+        '200':
+          description: Submitted for review again
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMSTemplate'
+        '400':
+          description: The template is under review, the signature is not allowed or missing, or the content is empty or contains `【】`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    delete:
+      tags:
+      - Account
+      summary: Delete an SMS template
+      operationId: deleteSmsTemplate
+      description: |
+        Deletes a template the current user created; notifications that send it stop sending SMS.
+
+        OAuth scope: users
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: Template ID
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                properties:
+                  id:
+                    type: string
+                    description: ID of the deleted template
+        '400':
+          description: The template is under review or being sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/smtp_accounts":
+    get:
+      tags:
+      - Account
+      summary: List SMTP accounts
+      operationId: listSmtpAccounts
+      description: |
+        Lists the verified custom SMTP accounts the account can send email through.
+        OAuth scope: users
+        - The list is empty when the plan does not include custom SMTP.
+        - Every member gets the same list; admin is not required.
+      responses:
+        '200':
+          description: SMTP accounts the account can send email through
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMTPAccountListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '402':
@@ -5457,6 +7168,295 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  "/routines":
+    get:
+      tags:
+      - Routines
+      summary: List routines
+      operationId: listRoutines
+      description: |
+        The current user's own routines, newest first.
+        OAuth scope: routines
+        - Paging: `next` is a row offset; pass it back unchanged for the next page. `skip` and `next` cannot be passed together. 50 per page by default, `limit` changes it (at most 1000).
+        - Routines belong to a person: a credential with no current user (an account access token and the like) returns `403`, and so does an account that cannot use routines yet.
+      parameters:
+      - name: state
+        in: query
+        required: false
+        description: 'Only routines in this state: `active` (enabled) or `paused`. Any other value returns `400`.'
+        schema:
+          type: string
+          enum:
+          - active
+          - paused
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/OffsetNext'
+      - $ref: '#/components/parameters/EntriesSkip'
+      responses:
+        '200':
+          description: Routine list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutineListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/RoutineForbidden'
+    post:
+      tags:
+      - Routines
+      summary: Create a routine
+      operationId: createRoutine
+      description: |
+        Creates a routine, enabled from the start. The rules and messages are those of the routines page: a name of at most 60 characters, an instruction of at most 2000, only forms, tables, views and query pages you can reach as objects, at most 20 enabled routines per person, and a one-off time later than now. A data trigger's source is added to the objects.
+        OAuth scope: routines
+        - A routine against the rules returns `422`, and `errors` gives each reason with its `code` and the page's message.
+        - Delete authorization (`delete_authorized`) cannot be set here: a body that names it, true or false, returns `422` `delete_authorization_page_only` and creates nothing.
+        - Jiri running a routine cannot create routines (`403`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoutineInput'
+      responses:
+        '201':
+          description: The routine created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/RoutineForbidden'
+        '422':
+          $ref: '#/components/responses/RoutineRefused'
+  "/routines/{id}":
+    parameters:
+    - $ref: '#/components/parameters/RoutineId'
+    get:
+      tags:
+      - Routines
+      summary: Get a routine
+      operationId: getRoutine
+      description: |
+        One of your own routines. Someone else's, or one that does not exist, returns `404`.
+        OAuth scope: routines
+      responses:
+        '200':
+          description: The routine
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/RoutineForbidden'
+        '404':
+          $ref: '#/components/responses/RoutineNotFound'
+    patch:
+      tags:
+      - Routines
+      summary: Update a routine
+      operationId: updateRoutine
+      description: |
+        Changes the name, instruction, objects, trigger kind, schedule or data trigger. A key left out, or null, keeps what the routine has; `objects` given replaces them all.
+        OAuth scope: routines
+        - The rules and messages are those of creating. A changed schedule cancels the runs queued for the old one; a changed instruction or objects stops a run in progress.
+        - A body that names `delete_authorized`, true or false, returns `422` `delete_authorization_page_only` and changes nothing.
+        - Jiri running a routine cannot update routines (`403`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoutineInput'
+      responses:
+        '200':
+          description: The routine as updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/RoutineForbidden'
+        '404':
+          $ref: '#/components/responses/RoutineNotFound'
+        '422':
+          $ref: '#/components/responses/RoutineRefused'
+    delete:
+      tags:
+      - Routines
+      summary: Delete a routine
+      operationId: deleteRoutine
+      description: |
+        Deletes the routine for good: it never runs again, and its queued and running runs are cancelled. The conversations of its past runs stay.
+        OAuth scope: routines
+        - Jiri running a routine cannot delete routines (`403`).
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                - deleted
+                properties:
+                  id:
+                    type: string
+                    description: The ID of the routine deleted
+                  deleted:
+                    type: boolean
+                    const: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/RoutineForbidden'
+        '404':
+          $ref: '#/components/responses/RoutineNotFound'
+  "/routines/{routine_id}/pause":
+    parameters:
+    - $ref: '#/components/parameters/RoutineIdNested'
+    post:
+      tags:
+      - Routines
+      summary: Pause a routine
+      operationId: pauseRoutine
+      description: |
+        The routine stops running, and its queued and running runs are cancelled. Pausing a paused routine returns it as it is.
+        OAuth scope: routines
+        - Jiri running a routine cannot pause routines (`403`).
+      responses:
+        '200':
+          description: The routine, paused
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/RoutineForbidden'
+        '404':
+          $ref: '#/components/responses/RoutineNotFound'
+  "/routines/{routine_id}/resume":
+    parameters:
+    - $ref: '#/components/parameters/RoutineIdNested'
+    post:
+      tags:
+      - Routines
+      summary: Resume a routine
+      operationId: resumeRoutine
+      description: |
+        Enables a paused routine, which runs again from its next time after now; times missed while it was paused are not made up. Resuming an enabled routine returns it as it is.
+        OAuth scope: routines
+        - As with creating, at most 20 routines can be enabled (`422` `active_limit`). A one-off whose time has passed returns `422` `once_passed`; a data trigger whose fields no longer work returns `422`.
+        - Jiri running a routine cannot resume routines (`403`).
+      responses:
+        '200':
+          description: The routine, enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/RoutineForbidden'
+        '404':
+          $ref: '#/components/responses/RoutineNotFound'
+        '422':
+          $ref: '#/components/responses/RoutineRefused'
+  "/routines/{routine_id}/run":
+    parameters:
+    - $ref: '#/components/parameters/RoutineIdNested'
+    post:
+      tags:
+      - Routines
+      summary: Run a routine now
+      operationId: runRoutine
+      description: |
+        Queues one run now, paused routines included, and returns it. When it starts it is checked as a scheduled run is: AI points, the daily run limit, and access to the objects. Its outcome shows in the routine's runs.
+        OAuth scope: routines
+        - A run still in progress returns `422` `invalid`; so does a data trigger whose fields no longer work.
+        - Jiri running a routine cannot run routines (`403`).
+      responses:
+        '202':
+          description: The run queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - run
+                properties:
+                  run:
+                    $ref: '#/components/schemas/RoutineRun'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/RoutineForbidden'
+        '404':
+          $ref: '#/components/responses/RoutineNotFound'
+        '422':
+          $ref: '#/components/responses/RoutineRefused'
+  "/routines/{routine_id}/runs":
+    parameters:
+    - $ref: '#/components/parameters/RoutineIdNested'
+    get:
+      tags:
+      - Routines
+      summary: List a routine's runs
+      operationId: listRoutineRuns
+      description: |
+        The runs of one of your own routines, latest planned time first. Paged as `GET /routines` is.
+        OAuth scope: routines
+      parameters:
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/OffsetNext'
+      - $ref: '#/components/parameters/EntriesSkip'
+      responses:
+        '200':
+          description: Runs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutineRunListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/RoutineForbidden'
+        '404':
+          $ref: '#/components/responses/RoutineNotFound'
 components:
   securitySchemes:
     bearerAuth:
@@ -5465,7 +7465,7 @@ components:
       description: |
         `Authorization: Bearer ACCESS_TOKEN`. Accepts personal access tokens, account access tokens (Enterprise plan) and OAuth 2.0 tokens.
         OAuth tokens can call only the endpoints their scopes allow: `forms` (forms / tables / views / folders / public queries / templates), `form_setting` (form settings, predefined choice sets),
-        `read_entries` / `write_entries` (entries, comments, attachment uploads, WeChat authorization sessions), `submit_entries` (fill pages and submitting through them), `read_contacts` (contacts), `users` (current user / account and its members, e-invoices, payment history / 小金商户 and transactions / SMS signature review status), `public` (everything else).
+        `read_entries` / `write_entries` (entries, comments, attachment uploads, WeChat authorization sessions, SMS / email tasks), `submit_entries` (fill pages and submitting through them), `read_contacts` (contacts), `users` (current user / account and its members, e-invoices, payment history / 小金商户 and transactions / SMS signatures and templates, SMTP accounts, license image uploads), `routines` (routines and their runs), `public` (everything else).
   parameters:
     FormToken:
       name: form_token
@@ -5567,7 +7567,7 @@ components:
         - For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{"<column api_code>": [min, max]}`.
         - `within_last` works only on date fields; `value` looks like `{"unit":"day","n":30}` (unit can be minute / day / week / month).
         - `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.
-        - `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.
+        - `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.
         - For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.
         - With a `created_at` condition, results are sorted by creation time instead.
       content:
@@ -5796,6 +7796,107 @@ components:
       description: Import job ID (the `job_id` returned when the import was created)
       schema:
         type: string
+    EntryTaskEntryField:
+      name: entry_field
+      in: query
+      required: true
+      description: api_code of the mobile field (SMS) or email field (email) to send to, or `<table api_code>.<column api_code>` for a column of a table / matrix field
+      schema:
+        type: string
+      example: field_2
+    EntryTaskViewToken:
+      name: view_token
+      in: query
+      required: false
+      description: Pick only from the entries this view selects (`token` from `GET /forms/{form_token}/views`), narrowed further by `filters` / `keyword`
+      schema:
+        type: string
+    EntryTaskSelectAll:
+      name: select_all
+      in: query
+      required: false
+      description: Must be true to pick every entry of the form when no filter, keyword or view with filters narrows the entries; otherwise 400
+      schema:
+        type: boolean
+    EntryTaskId:
+      name: id
+      in: path
+      required: true
+      description: Task id (the `id` returned when the task was created)
+      schema:
+        type: string
+    EntryTaskLimit:
+      name: limit
+      in: query
+      required: false
+      description: Page size, at most 1000 (larger values are treated as 1000)
+      schema:
+        type: integer
+        default: 50
+    EntryTaskNext:
+      name: next
+      in: query
+      required: false
+      description: "`next` from the previous page's response (a row offset, starting at 0); pass it back unchanged to get the next page."
+      schema:
+        type: integer
+        minimum: 0
+    EntryTaskListLimit:
+      name: limit
+      in: query
+      required: false
+      description: Page size
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    EntryTaskStartDate:
+      name: start_date
+      in: query
+      required: false
+      description: Only tasks created on or after this day, Beijing time (UTC+8)
+      schema:
+        type: string
+        format: date
+      example: '2026-10-01'
+    EntryTaskEndDate:
+      name: end_date
+      in: query
+      required: false
+      description: Only tasks created on or before this day, Beijing time (UTC+8)
+      schema:
+        type: string
+        format: date
+      example: '2026-10-31'
+    EntryTaskActivityStatus:
+      name: status
+      in: query
+      required: false
+      description: Return only the records with this result; omitted, both
+      schema:
+        type: string
+        enum:
+        - SUCCESS
+        - FAILED
+    EntryTaskResendStatus:
+      name: status
+      in: query
+      required: true
+      description: Send again to the task's entries with this result in its sending results, `ALL` meaning any result
+      schema:
+        type: string
+        enum:
+        - FAILED
+        - SUCCESS
+        - ALL
+    SMTPAccountId:
+      name: smtp_account_id
+      in: query
+      required: false
+      description: Custom SMTP account to send through (`id` from `GET /smtp_accounts`), using no email quota
+      schema:
+        type: string
     TradeStartDate:
       name: start_date
       in: query
@@ -5875,6 +7976,20 @@ components:
       description: "`next` from the previous page's response (a page number, starting at 1); pass it back unchanged to get the next page. Defaults to page 1."
       schema:
         type: integer
+    RoutineId:
+      name: id
+      in: path
+      required: true
+      description: The routine's ID (`id` from `GET /routines`)
+      schema:
+        type: string
+    RoutineIdNested:
+      name: routine_id
+      in: path
+      required: true
+      description: The routine's ID (`id` from `GET /routines`)
+      schema:
+        type: string
   responses:
     BadRequest:
       description: Invalid request parameters or data
@@ -5957,6 +8072,41 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    EntryTaskForbidden:
+      description: Insufficient OAuth scope, a role without data read rights on the form, or, for sending, an external cooperator without the `send_sms_and_email` ability (error_description shape); or the form or its creator is frozen (errors + status_code shape)
+      content:
+        application/json:
+          schema:
+            oneOf:
+            - $ref: '#/components/schemas/Error'
+            - $ref: '#/components/schemas/FormFrozenError'
+    RoutineForbidden:
+      description: 'Forbidden: the OAuth token lacks the `routines` scope; the credential has no current user (an account access token and the like, as routines belong to a person); the account cannot use routines yet; or Jiri running a routine tried to create, update, pause, resume, delete or run one (it can only read them).'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error_description: 自动任务运行时不能管理自动任务
+    RoutineNotFound:
+      description: The routine does not exist or is not the current user's
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error_description: 找不到这个自动任务
+    RoutineRefused:
+      description: Against the rules for routines; nothing was changed. `errors` gives each reason, and `error_description` is the first one's `message`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RoutineRefusal'
+          example:
+            error_description: 启用中的自动任务最多 20 条，请先暂停或删除一些
+            errors:
+            - code: active_limit
+              message: 启用中的自动任务最多 20 条，请先暂停或删除一些
   schemas:
     ScopeCondition:
       type: object
@@ -6371,7 +8521,7 @@ components:
             $ref: '#/components/schemas/Statement'
         dimensions:
           type: array
-          description: Sub-fields (matrix fill-in / matrix scale / table / inline blanks); each item is a single-key object keyed by the sub-field's api_code, and sub-fields carry only the common properties
+          description: Sub-fields (matrix fill-in / matrix scale / table / inline blanks), each a single-key object keyed by the sub-field's api_code; a sub-field's validation.required comes from the field's own, and a required sub-field must be filled in every submitted row (or statement)
           items:
             $ref: '#/components/schemas/FieldMap'
         placeholder:
@@ -6840,7 +8990,7 @@ components:
         | Time | `{"hour": "12", "minute": "15"}` |
         | Address | `{"province","city","district","street"}` |
         | Geolocation | `{"longitude","latitude","address"}` |
-        | File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{"base64": "...", "file_name": "a.png", "content_type": "image/png"}` (≤ 5MB; `base64` may also be a data URI); `{"attachment_token": "..."}` (pre-upload token) |
+        | File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{"base64": "...", "file_name": "a.png", "content_type": "image/png"}` (≤ 5MB; `base64` may also be a data URI) |
         | Goods | `[{"value": "goods item api_code", "number": 2, "specification": {"spec dimension": "option"}?}]` |
         | Matrix fill-in / matrix scale | `{"<statement api_code>": {"<column api_code>": value}}` |
         | Matrix single choice | `{"<statement api_code>": "choice api_code"}` |
@@ -6920,6 +9070,7 @@ components:
       - last_entry_created_at
       - creator
       - entries_count
+      - folder_token
       properties:
         name:
           type: string
@@ -6945,6 +9096,11 @@ components:
           $ref: '#/components/schemas/Creator'
         entries_count:
           type: integer
+        folder_token:
+          type:
+          - string
+          - 'null'
+          description: Token of the folder the current identity put this table in (for an account token, the account owner's); null when the table is not in a folder
     TableListResponse:
       type: object
       required:
@@ -7309,9 +9465,6 @@ components:
           type: string
         cid:
           type: string
-        required:
-          type: boolean
-          description: Required
         choices:
           type: array
           items:
@@ -7462,6 +9615,11 @@ components:
           items:
             type: string
           description: Base64 goods images for layout=images
+        attachment_ids:
+          type: array
+          items:
+            type: string
+          description: Goods images for layout=images, by the `attachment_id` an image_type=goods_item upload returns, or an image this form already has
       dependentRequired:
         dimensions:
         - skus
@@ -7495,6 +9653,11 @@ components:
             - image_base64s
             properties:
               image_base64s:
+                minItems: 1
+          - required:
+            - attachment_ids
+            properties:
+              attachment_ids:
                 minItems: 1
     ReservationItemInput:
       type: object
@@ -7610,6 +9773,9 @@ components:
           - object
           - 'null'
           properties:
+            enabled:
+              type: boolean
+              description: Pass false to delete the rule
             start_time:
               type: string
               format: date-time
@@ -7622,6 +9788,9 @@ components:
           - object
           - 'null'
           properties:
+            enabled:
+              type: boolean
+              description: Pass false to delete the rule
             limit:
               type: integer
           additionalProperties: false
@@ -7738,6 +9907,370 @@ components:
           type: boolean
           default: true
       additionalProperties: false
+    NotificationRuleScopeCondition:
+      type: object
+      description: A condition an entry must match; conditions sharing a `group_index` must all hold, different groups are alternatives
+      required:
+      - trigger
+      - operator
+      properties:
+        trigger:
+          type: string
+          description: Field api_code; `trade_status` matches the payment status, e.g. `paid`
+        operator:
+          type: string
+          enum:
+          - eq
+          - ne
+          - any_in
+          - none_in
+          - between
+          - not_between
+          - gte
+          - gt
+          - lte
+          - lt
+          - 'null'
+          - not_null
+          - like
+          - not_like
+          - match
+        value:
+          description: Value to compare with; choice fields take choice api_codes
+        group_index:
+          type: integer
+      additionalProperties: false
+    NotificationRuleScheduleTimeRule:
+      type: object
+      description: When a `schedule_time` rule sends, relative to a date field of each entry
+      required:
+      - date_key
+      properties:
+        date_key:
+          type: string
+          description: api_code of a date field, a reservation field, or created_at / updated_at
+        reservation_item_key:
+          type: string
+          description: The reservation item, when `date_key` is a reservation field
+        date_offset_action:
+          type: string
+          enum:
+          - before
+          - that_day
+          - after
+        date_offset_number:
+          type: integer
+          minimum: 0
+        date_offset_unit:
+          type: string
+          enum:
+          - minute
+          - hour
+          - day
+          - week
+          - month
+        hour:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          maximum: 23
+        minute:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          maximum: 59
+      additionalProperties: false
+    NotificationRuleTriggerScope:
+      type: string
+      enum:
+      - all_new
+      - all_update
+      - matched_new
+      - matched_update
+      - schedule_time
+      default: all_new
+      description: 'When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`'
+    SMSNotificationRuleInput:
+      type: object
+      description: An SMS notification rule, sent to the submitter. The text and signature come from the SMS template.
+      properties:
+        approach:
+          type: string
+          enum:
+          - SMS
+        enabled:
+          type: boolean
+          default: true
+        trigger_scope:
+          $ref: '#/components/schemas/NotificationRuleTriggerScope'
+        scope_conditions:
+          type: array
+          description: Required with matched_new / matched_update
+          items:
+            $ref: '#/components/schemas/NotificationRuleScopeCondition'
+        schedule_time_rule:
+          $ref: '#/components/schemas/NotificationRuleScheduleTimeRule'
+        recipients:
+          type: array
+          description: Mobile numbers, or api_codes of the mobile fields holding them
+          items:
+            type: string
+        sms_template_id:
+          type: string
+          description: A template of the caller's own or shared in the account; one under review sends once approved
+        placeholder_keys:
+          type: array
+          description: The field api_code filling each `$(...)` variable of the template, in order
+          items:
+            type: string
+      additionalProperties: false
+    EmailNotificationRuleInput:
+      type: object
+      description: An email notification rule, sent to the submitter or to fixed addresses.
+      properties:
+        approach:
+          type: string
+          enum:
+          - EMAIL
+        enabled:
+          type: boolean
+          default: true
+        trigger_scope:
+          $ref: '#/components/schemas/NotificationRuleTriggerScope'
+        scope_conditions:
+          type: array
+          description: Required with matched_new / matched_update
+          items:
+            $ref: '#/components/schemas/NotificationRuleScopeCondition'
+        schedule_time_rule:
+          $ref: '#/components/schemas/NotificationRuleScheduleTimeRule'
+        recipients:
+          type: array
+          description: Email addresses, or api_codes of the email fields holding them
+          items:
+            type: string
+        subject:
+          type: string
+          description: "`$(api_code)` inserts a field value"
+        content:
+          type: string
+          description: The message; `$(api_code)` inserts a field value
+        smtp_account_id:
+          type:
+          - string
+          - 'null'
+          description: A custom SMTP account of the account; null sends through the system mailbox
+      additionalProperties: false
+    WeixinOnetimeNotificationRuleInput:
+      type: object
+      description: A WeChat one-time subscription message, sent to submitters who subscribed when they submitted. A form has at most one such rule.
+      properties:
+        approach:
+          type: string
+          enum:
+          - WEIXIN_ONETIME
+        enabled:
+          type: boolean
+          default: true
+        trigger_scope:
+          $ref: '#/components/schemas/NotificationRuleTriggerScope'
+        scope_conditions:
+          type: array
+          description: Required with matched_new / matched_update
+          items:
+            $ref: '#/components/schemas/NotificationRuleScopeCondition'
+        schedule_time_rule:
+          $ref: '#/components/schemas/NotificationRuleScheduleTimeRule'
+        subject:
+          type: string
+          maxLength: 15
+        content:
+          type: string
+          maxLength: 200
+          description: The message; `$(api_code)` inserts a field value
+        weixin_onetime_url:
+          type: string
+          description: Link opened when the message is tapped
+      additionalProperties: false
+    WxworkNotificationRuleInput:
+      type: object
+      description: A WeCom group bot notification, sent to your team.
+      properties:
+        approach:
+          type: string
+          enum:
+          - WXWORK
+        enabled:
+          type: boolean
+          default: true
+        trigger_scope:
+          $ref: '#/components/schemas/NotificationRuleTriggerScope'
+        scope_conditions:
+          type: array
+          description: Required with matched_new / matched_update
+          items:
+            $ref: '#/components/schemas/NotificationRuleScopeCondition'
+        schedule_time_rule:
+          $ref: '#/components/schemas/NotificationRuleScheduleTimeRule'
+        url:
+          type: string
+          format: uri
+          description: Bot webhook URL
+        content:
+          type: string
+          description: The message; `$(api_code)` inserts a field value
+        mentioned_mobile_list:
+          type: array
+          description: Mobiles to @ in the group, `@all` for everyone
+          items:
+            type: string
+      additionalProperties: false
+    DingTalkNotificationRuleInput:
+      type: object
+      description: A DingTalk group bot notification, sent to your team.
+      properties:
+        approach:
+          type: string
+          enum:
+          - DING_TALK
+        enabled:
+          type: boolean
+          default: true
+        trigger_scope:
+          $ref: '#/components/schemas/NotificationRuleTriggerScope'
+        scope_conditions:
+          type: array
+          description: Required with matched_new / matched_update
+          items:
+            $ref: '#/components/schemas/NotificationRuleScopeCondition'
+        schedule_time_rule:
+          $ref: '#/components/schemas/NotificationRuleScheduleTimeRule'
+        url:
+          type: string
+          format: uri
+          description: Bot webhook URL
+        content:
+          type: string
+          description: The message; `$(api_code)` inserts a field value
+        mentioned_mobile_list:
+          type: array
+          description: Mobiles to @ in the group, `@all` for everyone
+          items:
+            type: string
+      additionalProperties: false
+    WebhookNotificationRuleInput:
+      type: object
+      description: A webhook that receives the entry as JSON.
+      properties:
+        approach:
+          type: string
+          enum:
+          - WEBHOOK
+        enabled:
+          type: boolean
+          default: true
+        trigger_scope:
+          $ref: '#/components/schemas/NotificationRuleTriggerScope'
+        scope_conditions:
+          type: array
+          description: Required with matched_new / matched_update
+          items:
+            $ref: '#/components/schemas/NotificationRuleScopeCondition'
+        schedule_time_rule:
+          $ref: '#/components/schemas/NotificationRuleScheduleTimeRule'
+        url:
+          type: string
+          format: uri
+          description: Webhook URL
+      additionalProperties: false
+    NotificationRule:
+      type: object
+      description: A notification rule. Keys of other approaches are left out
+      properties:
+        id:
+          type: string
+        approach:
+          type: string
+        enabled:
+          type: boolean
+        trigger_scope:
+          type: string
+        scope_conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationRuleScopeCondition'
+        schedule_time_rule:
+          description: Only on schedule_time rules; null otherwise
+          oneOf:
+          - $ref: '#/components/schemas/NotificationRuleScheduleTimeRule'
+          - type: 'null'
+        recipients:
+          type: array
+          items:
+            type: string
+        sms_template_id:
+          type: string
+        placeholder_keys:
+          type: array
+          items:
+            type: string
+        signature:
+          type: string
+          description: SMS signature of the template
+        subject:
+          type: string
+        content:
+          type: string
+          description: The message; for SMS, the template content
+        smtp_account_id:
+          type:
+          - string
+          - 'null'
+        weixin_onetime_url:
+          type: string
+        url:
+          type: string
+        mentioned_mobile_list:
+          type: array
+          items:
+            type: string
+        notifications_count:
+          type: integer
+          description: How many have been sent
+        sendable:
+          type: boolean
+          description: Whether the rule can send right now
+        blocked_reasons:
+          type: array
+          description: Why it cannot send right now; empty when `sendable`
+          items:
+            type: string
+            enum:
+            - disabled
+            - custom_smtp_deleted
+            - custom_smtp_authentication_error
+            - share_link_disabled
+            - webhook_connection_error
+            - recipient_fields_deleted
+            - condition_field_deleted
+            - condition_choice_deleted
+            - schedule_field_deleted
+            - sms_template_auditing
+            - sms_template_rejected
+            - sms_signature_auditing
+            - sms_signature_rejected
+            - sms_disabled
+            - plan_not_supported
+            - sms_balance_insufficient
+            - email_balance_insufficient
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
     FormUpdateInput:
       type: object
       description: Contains at least one of `name` / `description` / `fields` / `setting` / `field_rules`
@@ -9551,14 +12084,11 @@ components:
             background_image_url:
               type: string
               description: The server fetches this URL and uses it as the background image
-            background_image_upload_token:
-              type: string
-              description: The `form_image_token` used by "Upload a form image"; the image purpose must be wallpaper; takes precedence over background_image_url
             background_image_attachment_id:
               type:
               - string
               - 'null'
-              description: attachment_id returned by "Upload a form image" (image_type=wallpaper); an empty string removes the current background image. Lower priority than background_image_upload_token / background_image_url
+              description: attachment_id returned by "Upload a form image" (image_type=wallpaper); an empty string removes the current background image. Lower priority than background_image_url
           additionalProperties: false
         header:
           type: object
@@ -9587,9 +12117,6 @@ components:
             header_image_base64:
               type: string
               description: Base64-encoded header image; takes precedence over header_image_url
-            header_image_upload_token:
-              type: string
-              description: The `form_image_token` used by "Upload a form image"; the image purpose must be header; highest priority
             carousel_images:
               type: array
               minItems: 1
@@ -9597,16 +12124,13 @@ components:
               description: Carousel images; replaced as a whole and shown in array order
               items:
                 type: object
-                description: Provide one of image_upload_token / image_url / attachment_id
+                description: Provide one of image_url / attachment_id
                 properties:
-                  image_upload_token:
-                    type: string
-                    description: The `form_image_token` used by "Upload a form image"; the image purpose must be carousel
                   image_url:
                     type: string
                   attachment_id:
                     type: string
-                    description: Keeps an existing carousel image of this form
+                    description: An existing carousel image of this form, or the `attachment_id` returned by "Upload a form image" (image_type carousel)
                 additionalProperties: false
             header_image_attachment_id:
               type:
@@ -9853,10 +12377,32 @@ components:
       properties:
         attachment_id:
           type: string
-          description: Image attachment ID (see "Upload a form image")
+          description: Image attachment ID; pass it where its `image_type` goes
         url:
           type: string
           description: Image URL, returned only when `image_type=description`; put it in the `<img src>` of a form description or field description
+    PreparedUpload:
+      type: object
+      required:
+      - upload_url
+      - expires_at
+      properties:
+        upload_url:
+          type: string
+          format: uri
+          description: 'One-time upload link: POST the file to it as the `file` part of `multipart/form-data`, without credentials; it answers `{ "attachment_id" }` (plus `url` for a `description` image), or 400 once used or expired or when the file breaks the size or type limits'
+        expires_at:
+          type: string
+          format: date-time
+          description: When the link expires (UTC)
+    UploadedLicenseAttachment:
+      type: object
+      required:
+      - attachment_id
+      properties:
+        attachment_id:
+          type: string
+          description: License attachment ID
     UploadedEntryAttachment:
       type: object
       required:
@@ -9918,18 +12464,15 @@ components:
         dimension_api_code:
           type: string
           description: api_code of the attachment column in a table field; required when `field_api_code` is a table field
-        attachment_token:
-          type: string
-          description: One-time upload token, starting with `entry_att_tok_`; when passed, it replaces the regular credentials
         base64:
           type: string
-          description: File content as a Base64 string, optionally with a `data:<mime>;base64,` prefix, at most 5 MB once decoded; the `data` key also works
+          description: File content as a Base64 string, optionally with a `data:<mime>;base64,` prefix, at most 5 MB once decoded
         data:
           type: string
           description: Alias of `base64`
         file_name:
           type: string
-          description: File name, defaults to `attachment`; the `filename` key also works
+          description: File name, defaults to `attachment`
         filename:
           type: string
           description: Alias of `file_name`
@@ -10370,11 +12913,15 @@ components:
                 -
     BillingAccountUsageItem:
       type: object
-      description: Quota and usage of one add-on service; when the quota is unlimited, only unit, unlimited and consumed_quota are present
+      description: Quota and usage of one add-on service; when the quota is unlimited, only unit, unlimited, consumed_quota and available are present
       required:
       - unit
       - consumed_quota
+      - available
       properties:
+        available:
+          type: boolean
+          description: Whether the service can be used now; a paid account may keep using it past total_balance on its account balance
         unit:
           type: string
           enum:
@@ -11065,7 +13612,7 @@ components:
           description: Whether the searcher may export results
         header:
           type: object
-          description: Header settings; only attachment_id, image_upload_token, position_x and position_y of background_image are read (defined by the server implementation)
+          description: Header settings; only attachment_id, position_x and position_y of background_image are read (defined by the server implementation)
           properties:
             background_image:
               type: object
@@ -11073,9 +13620,6 @@ components:
                 attachment_id:
                   type: string
                   description: Background image attachment id, returned by "Upload a form image" (`POST /form_image_attachments`, `image_type=opensearch_header`)
-                image_upload_token:
-                  type: string
-                  description: 'Instead of attachment_id: after uploading with a `form_image_token` (purpose opensearch_header), pass that token directly. The token must be uploaded, unexpired, owned by the caller and have the purpose opensearch_header; otherwise returns 400'
                 position_x:
                   type: number
                   description: Horizontal position of the background image
@@ -12993,7 +15537,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WidgetImageInput'
-          description: Images; each gives one of image_url / image_base64 / image_upload_token
+          description: Images; each gives one of image_url / image_base64 / attachment_id
         widget_max_images_number:
           type: integer
           minimum: 1
@@ -14263,6 +16807,7 @@ components:
           - AttachmentField
           - FormulaField
           - RelationField
+          - SequenceField
         label:
           type: string
           description: Field label
@@ -14281,6 +16826,7 @@ components:
           AttachmentField: "#/components/schemas/AttachmentFieldInput"
           FormulaField: "#/components/schemas/FormulaFieldInput"
           RelationField: "#/components/schemas/RelationFieldInput"
+          SequenceField: "#/components/schemas/SequenceFieldInput"
       oneOf:
       - $ref: '#/components/schemas/TextAreaInput'
       - $ref: '#/components/schemas/RadioButtonInput'
@@ -14294,12 +16840,13 @@ components:
       - $ref: '#/components/schemas/AttachmentFieldInput'
       - $ref: '#/components/schemas/FormulaFieldInput'
       - $ref: '#/components/schemas/RelationFieldInput'
+      - $ref: '#/components/schemas/SequenceFieldInput'
       title: TableColumnInput
     ImageChoiceInput:
       type: object
       title: ImageChoiceInput
       additionalProperties: false
-      description: An image choice; value is its text label, and one of image_url / image_base64 / image_upload_token is required
+      description: An image choice; value is its text label, and one of image_url / image_base64 / attachment_id is required
       allOf:
       - anyOf:
         - required:
@@ -14312,7 +16859,7 @@ components:
         - required:
           - image_base64
         - required:
-          - image_upload_token
+          - attachment_id
       properties:
         value:
           type: string
@@ -14336,9 +16883,9 @@ components:
         image_base64:
           type: string
           description: The image as Base64; only for very small images
-        image_upload_token:
+        attachment_id:
           type: string
-          description: The `form_image_token` used by "Upload a form image"; the image purpose must be field_choice
+          description: The `attachment_id` of an image_type=field_choice upload, or an image this form already has
     CascadeChoiceInput:
       type: object
       title: CascadeChoiceInput
@@ -14630,15 +17177,16 @@ components:
       - required:
         - image_base64
       - required:
-        - image_upload_token
+        - attachment_id
       properties:
         image_url:
           type: string
           format: uri
         image_base64:
           type: string
-        image_upload_token:
+        attachment_id:
           type: string
+          description: The `attachment_id` of an image_type=contact_widget upload, or an image this form already has
     FormCreateConstraints:
       title: FormCreateConstraints
       description: Constraints between fields and scene / layout when creating a form
@@ -15779,7 +18327,14 @@ components:
       allOf:
       - $ref: '#/components/schemas/Form'
       - type: object
+        required:
+        - folder_token
         properties:
+          folder_token:
+            type:
+            - string
+            - 'null'
+            description: Token of the folder the current identity put this form in (for an account token, the account owner's); null when the form is not in a folder
           theme:
             type: object
             description: Form theme (present when `include_theme=true`); same shape as `FormTheme`, but without `form_token`. An empty object when the form has no theme
@@ -16001,6 +18556,614 @@ components:
           - 'null'
           format: date-time
           description: When the job finished (UTC)
+    SMSTaskCreateInput:
+      type: object
+      title: SMSTaskCreateInput
+      description: Request body of POST /forms/{form_token}/sms_tasks
+      required:
+      - entry_field
+      - sms_template_id
+      properties:
+        entry_field:
+          type: string
+          description: api_code of the mobile field to send to, or `<table api_code>.<column api_code>` for a column of a table / matrix field
+        filters:
+          description: The same as `filters` of `GET /forms/{form_token}/sms_tasks/estimate`, as JSON text or the array itself
+          oneOf:
+          - type: string
+          - type: array
+            items:
+              type: object
+        keyword:
+          type: string
+          maxLength: 200
+          description: The same as `keyword` of `GET /forms/{form_token}/sms_tasks/estimate`
+        view_token:
+          type: string
+          description: The same as `view_token` of `GET /forms/{form_token}/sms_tasks/estimate`
+        select_all:
+          type: boolean
+          description: Must be true to pick every entry of the form when no filter, keyword or view with filters narrows the entries; otherwise 400
+        sms_template_id:
+          type: string
+          description: SMS template to send with (`id` from `GET /sms/templates`)
+        placeholder_keys:
+          type: array
+          description: Field api_code filling each template variable, in order, with blank items dropped; a variable left without one is filled from the field whose api_code is its name
+          items:
+            type: string
+        send_at:
+          type: string
+          format: date-time
+          description: When to send, a future time in ISO 8601 with a time zone offset like `2026-10-21T09:00:00+08:00`; omitted, right away
+        auto_send:
+          type: boolean
+          default: true
+          description: false makes the task wait to be sent with `PATCH /forms/{form_token}/sms_tasks/{id}/auto_send` once it has passed review, even when the template has already passed review
+      additionalProperties: false
+      examples:
+      - entry_field: field_2
+        filters: '[{"field":"field_3","operator":"any_in","value":["选项 A"]}]'
+        sms_template_id: 6512a3f0c1d2e3f4a5b6c7d8
+      - entry_field: field_2
+        sms_template_id: 6512a3f0c1d2e3f4a5b6c7d8
+        send_at: '2026-10-21T09:00:00+08:00'
+    EmailTaskCreateInput:
+      type: object
+      title: EmailTaskCreateInput
+      description: Request body of POST /forms/{form_token}/email_tasks
+      required:
+      - entry_field
+      - subject
+      - content
+      properties:
+        entry_field:
+          type: string
+          description: api_code of the email field to send to, or `<table api_code>.<column api_code>` for a column of a table / matrix field
+        filters:
+          description: The same as `filters` of `GET /forms/{form_token}/email_tasks/estimate`, as JSON text or the array itself
+          oneOf:
+          - type: string
+          - type: array
+            items:
+              type: object
+        keyword:
+          type: string
+          maxLength: 200
+          description: The same as `keyword` of `GET /forms/{form_token}/email_tasks/estimate`
+        view_token:
+          type: string
+          description: The same as `view_token` of `GET /forms/{form_token}/email_tasks/estimate`
+        select_all:
+          type: boolean
+          description: Must be true to pick every entry of the form when no filter, keyword or view with filters narrows the entries; otherwise 400
+        smtp_account_id:
+          type: string
+          description: Custom SMTP account to send through (`id` from `GET /smtp_accounts`), using no email quota
+        subject:
+          type: string
+          description: Email subject
+        content:
+          type: string
+          description: Email body in HTML; insert an entry's field value with `$(field_x)`
+      additionalProperties: false
+      examples:
+      - entry_field: field_5
+        view_token: Xk3pQa
+        subject: 活动通知
+        content: "<p>$(field_1) 您好，活动将于明天 9:00 开始。</p>"
+    SMSTaskEstimate:
+      type: object
+      required:
+      - matched_entries
+      - recipient_entries
+      - missing_recipient_entries
+      - recipients_count
+      - billed_sms_count
+      - at_least
+      - can_send
+      - within_quota_count
+      - over_quota_count
+      - over_quota_amount
+      properties:
+        matched_entries:
+          type: integer
+          description: Number of entries the selection matches, counted as by `GET /forms/{form_token}/entries/count`
+        recipient_entries:
+          type: integer
+          description: Matched entries whose `entry_field` holds a valid mobile number, which go into the task. For a table column, entries whose column is empty are included and get no message, as in the web app
+        missing_recipient_entries:
+          type: integer
+          description: Matched entries left out because `entry_field` is empty or not a valid mobile number; for a table column, those holding a value that is not a valid mobile number
+        recipients_count:
+          type:
+          - integer
+          - 'null'
+          description: 'Number of mobile numbers; one entry can hold several when `entry_field` is a table column. null when `entry_field` is a table column and either `recipient_entries` is over 20000 or a change of a task is estimated: the numbers are then read only as the task sends, as in the web app, which stops when the quota and balance run out'
+        billed_sms_count:
+          type:
+          - integer
+          - 'null'
+          description: 'Messages to be charged with each entry''s values filled in, counted as the SMS provider charges: up to 70 characters including `【signature】` is one, longer bodies one per 67; null when `recipients_count` is null'
+        at_least:
+          type:
+          - boolean
+          - 'null'
+          description: 'true when `billed_sms_count` is a lower bound: content with variables picked for over 20000 entries or estimated for a change of a task, or a variable filled from an associated form''s field; null when `recipients_count` is null'
+        can_send:
+          type:
+          - boolean
+          - 'null'
+          description: Whether the quota, and the balance where the plan allows paying for what the quota does not cover, covers `billed_sms_count`; null when `recipients_count` is null
+        within_quota_count:
+          type:
+          - integer
+          - 'null'
+          description: Messages of `billed_sms_count` the remaining quota (plan and purchased packages) covers; null when `recipients_count` is null
+        over_quota_count:
+          type:
+          - integer
+          - 'null'
+          description: Messages of `billed_sms_count` beyond the remaining quota, paid from the account balance where the plan allows it; null when `recipients_count` is null
+        over_quota_amount:
+          type:
+          - number
+          - 'null'
+          description: What `over_quota_count` costs from the account balance, in CNY; the remaining quota and balance are in `GET /billing_account`; null when `recipients_count` is null
+      examples:
+      - matched_entries: 130
+        recipient_entries: 128
+        missing_recipient_entries: 2
+        recipients_count: 128
+        billed_sms_count: 256
+        at_least: false
+        can_send: true
+        within_quota_count: 200
+        over_quota_count: 56
+        over_quota_amount: 3.36
+    EmailTaskEstimate:
+      type: object
+      required:
+      - matched_entries
+      - recipient_entries
+      - missing_recipient_entries
+      - recipients_count
+      - can_send
+      - within_quota_count
+      - over_quota_count
+      - over_quota_amount
+      properties:
+        matched_entries:
+          type: integer
+          description: Number of entries the selection matches, counted as by `GET /forms/{form_token}/entries/count`
+        recipient_entries:
+          type: integer
+          description: Matched entries whose `entry_field` holds a valid email address, which go into the task. For a table column, entries whose column is empty are included and get no email, as in the web app
+        missing_recipient_entries:
+          type: integer
+          description: Matched entries left out because `entry_field` is empty or not a valid email address; for a table column, those holding a value that is not a valid email address
+        recipients_count:
+          type:
+          - integer
+          - 'null'
+          description: 'Number of email addresses, one email each; one entry can hold several when `entry_field` is a table column. null when `entry_field` is a table column and `recipient_entries` is over 20000: the addresses are then read only as the task sends, as in the web app, which stops when the quota and balance run out'
+        within_quota_count:
+          type:
+          - integer
+          - 'null'
+          description: Emails of `recipients_count` the remaining quota (plan and purchased packages) covers; 0 with a custom SMTP account, which uses no quota; null when `recipients_count` is null
+        over_quota_count:
+          type:
+          - integer
+          - 'null'
+          description: Emails of `recipients_count` beyond the remaining quota, paid from the account balance where the plan allows it; 0 with a custom SMTP account; null when `recipients_count` is null
+        over_quota_amount:
+          type:
+          - number
+          - 'null'
+          description: What `over_quota_count` costs from the account balance, in CNY; the remaining quota and balance are in `GET /billing_account`; null when `recipients_count` is null
+        can_send:
+          type:
+          - boolean
+          - 'null'
+          description: Whether the quota, or balance where the plan allows, covers `recipients_count` within the daily limit of 200 (none on organization plans); null when `recipients_count` is null, otherwise always true with custom SMTP
+      examples:
+      - matched_entries: 45
+        recipient_entries: 42
+        missing_recipient_entries: 3
+        recipients_count: 42
+        can_send: true
+        within_quota_count: 42
+        over_quota_count: 0
+        over_quota_amount: 0.0
+    EntryTask:
+      type: object
+      description: An SMS or email task sending to entries of a form
+      required:
+      - id
+      - status
+      - recipient_entries
+      - failed_reason
+      - created_at
+      - sent_at
+      properties:
+        id:
+          type: string
+          description: Task id
+        status:
+          type: string
+          description: Task status, where a `template_fail` SMS task can be changed and sent again, and a `waiting_for_send` or `content_auditing` one revoked, with PATCH
+          enum:
+          - template_checking
+          - content_auditing
+          - approved
+          - rejected
+          - waiting_for_send
+          - sending
+          - all_sent
+          - partial_sent
+          - none_sent
+          - template_fail
+          - revoked
+          - template_deleted
+        recipient_entries:
+          type: integer
+          description: Number of entries in the task
+        succeeded:
+          type: integer
+          description: Entries sent successfully so far; returned when listing or reading tasks
+        failed:
+          type: integer
+          description: Entries that failed so far; returned when listing or reading tasks
+        failed_reason:
+          type:
+          - string
+          - 'null'
+          description: Why sending failed, e.g. the quota ran out; null when there is none
+        created_at:
+          type: string
+          format: date-time
+          description: When the task was created (UTC)
+        sent_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: When sending started (UTC); null before it starts
+        auto_send:
+          type: boolean
+          description: SMS tasks only; false while a task created with `auto_send` false waits to be sent with `PATCH /forms/{form_token}/sms_tasks/{id}/auto_send`
+      examples:
+      - id: 6716f2a8c1d2e3f4a5b6c7d9
+        status: sending
+        recipient_entries: 128
+        succeeded: 100
+        failed: 0
+        failed_reason:
+        created_at: '2026-10-20T08:00:00Z'
+        sent_at: '2026-10-20T08:00:02Z'
+    EntryTaskListResponse:
+      type: object
+      required:
+      - count
+      - data
+      - next
+      properties:
+        count:
+          type: integer
+          description: Number of items on this page
+        data:
+          type: array
+          description: Tasks, newest first
+          items:
+            $ref: '#/components/schemas/EntryTask'
+        next:
+          type:
+          - integer
+          - 'null'
+          description: Row offset of the next page; null on the last page
+    EntryTaskResendInput:
+      type: object
+      title: EntryTaskResendInput
+      description: Request body of POST /forms/{form_token}/sms_tasks/{id}/resend and POST /forms/{form_token}/email_tasks/{id}/resend
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          enum:
+          - FAILED
+          - SUCCESS
+          - ALL
+          description: The same as `status` of the resend estimate
+        filters:
+          description: The same as `filters` of the resend estimate, as JSON text or the array itself
+          oneOf:
+          - type: string
+          - type: array
+            items:
+              type: object
+        keyword:
+          type: string
+          maxLength: 200
+          description: The same as `keyword` of the resend estimate
+        view_token:
+          type: string
+          description: The same as `view_token` of the resend estimate
+      additionalProperties: false
+      examples:
+      - status: FAILED
+      - status: FAILED
+        filters: '[{"field":"serial_number","operator":"none_in","value":[3,8]}]'
+    SMSTaskUpdateInput:
+      type: object
+      title: SMSTaskUpdateInput
+      description: 'Request body of PATCH /forms/{form_token}/sms_tasks/{id}; `revoked: true` alone revokes the task, the other fields change a `template_fail` task and send it again, taking `sms_template_id`; the entries stay those of the task'
+      properties:
+        revoked:
+          type: boolean
+          description: true revokes a `waiting_for_send` or `content_auditing` task so it never sends
+        entry_field:
+          type: string
+          description: api_code of the mobile field to send to, or `<table api_code>.<column api_code>` for a mobile column of a table field; omitted, the task's current `entry_field`
+        sms_template_id:
+          type: string
+          description: SMS template to send with (`id` from `GET /sms/templates`)
+        placeholder_keys:
+          type: array
+          description: Field api_code filling each template variable, in order, with blank items dropped; a variable left without one is filled from the field whose api_code is its name; omitted, the task's current `placeholder_keys`
+          items:
+            type: string
+        send_at:
+          type: string
+          format: date-time
+          description: When to send once review passes, a future time in ISO 8601 with a time zone offset like `2026-10-21T09:00:00+08:00`; omitted, right away
+        auto_send:
+          type: boolean
+          default: true
+          description: false makes the task wait to be sent with `PATCH /forms/{form_token}/sms_tasks/{id}/auto_send` once it has passed review, even when the template has already passed review
+      additionalProperties: false
+      examples:
+      - revoked: true
+      - sms_template_id: 6512a3f0c1d2e3f4a5b6c7d8
+      - sms_template_id: 6512a3f0c1d2e3f4a5b6c7d8
+        send_at: '2026-10-21T09:00:00+08:00'
+        auto_send: false
+    SMSTaskActivity:
+      type: object
+      description: The result of sending an SMS task to one mobile number
+      required:
+      - serial_number
+      - mobile
+      - status
+      - error
+      - created_at
+      properties:
+        serial_number:
+          type:
+          - integer
+          - 'null'
+          description: Serial number of the entry the number came from; null when the entry no longer exists
+        mobile:
+          type: string
+          description: Mobile number sent to
+        status:
+          type: string
+          description: Sending result; see `error` when `FAILED`
+          enum:
+          - SUCCESS
+          - FAILED
+        error:
+          type:
+          - string
+          - 'null'
+          description: Why sending failed, e.g. the quota ran out or the number was rejected by the SMS provider; null when it succeeded
+        created_at:
+          type: string
+          format: date-time
+          description: When it was sent (UTC)
+      examples:
+      - serial_number: 36
+        mobile: '13800000001'
+        status: SUCCESS
+        error:
+        created_at: '2026-10-20T08:00:03Z'
+    EmailTaskActivity:
+      type: object
+      description: The result of sending an email task to one entry
+      required:
+      - serial_number
+      - email
+      - status
+      - error
+      - created_at
+      properties:
+        serial_number:
+          type:
+          - integer
+          - 'null'
+          description: Serial number of the entry; null when the entry no longer exists
+        email:
+          type: array
+          description: The entry's email addresses the email went to
+          items:
+            type: string
+        status:
+          type: string
+          description: Sending result; see `error` when `FAILED`
+          enum:
+          - SUCCESS
+          - FAILED
+        error:
+          type:
+          - string
+          - 'null'
+          description: Why sending failed, e.g. the quota ran out; null when it succeeded
+        created_at:
+          type: string
+          format: date-time
+          description: When it was sent (UTC)
+      examples:
+      - serial_number: 36
+        email:
+        - someone@example.com
+        status: SUCCESS
+        error:
+        created_at: '2026-10-20T08:00:03Z'
+    SMSTaskActivityListResponse:
+      type: object
+      required:
+      - count
+      - data
+      - next
+      properties:
+        count:
+          type: integer
+          description: Number of items on this page
+        data:
+          type: array
+          description: One record per mobile number, in the order they were sent
+          items:
+            $ref: '#/components/schemas/SMSTaskActivity'
+        next:
+          type:
+          - integer
+          - 'null'
+          description: Row offset of the next page; null on the last page
+    EmailTaskActivityListResponse:
+      type: object
+      required:
+      - count
+      - data
+      - next
+      properties:
+        count:
+          type: integer
+          description: Number of items on this page
+        data:
+          type: array
+          description: One record per entry, in the order they were sent
+          items:
+            $ref: '#/components/schemas/EmailTaskActivity'
+        next:
+          type:
+          - integer
+          - 'null'
+          description: Row offset of the next page; null on the last page
+    Notification:
+      type: object
+      description: A notification a rule sent for one entry
+      required:
+      - id
+      - status
+      - recipient
+      - error
+      - serial_number
+      - send_at
+      properties:
+        id:
+          type: string
+          description: Notification id
+        status:
+          type: string
+          description: Sending status
+          enum:
+          - SUCCESS
+          - FAILED
+          - WAITING
+          - AUDITING
+          - APPROVED
+          - REJECTED
+          - CANCELLED
+          - REVOKED
+        recipient:
+          type:
+          - string
+          - 'null'
+          description: Mobile number or email address it went to; null for push notifications
+        error:
+          type:
+          - string
+          - 'null'
+          description: Why it failed or was cancelled, for a bot or webhook what its URL answered; null when there is none
+        serial_number:
+          type:
+          - integer
+          - 'null'
+          description: Serial number of the entry that triggered it; null once the entry is deleted
+        send_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: When it was sent
+      examples:
+      - id: 6716f2a8c1d2e3f4a5b6c7e1
+        status: FAILED
+        recipient: '13800000000'
+        error: 余额不足
+        serial_number: 12
+        send_at: '2026-10-20T08:00:02Z'
+    NotificationListResponse:
+      type: object
+      required:
+      - triggered_count
+      - summary
+      - count
+      - data
+      - next
+      properties:
+        triggered_count:
+          type: integer
+          description: How many notifications the rule has made, retries included, all time; the send count shown on the rule in the notification settings page
+        summary:
+          type: object
+          description: Counts over every notification matching the query, not just this page
+          required:
+          - total
+          - succeeded
+          - failed
+          - failed_reasons
+          properties:
+            total:
+              type: integer
+              description: Notifications matching the query
+            succeeded:
+              type: integer
+              description: Notifications in `SUCCESS`
+            failed:
+              type: integer
+              description: Notifications in `FAILED`
+            failed_reasons:
+              type: array
+              description: The failed notifications grouped by reason, most frequent first
+              items:
+                type: object
+                required:
+                - reason
+                - count
+                properties:
+                  reason:
+                    type:
+                    - string
+                    - 'null'
+                    description: Failure reason as `error` gives it, but for a bot or webhook the HTTP status its URL answered; null when none was recorded
+                  count:
+                    type: integer
+                    description: Failed notifications with this reason
+        count:
+          type: integer
+          description: Number of items on this page
+        data:
+          type: array
+          description: Notifications, newest first
+          items:
+            $ref: '#/components/schemas/Notification'
+        next:
+          type:
+          - integer
+          - 'null'
+          description: Row offset of the next page; null on the last page
     TimeOfDay:
       type: object
       required:
@@ -17090,24 +20253,31 @@ components:
             $ref: '#/components/schemas/SMSSignatureAuditStatus'
       examples:
       - signatures:
-        - signature: 金数据
+        - id: 6512a1c2d3e4f5a6b7c8d9d0
+          signature: 金数据
           status: SUCCESS
           reason:
           templates:
-          - content: 您的验证码是#code#，5 分钟内有效。
+          - id: 6512a1c2d3e4f5a6b7c8d9d1
+            content: 您的验证码是#code#，5 分钟内有效。
             status: SUCCESS
             reason:
-          - content: 您报名的活动将于明天开始，请准时参加。
+          - id: 6512a1c2d3e4f5a6b7c8d9d2
+            content: 您报名的活动将于明天开始，请准时参加。
             status: FAIL
             reason: 模板内容缺少签名对应的主体信息
     SMSSignatureAuditStatus:
       type: object
       required:
+      - id
       - signature
       - status
       - reason
       - templates
       properties:
+        id:
+          type: string
+          description: Signature ID, for `PATCH /sms/signatures/{id}`
         signature:
           type: string
           description: Signature text
@@ -17131,10 +20301,14 @@ components:
     SMSTemplateAuditStatus:
       type: object
       required:
+      - id
       - content
       - status
       - reason
       properties:
+        id:
+          type: string
+          description: Template ID; only your own templates can be changed or deleted, so take the id from `GET /sms/templates` (`scope` owned) for that
         content:
           type:
           - string
@@ -17155,6 +20329,316 @@ components:
           - string
           - 'null'
           description: Review note; the reason when rejected
+    SMSSignatureCreateInput:
+      type: object
+      required:
+      - signature
+      - license_attachment_ids
+      - company_name
+      - company_id
+      - id_card_front_attachment_id
+      - id_card_back_attachment_id
+      - id_card_name
+      - id_card_number
+      - identity_mobile
+      properties:
+        signature:
+          type: string
+          minLength: 2
+          maxLength: 20
+          description: Signature text, without `【】`
+        type:
+          type: string
+          enum:
+          - notification
+          - verification
+          default: notification
+          description: notification signs template SMS; verification only signs form verification-code SMS and cannot have templates
+        company_name:
+          type: string
+          minLength: 1
+          description: Company name, as on the business license
+        company_id:
+          type: string
+          minLength: 1
+          description: Unified social credit code
+        license_attachment_ids:
+          type: array
+          minItems: 1
+          description: Attachment IDs of the business license images; a verification signature submits only the first
+          items:
+            type: string
+        id_card_front_attachment_id:
+          type: string
+          description: Attachment ID of the ID card front (national emblem side)
+        id_card_back_attachment_id:
+          type: string
+          description: Attachment ID of the ID card back (portrait side)
+        id_card_name:
+          type: string
+          description: Name on the ID card
+        id_card_number:
+          type: string
+          description: ID card number
+        identity_mobile:
+          type: string
+          description: Mobile number of the ID card holder
+      additionalProperties: false
+    SMSSignatureUpdateInput:
+      type: object
+      description: The keys of `POST /sms/signatures`; only those present change
+      properties:
+        signature:
+          type: string
+          minLength: 2
+          maxLength: 20
+          description: Signature text, without `【】`
+        company_name:
+          type: string
+          minLength: 1
+          description: Company name, as on the business license
+        company_id:
+          type: string
+          minLength: 1
+          description: Unified social credit code
+        license_attachment_ids:
+          type: array
+          minItems: 1
+          description: Attachment IDs of the business license images, replacing the current ones; a verification signature submits only the first
+          items:
+            type: string
+        id_card_front_attachment_id:
+          type: string
+          description: Attachment ID of the ID card front (national emblem side)
+        id_card_back_attachment_id:
+          type: string
+          description: Attachment ID of the ID card back (portrait side)
+        id_card_name:
+          type: string
+          description: Name on the ID card
+        id_card_number:
+          type: string
+          description: ID card number
+        identity_mobile:
+          type: string
+          description: Mobile number of the ID card holder
+      additionalProperties: false
+    SMSSignature:
+      type: object
+      required:
+      - id
+      - signature
+      - status
+      - reason
+      - type
+      - channel
+      properties:
+        id:
+          type: string
+          description: Signature ID
+        signature:
+          type: string
+          description: Signature text
+        status:
+          type: string
+          enum:
+          - CHECKING
+          - SUCCESS
+          - FAIL
+          description: 'Review status: CHECKING (under review), SUCCESS (approved), FAIL (rejected)'
+        reason:
+          type:
+          - string
+          - 'null'
+          description: The reason when rejected
+        type:
+          type: string
+          enum:
+          - notification
+          - verification
+          description: notification signs template SMS; verification only signs form verification-code SMS and cannot have templates
+        channel:
+          type:
+          - string
+          - 'null'
+          enum:
+          - normal
+          - marketing
+          -
+          description: Null for a verification signature
+      examples:
+      - id: 6512a1c2d3e4f5a6b7c8d9d3
+        signature: 小金培训
+        status: CHECKING
+        reason:
+        type: notification
+        channel: normal
+    SMSTemplateCreateInput:
+      type: object
+      required:
+      - signature
+      - content
+      properties:
+        signature:
+          type: string
+          description: Signature text, without `【】`; a notification signature with `channel` normal
+        content:
+          type: string
+          description: Template content, without the signature
+        apply_description:
+          type: string
+          maxLength: 200
+          description: What the SMS is used for, shown to the reviewer
+      additionalProperties: false
+    SMSTemplateUpdateInput:
+      type: object
+      description: The keys of `POST /sms/templates`; only those present change
+      properties:
+        signature:
+          type: string
+          description: Signature text, without `【】`; a notification signature with `channel` normal
+        content:
+          type: string
+          description: Template content, without the signature; may keep the template's `$(...)` variables
+        apply_description:
+          type: string
+          maxLength: 200
+          description: What the SMS is used for, shown to the reviewer
+      additionalProperties: false
+    SMSTemplate:
+      type: object
+      required:
+      - id
+      - signature
+      - content
+      - status
+      - reason
+      - scope
+      - channel
+      properties:
+        id:
+          type: string
+          description: Template ID
+        signature:
+          type:
+          - string
+          - 'null'
+          description: Signature text; null for an early template without one, which needs `signature` when updated
+        content:
+          type: string
+          description: Template content as saved
+        status:
+          type:
+          - string
+          - 'null'
+          enum:
+          - CHECKING
+          - SUCCESS
+          - FAIL
+          -
+          description: 'Review status: CHECKING (under review), SUCCESS (approved), FAIL (rejected)'
+        reason:
+          type:
+          - string
+          - 'null'
+          description: The reason when rejected
+        scope:
+          type: string
+          enum:
+          - owned
+          - shared
+          description: owned can be changed or deleted; shared can only be sent
+        channel:
+          type: string
+          enum:
+          - normal
+          - marketing
+          description: marketing templates cannot be created through the API
+      examples:
+      - id: 6512a1c2d3e4f5a6b7c8d9e0
+        signature: 小金培训
+        content: 你报名的课程将于明天上午 9 点开课，请准时参加。
+        status: CHECKING
+        reason:
+        scope: owned
+        channel: normal
+    SMSSignatureListResponse:
+      type: object
+      required:
+      - total
+      - count
+      - data
+      - next
+      properties:
+        total:
+          type: integer
+          description: Number of signatures matching the conditions
+        count:
+          type: integer
+          description: Number of items on this page
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SMSSignature'
+        next:
+          type:
+          - integer
+          - 'null'
+          description: Row offset of the next page; null on the last page
+    SMSTemplateListResponse:
+      type: object
+      required:
+      - total
+      - count
+      - data
+      - next
+      properties:
+        total:
+          type: integer
+          description: Number of templates matching the conditions
+        count:
+          type: integer
+          description: Number of items on this page
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SMSTemplate'
+        next:
+          type:
+          - integer
+          - 'null'
+          description: Row offset of the next page; null on the last page
+    SMTPAccountListResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          description: SMTP accounts the account can send email through
+          items:
+            $ref: '#/components/schemas/SMTPAccount'
+      examples:
+      - data:
+        - id: 6512a3f0c1d2e3f4a5b6c7d9
+          name: Jinshuju Events
+          email: events@example.com
+    SMTPAccount:
+      type: object
+      required:
+      - id
+      - name
+      - email
+      properties:
+        id:
+          type: string
+          description: SMTP account id; pass it as `smtp_account_id` when sending email to entries
+        name:
+          type: string
+          description: Sender name the emails go out under
+        email:
+          type: string
+          description: Sender email address
     BillingAccountInvoice:
       type: object
       required:
@@ -17364,6 +20848,35 @@ components:
         statistics:
           $ref: '#/components/schemas/BillingAccountPaymentStatistics'
           description: Present only when this response returns records
+    BillingAccountPaidFeature:
+      type: object
+      required:
+      - key
+      - name
+      - available
+      properties:
+        key:
+          type: string
+          description: Paid feature key
+        name:
+          type: string
+          description: The feature's Chinese name as the product shows it
+        available:
+          type: boolean
+          description: Whether the account has the feature now
+      examples:
+      - key: opensearch
+        name: 对外查询
+        available: false
+    BillingAccountPaidFeaturesResponse:
+      type: object
+      required:
+      - paid_features
+      properties:
+        paid_features:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillingAccountPaidFeature'
     RelationFieldInput:
       type: object
       title: RelationFieldInput
@@ -17531,6 +21044,11 @@ components:
           items:
             type: string
           description: Base64 goods images for layout=images
+        attachment_ids:
+          type: array
+          items:
+            type: string
+          description: Goods images for layout=images, by the `attachment_id` an image_type=goods_item upload returns, or an image this form already has
       dependentRequired:
         dimensions:
         - skus
@@ -17573,3 +21091,578 @@ components:
               properties:
                 image_base64s:
                   minItems: 1
+            - required:
+              - attachment_ids
+              properties:
+                attachment_ids:
+                  minItems: 1
+    SequenceFieldInput:
+      type: object
+      title: SequenceFieldInput
+      description: SequenceField field
+      additionalProperties: false
+      required:
+      - type
+      - label
+      properties:
+        type:
+          const: SequenceField
+        label:
+          type: string
+          description: Field label
+        cid:
+          type: string
+          description: Temporary id within this request, for formulas and the like to refer to
+        notes:
+          type: string
+          description: Field notes
+        private:
+          type: boolean
+          description: Hidden field; a hidden field is not checked for required
+        required:
+          type: boolean
+          description: Required
+        position:
+          type: integer
+          minimum: 0
+          description: Target position of the field in the form, from 0; appended at the end by default
+        segments:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/SequenceSegmentInput'
+          description: Numbering rule, joined in order; exactly one sequence_number part. Defaults to a single 4-digit sequence number
+    SequenceSegmentInput:
+      type: object
+      title: SequenceSegmentInput
+      additionalProperties: false
+      description: One part of a numbering rule
+      required:
+      - kind
+      properties:
+        kind:
+          type: string
+          enum:
+          - fixed_text
+          - field_value
+          - sequence_number
+          description: 'fixed_text: fixed characters; field_value: the value of another field of the entry; sequence_number: the auto-increment number'
+        value:
+          type: string
+          minLength: 1
+          maxLength: 6
+          description: 'fixed_text: the characters'
+        api_code:
+          type: string
+          description: 'field_value: api_code of an existing text, name, email, mobile, ID card, number, single choice, drop-down or date field, created_at / updated_at included'
+        cid:
+          type: string
+          description: 'field_value: cid of a field created in the same request, instead of api_code'
+        digits:
+          type: integer
+          minimum: 1
+          maximum: 12
+          description: 'sequence_number: digits, zero-padded'
+      allOf:
+      - if:
+          properties:
+            kind:
+              const: fixed_text
+        then:
+          required:
+          - value
+      - if:
+          properties:
+            kind:
+              const: field_value
+        then:
+          anyOf:
+          - required:
+            - api_code
+          - required:
+            - cid
+      - if:
+          properties:
+            kind:
+              const: sequence_number
+        then:
+          required:
+          - digits
+    RoutineRefusal:
+      type: object
+      required:
+      - error_description
+      - errors
+      properties:
+        error_description:
+          type: string
+          description: The first reason's `message`
+        errors:
+          type: array
+          items:
+            type: object
+            required:
+            - code
+            - message
+            properties:
+              code:
+                type: string
+                enum:
+                - active_limit
+                - once_passed
+                - object_unavailable
+                - field_unavailable
+                - invalid
+                - delete_authorization_page_only
+                description: |
+                  What kind of reason it is: `active_limit` 20 routines are enabled already; `once_passed` a one-off's time has passed; `object_unavailable` an object or the data trigger's source does not exist or you cannot reach it;
+                  `field_unavailable` a trigger field does not exist, cannot be seen or cannot be watched (formula and association fields); `delete_authorization_page_only` the body named `delete_authorized`; `invalid` anything else.
+              message:
+                type: string
+                description: The message the routines page shows, word for word
+    RoutineInput:
+      type: object
+      description: |
+        The same settings as the routines page. Creating needs `name` and `instruction`, and `trigger_kind` defaults to `schedule`; updating keeps what a key left out, or null, had.
+        This schema only fixes each key's type: values against the rules (an incomplete schedule, a field that cannot be watched, a limit reached) return `422`, with the page's messages in `errors`.
+        Keys not listed here, inside `schedule`, `event`, the objects and the conditions too, are ignored rather than refused, so a routine from `GET` can be sent back with a few keys changed.
+      properties:
+        name:
+          type:
+          - string
+          - 'null'
+          description: The name, at most 60 characters
+        name_set_by_user:
+          type:
+          - boolean
+          - 'null'
+          description: For Jiri, with `name`, when the user gave that name. Jiri's `name` without it leaves a name the user set as it is; from any other caller a changed `name` is the user's own.
+        description:
+          type:
+          - string
+          - 'null'
+          description: One sentence on what the routine does, for people reading the routines list, at most 100 characters
+        instruction:
+          type:
+          - string
+          - 'null'
+          description: What Jiri does on each run, at most 2000 characters
+        objects:
+          type:
+          - array
+          - 'null'
+          description: The objects Jiri reads first, at most 10 and no duplicates; on update they replace the routine's. Only forms and tables you created or that are shared with you, their views you can see, and query pages you created.
+          items:
+            type: object
+            properties:
+              kind:
+                type: string
+                description: form, table, view or opensearch
+              token:
+                type: string
+        trigger_kind:
+          type:
+          - string
+          - 'null'
+          description: "`schedule` (fill in `schedule`) or `event`, when data changes (fill in `event`)"
+        schedule:
+          oneOf:
+          - $ref: '#/components/schemas/RoutineScheduleInput'
+          - type: 'null'
+        event:
+          oneOf:
+          - $ref: '#/components/schemas/RoutineEventInput'
+          - type: 'null'
+        delete_authorized:
+          description: Not accepted. A body that names it, whatever its value, returns `422` `delete_authorization_page_only`.
+    RoutineScheduleInput:
+      type: object
+      description: |
+        A schedule, always in Beijing time. Each frequency reads only its own keys:
+        `once` reads `at`; `hourly` reads `minute`; `daily` and `workdays` read `time`; `weekly` reads `weekdays` and `time`; `monthly` reads `month_days` and `time`.
+      properties:
+        freq:
+          type: string
+          description: once, hourly, daily, workdays (Monday to Friday, public holidays not considered), weekly or monthly
+        at:
+          type: string
+          description: "`once`: when to run, Beijing time as `YYYY-MM-DDTHH:MM`, or ISO 8601 with an offset (e.g. `2026-10-08T10:00:00+08:00`); must be later than now"
+        minute:
+          type: integer
+          description: "`hourly`: the minute of each hour"
+        time:
+          type: string
+          description: "`daily`, `workdays`, `weekly` and `monthly`: the time of day, `HH:MM`"
+        weekdays:
+          type: array
+          items:
+            type: integer
+          description: "`weekly`: 1 = Monday … 7 = Sunday"
+        month_days:
+          type: array
+          items:
+            type: integer
+          description: "`monthly`: 1–31, or -1 for the last day; a month without the day (the 31st, say) is skipped"
+    RoutineEventInput:
+      type: object
+      description: When data changes. The source must be a form or table you created, or whose data you can read; it is added to the objects on save.
+      properties:
+        source_kind:
+          type: string
+          description: form or table
+        source_token:
+          type: string
+          description: The source's token
+        'on':
+          type: string
+          description: "`created`, when there is new data (conditions optional); `updated`, when given fields are changed (fill in `field_codes`; conditions optional, judged on the changed data); `matched`, when data comes to meet the conditions (conditions required), once, new data that meets them included"
+        field_codes:
+          type: array
+          items:
+            type: string
+          description: "`updated`: the api_codes of the fields watched, 1–10; fields the system computes (formula, association) cannot be watched"
+        scope_conditions:
+          type: array
+          description: Data conditions, written as view filters are. Conditions with the same `group_index` are joined by AND or OR by its sign; groups are joined by OR. Each item reads only the keys below.
+          items:
+            type: object
+            properties:
+              trigger:
+                type: string
+                description: The field's api_code (a table column as `<field>.<column>`)
+              operator:
+                type: string
+                description: The comparison, such as eq, ne, gt, lt, any_in, none_in, null, not_null, like or between
+              value:
+                description: The value compared with
+              group_index:
+                type: integer
+                description: The condition's group
+              scope_attr:
+                type: string
+                description: The attribute the condition applies to
+        include_bulk:
+          type: boolean
+          default: false
+          description: Imports and bulk edits trigger it too (one import or bulk edit is one run)
+    Routine:
+      type: object
+      required:
+      - id
+      - name
+      - name_set_by_user
+      - description
+      - instruction
+      - state
+      - paused_reason
+      - trigger_kind
+      - trigger_text
+      - schedule
+      - next_run_at
+      - next_runs
+      - event
+      - objects
+      - delete_authorized
+      - runs_count
+      - last_run
+      - url
+      - created_at
+      - updated_at
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        name_set_by_user:
+          type: boolean
+          description: Whether the user set the name (on the routines page, through the API, or by telling Jiri); Jiri no longer renames such a routine on its own
+        description:
+          type:
+          - string
+          - 'null'
+        instruction:
+          type: string
+        state:
+          type: string
+          enum:
+          - active
+          - paused
+          description: "`active` enabled, `paused` paused"
+        paused_reason:
+          type:
+          - string
+          - 'null'
+          enum:
+          - user
+          - completed
+          - failures
+          - insufficient_points
+          - lost_access
+          - content_rejected
+          - invalid_trigger
+          -
+          description: 'Why it is paused: by the user, a one-off that has run, failed runs in a row, AI points short in a row, access to an object lost, content that did not pass the safety check, or a data trigger whose fields no longer work. null when enabled.'
+        trigger_kind:
+          type: string
+          enum:
+          - schedule
+          - event
+        trigger_text:
+          type:
+          - string
+          - 'null'
+          description: When it runs, in the page's words, such as `每周一 09:00` or `表单《报名表》有新数据时`. null when the trigger is not complete, or the data trigger's source is gone.
+        schedule:
+          type:
+          - object
+          - 'null'
+          description: The schedule, with only the keys its frequency uses (`at` in ISO 8601, Beijing time); null for a data trigger
+        next_run_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: When an enabled schedule runs next (Beijing time); null when paused or for a data trigger
+        next_runs:
+          type: array
+          items:
+            type: string
+            format: date-time
+          description: The next runs of an enabled schedule, at most 5 (Beijing time); empty otherwise
+        event:
+          type:
+          - object
+          - 'null'
+          description: The data trigger; null for a schedule, or when its source is gone
+          required:
+          - source_kind
+          - source_token
+          - source_name
+          - 'on'
+          - fields
+          - scope_conditions
+          - conditions
+          - include_bulk
+          properties:
+            source_kind:
+              type: string
+              enum:
+              - form
+              - table
+            source_token:
+              type: string
+            source_name:
+              type: string
+            'on':
+              type: string
+              enum:
+              - created
+              - updated
+              - matched
+            fields:
+              type: array
+              description: The fields watched
+              items:
+                type: object
+                required:
+                - code
+                - label
+                properties:
+                  code:
+                    type: string
+                  label:
+                    type:
+                    - string
+                    - 'null'
+                    description: The field's name; null when it is deleted or you can no longer see it
+            scope_conditions:
+              type: array
+              description: The conditions as stored, in the shape `RoutineEventInput.scope_conditions` takes, so they can be sent back; empty when you can no longer read the source
+              items:
+                type: object
+            conditions:
+              type: array
+              description: The conditions in words, one sentence per group, such as `「性别」包含任一「男」，且「人数」大于「2」`; groups after the first start with `或者`
+              items:
+                type: string
+            include_bulk:
+              type: boolean
+        objects:
+          type: array
+          items:
+            type: object
+            required:
+            - kind
+            - token
+            - name
+            - parent_name
+            properties:
+              kind:
+                type: string
+                enum:
+                - form
+                - table
+                - view
+                - opensearch
+              token:
+                type: string
+              name:
+                type: string
+                description: The name when the routine was saved
+              parent_name:
+                type:
+                - string
+                - 'null'
+                description: The name of the form or table a view or query page belongs to; null otherwise
+        delete_authorized:
+          type: boolean
+          description: Whether runs may delete data in the linked forms and tables
+        runs_count:
+          type: integer
+          description: How many times it has run
+        last_run:
+          oneOf:
+          - $ref: '#/components/schemas/RoutineRun'
+          - type: 'null'
+          description: The latest run whose planned time has come
+        url:
+          type: string
+          description: The routine's page
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    RoutineRun:
+      type: object
+      required:
+      - id
+      - state
+      - trigger_kind
+      - scheduled_at
+      - started_at
+      - finished_at
+      - error
+      - title
+      - summary
+      - severity
+      - url
+      properties:
+        id:
+          type: string
+        state:
+          type: string
+          enum:
+          - queued
+          - starting
+          - running
+          - completed
+          - failed
+          - skipped
+          - cancelling
+          - cancelled
+        trigger_kind:
+          type: string
+          enum:
+          - schedule
+          - manual
+          - event
+          description: On schedule, run now, or when data changed
+        scheduled_at:
+          type: string
+          format: date-time
+          description: The planned time (Beijing time)
+        started_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        finished_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        error:
+          type:
+          - string
+          - 'null'
+          enum:
+          - timeout
+          - jiri_error
+          - start_failed
+          - content_rejected
+          - lost_access
+          - invalid_trigger
+          - insufficient_points
+          - billing_unavailable
+          -
+          description: Why it failed
+        title:
+          type:
+          - string
+          - 'null'
+          description: The run's result in a title; null until it has one
+        summary:
+          type:
+          - string
+          - 'null'
+          description: The run's result in brief
+        severity:
+          type:
+          - string
+          - 'null'
+          enum:
+          - info
+          - warning
+          - critical
+          -
+        url:
+          type: string
+          description: The run's page
+    RoutineListResponse:
+      type: object
+      required:
+      - total
+      - count
+      - data
+      - next
+      properties:
+        total:
+          type: integer
+          description: How many routines match
+        count:
+          type: integer
+          description: How many are on this page
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Routine'
+        next:
+          type:
+          - integer
+          - 'null'
+          description: The next page's row offset; null on the last page
+    RoutineRunListResponse:
+      type: object
+      required:
+      - total
+      - count
+      - data
+      - next
+      properties:
+        total:
+          type: integer
+          description: How many runs the routine has
+        count:
+          type: integer
+          description: How many are on this page
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoutineRun'
+        next:
+          type:
+          - integer
+          - 'null'
+          description: The next page's row offset; null on the last page

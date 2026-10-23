@@ -1,7 +1,7 @@
 # @jinshuju/mcp
 
 The MCP server for Jinshuju ([jinshuju.net](https://jinshuju.net)): lets Claude, Cursor, Claude Code and other MCP-capable AI tools read and write forms, tables and entries.
-The tools are generated from the [open API v1 openapi.yaml](https://jinshuju.net/api/v1/openapi.yaml) and stay in step with the API; the tool set matches the tools documented for the [Jinshuju MCP Server](https://open.jinshuju.net/mcp) one to one.
+The tools are generated from the [open API v1 openapi.yaml](https://jinshuju.net/api/v1/openapi.yaml) and stay in step with the API.
 
 Two ways to use it:
 
@@ -49,7 +49,7 @@ To check it works, ask the assistant to "list my Jinshuju forms".
 
 ## Tools
 
-The 60 tools documented for the [Jinshuju MCP Server](https://open.jinshuju.net/mcp), with the same names, plus delete_form. Each tool maps to one operation in openapi.yaml; a few combine two operations:
+Each tool maps to one operation in openapi.yaml; a few combine two operations:
 
 | Category            | Tools                                                                                                                                                                                                                               |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -62,10 +62,15 @@ The 60 tools documented for the [Jinshuju MCP Server](https://open.jinshuju.net/
 | Tables              | list_tables, get_table, create_table, edit_table, move_table                                                                                                                                                                        |
 | Public queries      | list_opensearch_queries, get_opensearch_query, create_opensearch_query, edit_opensearch_query, get_opensearch_field_suggestions                                                                                                     |
 | Folders / account   | list_folders, create_folder, get_current_user, get_current_billing_account, list_account_users                                                                                                                                      |
-| Uploads             | upload_entry_attachment, upload_form_image, upload_import_file                                                                                                                                                                      |
+| Uploads             | prepare_entry_attachment_upload, prepare_form_image_upload, prepare_import_file_upload, upload_entry_attachment, upload_form_image, upload_import_file                                                                              |
 | Schemas             | get_schema (reads an openapi schema by name, e.g. FieldInput, TextFieldInput)                                                                                                                                                       |
 
 The full tool → operation mapping is in `mcp.overlay.yaml` and `src/generated/meta.json`.
+
+**Uploads.** A file on disk goes through `prepare_*_upload`, which returns a one-time `upload_url` (valid 30 minutes);
+the client posts the file to it itself (`curl -F file=@<path> <upload_url>`), so its bytes never pass through the model, then uses the returned `attachment_id`.
+That needs a client with a shell that can reach jinshuju.net, such as Claude Code, Cursor or Codex.
+`upload_*` carry the file as Base64 inside the tool call, which only suits small content the model has in hand.
 
 **Size.** The full tools/list is about 39k tokens (o200k estimate; about 36k without outputSchema).
 It stays that size by not inlining large schemas: field definitions (52 types), form settings, themes and the like become a one-line pointer; unions that branch on type, such as table columns, keep only their common properties.

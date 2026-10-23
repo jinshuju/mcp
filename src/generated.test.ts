@@ -4,89 +4,6 @@ import { TOOLS, SCHEMAS } from './tools.js';
 import { OPERATIONS } from './composites.js';
 import { META } from './server.js';
 
-/** The 60 tools documented at open.jinshuju.net/mcp: this server's tool set is these plus EXTRA, and nothing more. */
-const BUILTIN = [
-  'aggregate_entries',
-  'check_field_data',
-  'copy_form',
-  'count_entries',
-  'create_entries',
-  'create_entry',
-  'create_entry_comment',
-  'create_evaluation_form',
-  'create_exam_form',
-  'create_folder',
-  'create_form',
-  'create_form_view',
-  'create_opensearch_query',
-  'create_table',
-  'delete_entry',
-  'delete_entry_comment',
-  'delete_form_view',
-  'edit_evaluation_form',
-  'edit_exam_form',
-  'edit_field_rules',
-  'edit_form',
-  'edit_form_view',
-  'edit_opensearch_query',
-  'edit_table',
-  'edit_theme',
-  'get_current_billing_account',
-  'get_current_user',
-  'get_entry',
-  'get_field_rules',
-  'get_form',
-  'get_form_data_summary',
-  'get_form_view',
-  'get_opensearch_field_suggestions',
-  'get_opensearch_query',
-  'get_table',
-  'import_entries_from_file',
-  'list_account_users',
-  'list_entries',
-  'list_entry_comments',
-  'list_folders',
-  'list_form_cooperators',
-  'list_form_entry_stats',
-  'list_form_view_entries',
-  'list_form_views',
-  'list_forms',
-  'list_my_submitted_entries',
-  'list_my_submitted_forms',
-  'list_opensearch_queries',
-  'list_tables',
-  'move_form',
-  'move_table',
-  'patch_entries',
-  'prepare_entry_attachment_upload',
-  'prepare_form_image_upload',
-  'prepare_import_file_upload',
-  'preview_field_type_change',
-  'search_entries_in_forms',
-  'search_my_submitted_entries',
-  'update_entry',
-  'update_entry_comment'
-];
-/** openapi has no presigned-upload endpoints; these three upload directly instead and are named after the endpoints. */
-const RENAMED: Record<string, string> = {
-  prepare_entry_attachment_upload: 'upload_entry_attachment',
-  prepare_form_image_upload: 'upload_form_image',
-  prepare_import_file_upload: 'upload_import_file'
-};
-/** Tools beyond the documented set. */
-const EXTRA = ['delete_form'];
-
-test('the tool set is the 60 documented tools plus EXTRA', () => {
-  const names = new Set(TOOLS.map((t) => t.name));
-  assert.equal(BUILTIN.length, 60);
-  const expected = [...BUILTIN.map((n) => RENAMED[n] ?? n), ...EXTRA];
-  for (const name of expected) assert.ok(names.has(name), `missing ${name}`);
-  const extra = [...names].filter((n) => !expected.includes(n));
-  assert.deepEqual(extra, [], `unexpected tools: ${extra.join(', ')}`);
-  assert.equal(TOOLS.length, META.toolCount);
-  for (const name of names) assert.match(name, /^[a-z0-9_]{1,64}$/);
-});
-
 test('the operation table covers every openapi operation, including those the composite tools use', () => {
   assert.equal(Object.keys(OPERATIONS).length, META.operationCount);
   for (const id of [
@@ -295,13 +212,30 @@ test('annotations are inferred from the HTTP method and the overlay can override
   assert.ok(!byName.upload_form_image.description.includes('OAuth scope'));
 });
 
-test('the import tools steer data pasted into the conversation to create_entries; upload_import_file says nothing about HTTP auth or multipart', () => {
+test('the import tools steer data pasted into the conversation to create_entries and a file on disk to prepare_import_file_upload', () => {
   const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
   for (const name of ['upload_import_file', 'import_entries_from_file']) {
     assert.match(byName[name].description, /create_entries/, name);
+    assert.match(byName[name].description, /prepare_import_file_upload/, name);
   }
   const upload = byName.upload_import_file.description;
   assert.ok(upload.startsWith('Upload an import file\n'), 'the summary stays on the first line');
   assert.doesNotMatch(upload, /multipart|credential|401/);
-  assert.match(upload, /xls \/ xlsx \/ csv/);
+});
+
+test('the prepare_*_upload tools return a one-time upload link and take no file content', () => {
+  const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
+  for (const name of ['prepare_entry_attachment_upload', 'prepare_form_image_upload', 'prepare_import_file_upload']) {
+    const tool = byName[name];
+    assert.equal(tool.body?.contentType ?? 'application/json', 'application/json', name);
+    const props = Object.keys(tool.inputSchema.properties as object);
+    assert.ok(!props.some((p) => /base64|file_name/.test(p)), `${name} takes no file content`);
+    assert.deepEqual(tool.outputSchema?.required, ['upload_url', 'expires_at'], name);
+    assert.match(tool.description, /curl -F file=@<path> <upload_url>/, name);
+  }
+  // Token fields of the retired token authentication are gone from the direct upload tools
+  for (const name of ['upload_entry_attachment', 'upload_form_image', 'upload_import_file']) {
+    const props = Object.keys(byName[name].inputSchema.properties as object);
+    assert.ok(!props.some((p) => p.endsWith('_token') && p !== 'form_token'), name);
+  }
 });
