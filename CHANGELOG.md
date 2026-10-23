@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/jinshuju/mcp/compare/v0.4.0...v0.5.0) (2026-10-23)
+
+
+### Features
+
+* add the prepare_*_upload tools for uploading local files ([6afec7a](https://github.com/jinshuju/mcp/commit/6afec7abe3ddbf05704b8d4b3a96bb827db07ff9))
+
 ## [0.4.0](https://github.com/jinshuju/mcp/compare/v0.3.0...v0.4.0) (2026-10-23)
 
 
