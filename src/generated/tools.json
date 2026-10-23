@@ -455,7 +455,7 @@
          },
          {
           "type": "object",
-          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 12 in all.",
+          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 13 in all.",
           "required": [
            "type",
            "label"
@@ -475,7 +475,8 @@
              "LinkField",
              "AttachmentField",
              "FormulaField",
-             "RelationField"
+             "RelationField",
+             "SequenceField"
             ]
            },
            "label": {
@@ -1509,7 +1510,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -2400,7 +2401,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -2560,7 +2561,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -3030,7 +3031,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -4274,7 +4275,7 @@
  {
   "operationId": "createTable",
   "summary": "Create a table",
-  "description": "Create a table\nCreates a table. Same as creating a form, except:\n- field types can only be the column types tables support: `TextArea`, `RadioButton`, `CheckBox`, `BooleanField`, `MobileField`, `NumberField`, `DateTimeField`, `EmailField`, `LinkField`, `AttachmentField`, `FormulaField`, `RelationField`;\n- attachment columns do not accept limit properties such as count / size limits, and number / formula columns have limited precision; a violation returns 400 listing the offending columns;\n- choice columns do not get an \"Other\" choice; `folder_token` must be a table folder; `layout` is not supported.\n- with `with_default_entries: true`, 3 blank entries are added after creation (as when creating a table in the product); by default none are added.\nReturns the table structure, including fields and views.\nReturns schema \"Table\" (see get_schema).",
+  "description": "Create a table\nCreates a table. Same as creating a form, except:\n- field types can only be the column types tables support: `TextArea`, `RadioButton`, `CheckBox`, `BooleanField`, `MobileField`, `NumberField`, `DateTimeField`, `EmailField`, `LinkField`, `AttachmentField`, `FormulaField`, `RelationField`, `SequenceField`;\n- attachment columns do not accept limit properties such as count / size limits, and number / formula columns have limited precision; a violation returns 400 listing the offending columns;\n- choice columns do not get an \"Other\" choice; `folder_token` must be a table folder; `layout` is not supported.\n- with `with_default_entries: true`, 3 blank entries are added after creation (as when creating a table in the product); by default none are added.\nReturns the table structure, including fields and views.\nReturns schema \"Table\" (see get_schema).",
   "tag": "Tables",
   "method": "post",
   "path": "/tables",
@@ -4308,7 +4309,7 @@
      "minItems": 1,
      "items": {
       "type": "object",
-      "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 12 in all.",
+      "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 13 in all.",
       "required": [
        "type",
        "label"
@@ -4328,7 +4329,8 @@
          "LinkField",
          "AttachmentField",
          "FormulaField",
-         "RelationField"
+         "RelationField",
+         "SequenceField"
         ]
        },
        "label": {
@@ -4446,7 +4448,7 @@
          },
          {
           "type": "object",
-          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 12 in all.",
+          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 13 in all.",
           "required": [
            "type",
            "label"
@@ -4466,7 +4468,8 @@
              "LinkField",
              "AttachmentField",
              "FormulaField",
-             "RelationField"
+             "RelationField",
+             "SequenceField"
             ]
            },
            "label": {
@@ -5248,7 +5251,7 @@
  {
   "operationId": "getBillingAccount",
   "summary": "Show the current account",
-  "description": "Show the current account\nReturns the account the current credential belongs to: plan, this month's usage and quota, feature trial status, and the bound payment merchant / WeChat Pay / Alipay accounts.\n`usage` is null when the account has no usage record for this month yet; for an add-on service with unlimited quota, only `unit`, `unlimited: true` and `consumed_quota` are returned.",
+  "description": "Show the current account\nReturns the account the current credential belongs to: plan, this month's usage and quota, feature trial status, and the bound payment merchant / WeChat Pay / Alipay accounts.\n`usage` is null when the account has no usage record for this month yet.",
   "tag": "Account",
   "method": "get",
   "path": "/billing_account",
@@ -5996,7 +5999,7 @@
          },
          {
           "type": "object",
-          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 12 in all.",
+          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 13 in all.",
           "required": [
            "type",
            "label"
@@ -6016,7 +6019,8 @@
              "LinkField",
              "AttachmentField",
              "FormulaField",
-             "RelationField"
+             "RelationField",
+             "SequenceField"
             ]
            },
            "label": {
@@ -6513,7 +6517,7 @@
          },
          {
           "type": "object",
-          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 12 in all.",
+          "description": "A table column definition; type is limited to the column types a table supports\nBranches on type; get_schema shows each branch's own properties: TextAreaInput, RadioButtonInput, CheckBoxInput, BooleanFieldInput, MobileFieldInput, NumberFieldInput, DateTimeFieldInput, EmailFieldInput, 13 in all.",
           "required": [
            "type",
            "label"
@@ -6533,7 +6537,8 @@
              "LinkField",
              "AttachmentField",
              "FormulaField",
-             "RelationField"
+             "RelationField",
+             "SequenceField"
             ]
            },
            "label": {
@@ -6948,7 +6953,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in`; several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",

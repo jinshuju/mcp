@@ -1229,6 +1229,149 @@
    "form_setting"
   ]
  },
+ "listNotificationRules": {
+  "operationId": "listNotificationRules",
+  "summary": "List notification rules",
+  "description": "Lists the form's notification rules, newest first, each with whether it can send right now.",
+  "tag": "Form Settings",
+  "method": "get",
+  "path": "/forms/{form_token}/notification_rules",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ]
+ },
+ "createNotificationRule": {
+  "operationId": "createNotificationRule",
+  "summary": "Create a notification rule",
+  "description": "Creates a notification rule; the body follows the schema of its `approach`. The rule sends for matching entries from then on, using the SMS / email balance, and shows on the form's notification settings page. SMS and WeChat messages are reviewed when they are sent.",
+  "tag": "Form Settings",
+  "method": "post",
+  "path": "/forms/{form_token}/notification_rules",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": false,
+   "param": "body"
+  },
+  "successStatus": 201,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "NotificationRule"
+ },
+ "getNotificationRule": {
+  "operationId": "getNotificationRule",
+  "summary": "Get a notification rule",
+  "description": "Returns the rule and whether it can send right now.",
+  "tag": "Form Settings",
+  "method": "get",
+  "path": "/forms/{form_token}/notification_rules/{id}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "NotificationRule"
+ },
+ "updateNotificationRule": {
+  "operationId": "updateNotificationRule",
+  "summary": "Update a notification rule",
+  "description": "Changes the rule; the body takes only the keys of the rule's own `approach`, and `approach` itself cannot change.",
+  "tag": "Form Settings",
+  "method": "patch",
+  "path": "/forms/{form_token}/notification_rules/{id}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": false,
+   "param": "body"
+  },
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "NotificationRule"
+ },
+ "deleteNotificationRule": {
+  "operationId": "deleteNotificationRule",
+  "summary": "Delete a notification rule",
+  "description": "Deletes the rule and cancels what it has scheduled but not yet sent.",
+  "tag": "Form Settings",
+  "method": "delete",
+  "path": "/forms/{form_token}/notification_rules/{id}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ]
+ },
  "updateFormTheme": {
   "operationId": "updateFormTheme",
   "summary": "Update a form's theme",
@@ -1808,6 +1951,746 @@
   ],
   "responseSchema": "EntryImportJob"
  },
+ "estimateSmsTask": {
+  "operationId": "estimateSmsTask",
+  "summary": "Estimate an SMS task",
+  "description": "Picks the entries an SMS task would send to and counts the messages it would charge, without sending anything.\n- `POST /forms/{form_token}/sms_tasks` with the same parameters picks the entries again when it runs, so its count changes if they changed in between.\n- A cooperator picks only the entries visible to their role.",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/sms_tasks/estimate",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "entry_field",
+    "in": "query",
+    "required": true
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false,
+    "json": true
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "view_token",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "select_all",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "sms_template_id",
+    "in": "query",
+    "required": true
+   },
+   {
+    "name": "placeholder_keys",
+    "in": "query",
+    "required": false,
+    "array": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "entry_field",
+   "filters",
+   "keyword",
+   "view_token",
+   "select_all",
+   "sms_template_id",
+   "placeholder_keys"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "SMSTaskEstimate"
+ },
+ "listSmsTasks": {
+  "operationId": "listSmsTasks",
+  "summary": "List SMS tasks",
+  "description": "Lists the SMS tasks of this form.",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/sms_tasks",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "status",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "status",
+   "limit",
+   "next",
+   "skip"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntryTaskListResponse"
+ },
+ "createSmsTask": {
+  "operationId": "createSmsTask",
+  "summary": "Send SMS to entries",
+  "description": "Creates an SMS task that sends a template message to each entry picked.\n- Estimate first with `GET /forms/{form_token}/sms_tasks/estimate` and send with the same parameters; the entries are picked again when this runs.\n- The task may wait in `template_checking` or `content_auditing` while the template or content is under review, and sends once approved.\n- When the estimate's `can_send` is false the task is still created, and when sending finds the quota and balance short it stops, ending `none_sent` or `partial_sent` with the reason in `failed_reason`.\n- Sent messages cannot be recalled, and retrying a request that succeeded sends again.",
+  "tag": "Entries",
+  "method": "post",
+  "path": "/forms/{form_token}/sms_tasks",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "EntryTask"
+ },
+ "getSmsTask": {
+  "operationId": "getSmsTask",
+  "summary": "Show an SMS task",
+  "description": "Returns an SMS task of this form with its status and sending progress.",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/sms_tasks/{id}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntryTask"
+ },
+ "updateSmsTask": {
+  "operationId": "updateSmsTask",
+  "summary": "Revoke an SMS task, or change one whose template failed review and send it again",
+  "description": "Revokes an SMS task that has not started sending, or changes a `template_fail` task and sends it again, keeping its `id`.\n- `revoked: true` revokes a `waiting_for_send` or `content_auditing` task so it never sends.\n- Otherwise the body changes a `template_fail` task, keeping its entries. Estimate first with `GET /forms/{form_token}/sms_tasks/{id}/estimate`.\n- A changed task goes through review and sending as one created by `POST /forms/{form_token}/sms_tasks`; sent messages cannot be recalled.",
+  "tag": "Entries",
+  "method": "patch",
+  "path": "/forms/{form_token}/sms_tasks/{id}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "EntryTask"
+ },
+ "listSmsTaskActivities": {
+  "operationId": "listSmsTaskActivities",
+  "summary": "List an SMS task's sending results",
+  "description": "Lists the sending result of each mobile number an SMS task sent to.",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/sms_tasks/{id}/activities",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "status",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "mobile",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id",
+   "status",
+   "mobile",
+   "limit",
+   "next",
+   "skip"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "SMSTaskActivityListResponse"
+ },
+ "estimateSmsTaskResend": {
+  "operationId": "estimateSmsTaskResend",
+  "summary": "Estimate resending an SMS task",
+  "description": "Picks the entries that resending an SMS task would send to and counts the messages it would charge, without sending anything.\n- The entries are the task's entries with the `status` result in its sending results, narrowed by `filters` / `keyword` / `view_token`; no other entry is ever picked.\n- An entry holding several numbers is picked when any of them got that result, and is sent to on all of them.\n- `POST /forms/{form_token}/sms_tasks/{id}/resend` with the same parameters picks the entries again when it runs, so its count changes if they changed in between.\n- A cooperator picks only the entries visible to their role.",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/sms_tasks/{id}/resend/estimate",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "status",
+    "in": "query",
+    "required": true
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false,
+    "json": true
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "view_token",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id",
+   "status",
+   "filters",
+   "keyword",
+   "view_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "SMSTaskEstimate"
+ },
+ "resendSmsTask": {
+  "operationId": "resendSmsTask",
+  "summary": "Resend an SMS task",
+  "description": "Sends an SMS task again as a new task, to its entries with a given result in its sending results.\n- Estimate first with `GET /forms/{form_token}/sms_tasks/{id}/resend/estimate` and send with the same parameters; the entries are picked again when this runs.\n- The new task keeps the original's template, `entry_field` and `placeholder_keys` and is sent as by `POST /forms/{form_token}/sms_tasks`; the original task is left unchanged.\n- Sent messages cannot be recalled, and retrying a request that succeeded sends again.",
+  "tag": "Entries",
+  "method": "post",
+  "path": "/forms/{form_token}/sms_tasks/{id}/resend",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "EntryTask"
+ },
+ "estimateSmsTaskChange": {
+  "operationId": "estimateSmsTaskChange",
+  "summary": "Estimate changing an SMS task whose template failed review",
+  "description": "Estimates changing a `template_fail` SMS task and sending it again, without changing or sending anything.\n- Counts the entries the task holds without reading them: content with variables gives a lower bound (`at_least`), and a table column `entry_field` gives null numbers and cost.",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/sms_tasks/{id}/estimate",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "entry_field",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "sms_template_id",
+    "in": "query",
+    "required": true
+   },
+   {
+    "name": "placeholder_keys",
+    "in": "query",
+    "required": false,
+    "array": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id",
+   "entry_field",
+   "sms_template_id",
+   "placeholder_keys"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "SMSTaskEstimate"
+ },
+ "sendSmsTask": {
+  "operationId": "sendSmsTask",
+  "summary": "Send an SMS task created with auto_send false",
+  "description": "Sends a task created with `auto_send` false once it has passed review, to the entries fixed at creation; a task given `send_at` waits until then.",
+  "tag": "Entries",
+  "method": "patch",
+  "path": "/forms/{form_token}/sms_tasks/{id}/auto_send",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "EntryTask"
+ },
+ "estimateEmailTask": {
+  "operationId": "estimateEmailTask",
+  "summary": "Estimate an email task",
+  "description": "Picks the entries an email task would send to and checks the quota, without sending anything.\n- `POST /forms/{form_token}/email_tasks` with the same parameters picks the entries again when it runs, so its count changes if they changed in between.\n- A cooperator picks only the entries visible to their role.",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/email_tasks/estimate",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "entry_field",
+    "in": "query",
+    "required": true
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false,
+    "json": true
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "view_token",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "select_all",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "smtp_account_id",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "entry_field",
+   "filters",
+   "keyword",
+   "view_token",
+   "select_all",
+   "smtp_account_id"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EmailTaskEstimate"
+ },
+ "listEmailTasks": {
+  "operationId": "listEmailTasks",
+  "summary": "List email tasks",
+  "description": "Lists the email tasks of this form.",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/email_tasks",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "status",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "status",
+   "limit",
+   "next",
+   "skip"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntryTaskListResponse"
+ },
+ "createEmailTask": {
+  "operationId": "createEmailTask",
+  "summary": "Send email to entries",
+  "description": "Creates an email task that sends an email to each entry picked, starting right away.\n- Estimate first with `GET /forms/{form_token}/email_tasks/estimate` and send with the same parameters; the entries are picked again when this runs.\n- When the estimate's `can_send` is false the task is still created, and when sending finds the quota and balance short it stops, ending `none_sent` or `partial_sent` with the reason in `failed_reason`.\n- Sent emails cannot be recalled, and retrying a request that succeeded sends again.",
+  "tag": "Entries",
+  "method": "post",
+  "path": "/forms/{form_token}/email_tasks",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "EntryTask"
+ },
+ "getEmailTask": {
+  "operationId": "getEmailTask",
+  "summary": "Show an email task",
+  "description": "Returns an email task of this form with its status and sending progress.",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/email_tasks/{id}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntryTask"
+ },
+ "listEmailTaskActivities": {
+  "operationId": "listEmailTaskActivities",
+  "summary": "List an email task's sending results",
+  "description": "Lists the sending result of each entry an email task sent to.",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/email_tasks/{id}/activities",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "status",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "email",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id",
+   "status",
+   "email",
+   "limit",
+   "next",
+   "skip"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EmailTaskActivityListResponse"
+ },
+ "estimateEmailTaskResend": {
+  "operationId": "estimateEmailTaskResend",
+  "summary": "Estimate resending an email task",
+  "description": "Picks the entries that resending an email task would send to and checks the quota, without sending anything.\n- The entries are the task's entries with the `status` result in its sending results, narrowed by `filters` / `keyword` / `view_token`; no other entry is ever picked.\n- The emails go through the task's custom SMTP account, using no quota, while the account can still use it.\n- `POST /forms/{form_token}/email_tasks/{id}/resend` with the same parameters picks the entries again when it runs, so its count changes if they changed in between.\n- A cooperator picks only the entries visible to their role.",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/email_tasks/{id}/resend/estimate",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "status",
+    "in": "query",
+    "required": true
+   },
+   {
+    "name": "filters",
+    "in": "query",
+    "required": false,
+    "json": true
+   },
+   {
+    "name": "keyword",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "view_token",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id",
+   "status",
+   "filters",
+   "keyword",
+   "view_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EmailTaskEstimate"
+ },
+ "resendEmailTask": {
+  "operationId": "resendEmailTask",
+  "summary": "Resend an email task",
+  "description": "Sends an email task again as a new task, to its entries with a given result in its sending results.\n- Estimate first with `GET /forms/{form_token}/email_tasks/{id}/resend/estimate` and send with the same parameters; the entries are picked again when this runs.\n- The new task keeps the original's `entry_field`, subject, body and custom SMTP account and is sent as by `POST /forms/{form_token}/email_tasks`; the original task is left unchanged.\n- Sent emails cannot be recalled, and retrying a request that succeeded sends again.",
+  "tag": "Entries",
+  "method": "post",
+  "path": "/forms/{form_token}/email_tasks/{id}/resend",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "id"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "EntryTask"
+ },
  "uploadFormImage": {
   "operationId": "uploadFormImage",
   "summary": "Upload a form image",
@@ -1828,6 +2711,26 @@
    "form_setting"
   ],
   "responseSchema": "UploadedFormImage"
+ },
+ "uploadUserLicenseAttachment": {
+  "operationId": "uploadUserLicenseAttachment",
+  "summary": "Upload a license image",
+  "description": "Uploads a business license or ID card image for `POST /sms/signatures` and `PATCH /sms/signatures/{id}`; only the uploader can use it.",
+  "tag": "Uploads",
+  "method": "post",
+  "path": "/user/license_attachments",
+  "params": [],
+  "paramNames": [],
+  "body": {
+   "contentType": "multipart/form-data",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "users"
+  ],
+  "responseSchema": "UploadedLicenseAttachment"
  },
  "listTables": {
   "operationId": "listTables",
@@ -1887,7 +2790,7 @@
  "createTable": {
   "operationId": "createTable",
   "summary": "Create a table",
-  "description": "Creates a table. Same as creating a form, except:\n- field types can only be the column types tables support: `TextArea`, `RadioButton`, `CheckBox`, `BooleanField`, `MobileField`, `NumberField`, `DateTimeField`, `EmailField`, `LinkField`, `AttachmentField`, `FormulaField`, `RelationField`;\n- attachment columns do not accept limit properties such as count / size limits, and number / formula columns have limited precision; a violation returns 400 listing the offending columns;\n- choice columns do not get an \"Other\" choice; `folder_token` must be a table folder; `layout` is not supported.\n- with `with_default_entries: true`, 3 blank entries are added after creation (as when creating a table in the product); by default none are added.\nReturns the table structure, including fields and views.",
+  "description": "Creates a table. Same as creating a form, except:\n- field types can only be the column types tables support: `TextArea`, `RadioButton`, `CheckBox`, `BooleanField`, `MobileField`, `NumberField`, `DateTimeField`, `EmailField`, `LinkField`, `AttachmentField`, `FormulaField`, `RelationField`, `SequenceField`;\n- attachment columns do not accept limit properties such as count / size limits, and number / formula columns have limited precision; a violation returns 400 listing the offending columns;\n- choice columns do not get an \"Other\" choice; `folder_token` must be a table folder; `layout` is not supported.\n- with `with_default_entries: true`, 3 blank entries are added after creation (as when creating a table in the product); by default none are added.\nReturns the table structure, including fields and views.",
   "tag": "Tables",
   "method": "post",
   "path": "/tables",
@@ -3227,6 +4130,29 @@
   ],
   "responseSchema": "Folder"
  },
+ "getFolder": {
+  "operationId": "getFolder",
+  "summary": "Show a folder",
+  "description": "Returns one folder the current user can manage.",
+  "tag": "Folders",
+  "method": "get",
+  "path": "/folders/{folder_token}",
+  "params": [
+   {
+    "name": "folder_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "folder_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "Folder"
+ },
  "listPredefinedChoicesSets": {
   "operationId": "listPredefinedChoicesSets",
   "summary": "List predefined choice sets",
@@ -3370,7 +4296,7 @@
  "getBillingAccount": {
   "operationId": "getBillingAccount",
   "summary": "Show the current account",
-  "description": "Returns the account the current credential belongs to: plan, this month's usage and quota, feature trial status, and the bound payment merchant / WeChat Pay / Alipay accounts.\n`usage` is null when the account has no usage record for this month yet; for an add-on service with unlimited quota, only `unit`, `unlimited: true` and `consumed_quota` are returned.",
+  "description": "Returns the account the current credential belongs to: plan, this month's usage and quota, feature trial status, and the bound payment merchant / WeChat Pay / Alipay accounts.\n`usage` is null when the account has no usage record for this month yet.",
   "tag": "Account",
   "method": "get",
   "path": "/billing_account",
@@ -3465,6 +4391,21 @@
    "users"
   ],
   "responseSchema": "BillingAccountPaymentHistoriesResponse"
+ },
+ "listBillingAccountPaidFeatures": {
+  "operationId": "listBillingAccountPaidFeatures",
+  "summary": "List the paid features and whether the account has each",
+  "description": "Lists every paid feature with its Chinese name and whether the account has it now; one bought or granted on its own counts. Quotas, and whether each add-on service can still be used, are in `usage` of `GET /billing_account`.",
+  "tag": "Account",
+  "method": "get",
+  "path": "/billing_account/paid_features",
+  "params": [],
+  "paramNames": [],
+  "successStatus": 200,
+  "scopes": [
+   "users"
+  ],
+  "responseSchema": "BillingAccountPaidFeaturesResponse"
  },
  "getTradeMerchant": {
   "operationId": "getTradeMerchant",
@@ -3727,6 +4668,261 @@
    "users"
   ],
   "responseSchema": "SMSAuditStatusResponse"
+ },
+ "listSmsSignatures": {
+  "operationId": "listSmsSignatures",
+  "summary": "List SMS signatures",
+  "description": "Lists the account's SMS signatures, newest first. Pagination as in the form list; 50 per page by default, up to 1000.",
+  "tag": "Account",
+  "method": "get",
+  "path": "/sms/signatures",
+  "params": [
+   {
+    "name": "status",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "status",
+   "limit",
+   "next",
+   "skip"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "users"
+  ],
+  "responseSchema": "SMSSignatureListResponse"
+ },
+ "createSmsSignature": {
+  "operationId": "createSmsSignature",
+  "summary": "Apply for an SMS signature",
+  "description": "Applies for an SMS signature and submits it for review; follow the result with `GET /sms/signatures`.\n- Upload the images with `POST /user/license_attachments` first.\n- A signature the account already has under review or approved is returned unchanged.\n- The materials also become the account's license and the user's ID card information.",
+  "tag": "Account",
+  "method": "post",
+  "path": "/sms/signatures",
+  "params": [],
+  "paramNames": [],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "users"
+  ],
+  "responseSchema": "SMSSignature"
+ },
+ "updateSmsSignature": {
+  "operationId": "updateSmsSignature",
+  "summary": "Update an SMS signature",
+  "description": "Changes a rejected signature of the account and submits it for review again.\n- After a text change, its templates stay under the old text until each is updated with `PATCH /sms/templates/{id}`.",
+  "tag": "Account",
+  "method": "patch",
+  "path": "/sms/signatures/{id}",
+  "params": [
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "id"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "users"
+  ],
+  "responseSchema": "SMSSignature"
+ },
+ "deleteSmsSignature": {
+  "operationId": "deleteSmsSignature",
+  "summary": "Delete an SMS signature",
+  "description": "Deletes a rejected signature of the account together with all its templates, including other members' ones.",
+  "tag": "Account",
+  "method": "delete",
+  "path": "/sms/signatures/{id}",
+  "params": [
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "id"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "users"
+  ]
+ },
+ "listSmsTemplates": {
+  "operationId": "listSmsTemplates",
+  "summary": "List SMS templates",
+  "description": "Lists the templates the current user created and the ones other members share, newest first. Pagination as in the form list; 50 per page by default, up to 1000.",
+  "tag": "Account",
+  "method": "get",
+  "path": "/sms/templates",
+  "params": [
+   {
+    "name": "q",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "scope",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "signature_id",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "status",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "q",
+   "scope",
+   "signature_id",
+   "status",
+   "limit",
+   "next",
+   "skip"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "users"
+  ],
+  "responseSchema": "SMSTemplateListResponse"
+ },
+ "createSmsTemplate": {
+  "operationId": "createSmsTemplate",
+  "summary": "Submit an SMS template for review",
+  "description": "Submits an SMS template for review under a notification signature the account has applied for, even one still under review; follow the result with `GET /sms/templates`.",
+  "tag": "Account",
+  "method": "post",
+  "path": "/sms/templates",
+  "params": [],
+  "paramNames": [],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "users"
+  ],
+  "responseSchema": "SMSTemplate"
+ },
+ "updateSmsTemplate": {
+  "operationId": "updateSmsTemplate",
+  "summary": "Update an SMS template",
+  "description": "Changes a template the current user created and submits it for review again; an approved one cannot be sent until approved again.",
+  "tag": "Account",
+  "method": "patch",
+  "path": "/sms/templates/{id}",
+  "params": [
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "id"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "users"
+  ],
+  "responseSchema": "SMSTemplate"
+ },
+ "deleteSmsTemplate": {
+  "operationId": "deleteSmsTemplate",
+  "summary": "Delete an SMS template",
+  "description": "Deletes a template the current user created; notifications that send it stop sending SMS.",
+  "tag": "Account",
+  "method": "delete",
+  "path": "/sms/templates/{id}",
+  "params": [
+   {
+    "name": "id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "id"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "users"
+  ]
+ },
+ "listSmtpAccounts": {
+  "operationId": "listSmtpAccounts",
+  "summary": "List SMTP accounts",
+  "description": "Lists the verified custom SMTP accounts the account can send email through.\n- The list is empty when the plan does not include custom SMTP.\n- Every member gets the same list; admin is not required.",
+  "tag": "Account",
+  "method": "get",
+  "path": "/smtp_accounts",
+  "params": [],
+  "paramNames": [],
+  "successStatus": 200,
+  "scopes": [
+   "users"
+  ],
+  "responseSchema": "SMTPAccountListResponse"
  },
  "verifyRedirectParams": {
   "operationId": "verifyRedirectParams",
