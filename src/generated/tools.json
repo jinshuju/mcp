@@ -1083,7 +1083,7 @@
  {
   "operationId": "checkFormFieldData",
   "summary": "Check whether fields already hold data",
-  "description": "Check whether fields already hold data\nUse before deleting a field or choice: checks in batch whether fields (or single choices of a field) already have submitted entries. Deleting a field or choice that still has entries deletes those entries with it, and they cannot be recovered.\nMatches the check the web editor runs before deleting.\n- Put every deletion target of one edit in the `checks` of a single call (at most 100, may span several fields); `results` matches `checks` one to one, in order.\n- When a target cannot be checked (for example, the field does not exist), its row returns `unavailable` with the reason; the other targets return as usual.\n- Returns 400 when `checks` is missing, empty, over 100, not a JSON array, or has an item that is not an object.\nReturns schema \"FieldDataCheckResponse\" (see get_schema).",
+  "description": "Check whether fields already hold data\nUse before deleting a field or choice: checks in batch whether fields (or single choices of a field) already have submitted entries. Deleting a field or choice that still has entries deletes those entries with it, and they cannot be recovered.\nMatches the check the web editor runs before deleting.\n- Put every deletion target of one edit in the `checks` of a single call (at most 100, may span several fields); `results` matches `checks` one to one, in order.\n- When a target cannot be checked (the field or the `parent_field` column does not exist, or `choice_value` matches nothing of the kind `choice_type` names, or names more than one), its row returns `unavailable` with the reason; the other targets return as usual.\n- Returns 400 when `checks` is missing, empty, over 100, not a JSON array, or has an item that is not an object.\nReturns schema \"FieldDataCheckResponse\" (see get_schema).",
   "tag": "Forms",
   "method": "get",
   "path": "/forms/{form_token}/fields/check",
@@ -1131,14 +1131,15 @@
       "properties": {
        "field_api_code": {
         "type": "string",
-        "description": "api_code of the field to check; to check one column of a table / matrix field, that column's api_code, with `parent_field` set"
+        "description": "api_code of the field to check; for a column of a table / matrix field, the table / matrix field's api_code"
        },
        "choice_value": {
         "type": "string",
-        "description": "api_code of one choice to check; omitted, checks whether the whole field has any data"
+        "description": "The choice to check, by its value or its name as GET /forms/{form_token} shows them; omitted, checks whether the whole field has any data"
        },
        "choice_type": {
         "type": "string",
+        "default": "choice",
         "enum": [
          "choice",
          "statement",
@@ -1148,11 +1149,11 @@
          "level_3",
          "level_4"
         ],
-        "description": "What `choice_value` names, `choice` by default; `statement` / `dimension` for matrix fields, `level_1` to `level_4` for cascading drop-downs"
+        "description": "What `choice_value` names; `statement` for a matrix row, `dimension` for a matrix, table or multiple-blank column, `level_1` to `level_4` for a cascading drop-down level"
        },
        "parent_field": {
         "type": "string",
-        "description": "api_code of the parent field when checking one column of a matrix / table field"
+        "description": "api_code of the column, when checking a choice inside one column of a table / matrix field"
        },
        "check_extended_text": {
         "type": "boolean",
@@ -5582,17 +5583,9 @@
      "type": "string",
      "description": "File content as a Base64 string, optionally with a `data:<mime>;base64,` prefix, at most 5 MB once decoded"
     },
-    "data": {
-     "type": "string",
-     "description": "Alias of `base64`"
-    },
     "file_name": {
      "type": "string",
      "description": "File name, defaults to `attachment`"
-    },
-    "filename": {
-     "type": "string",
-     "description": "Alias of `file_name`"
     },
     "content_type": {
      "type": "string",
