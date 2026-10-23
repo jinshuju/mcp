@@ -52,6 +52,18 @@ export function gitea() {
   }
 
   /**
+   * The open pull request from this repository's `head` into `base`. Not GET /pulls/{base}/{head}: that also answers
+   * with one already merged, which was then refreshed instead of a new one being opened.
+   */
+  async function openPullRequest(base, head) {
+    for (let page = 1; ; page++) {
+      const pulls = (await api('GET', `/repos/${repo}/pulls?state=open&page=${page}`)) ?? [];
+      const pr = pulls.find((p) => p.base.ref === base && p.head.ref === head && p.head.repo_id === p.base.repo_id);
+      if (pr || pulls.length === 0) return pr;
+    }
+  }
+
+  /**
    * Commits the working tree on `branch`, rebuilt from HEAD so it carries exactly this diff, force-pushes it and opens
    * the pull request against `base`, or refreshes the title and body of the one already open for the branch.
    */
@@ -62,8 +74,7 @@ export function gitea() {
     git(['add', '--all']);
     git(['commit', '--quiet', '--message', title]);
     push(`HEAD:refs/heads/${branch}`, { force: true });
-    // Only an open, unmerged pull request is found by base and head.
-    const open = await api('GET', `/repos/${repo}/pulls/${base}/${branch}`);
+    const open = await openPullRequest(base, branch);
     if (open) {
       await api('PATCH', `/repos/${repo}/pulls/${open.number}`, { title, body });
       return `Updated ${open.html_url}`;
