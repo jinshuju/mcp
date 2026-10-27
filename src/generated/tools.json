@@ -82,7 +82,7 @@
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+        "description": "What to filter on; a field api_code for entries, where `creator_id` (`eq` with a user id, at most once) and `serial_number` (`eq` / `any_in` / `none_in`, several intersected) also work, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
        },
        "api_code": {
         "type": "string",
@@ -120,7 +120,7 @@
         "description": "Comparison; `equal` / `not_equal` / `start` / `end` are aliases of `eq` / `ne` / `gte` / `lte`. Each field type accepts only some operators, and an unsupported one returns 400 listing the available ones."
        },
        "value": {
-        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between`, `{\"unit\": \"day\", \"n\": 30}` for `within_last`, and no value for `null` / `not_null`."
+        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
        }
       }
      },
@@ -209,7 +209,7 @@
  {
   "operationId": "getForm",
   "summary": "Show a form's structure",
-  "description": "Show a form's structure\nReturns the form's name, `kind`, `scene`, public URL (`url`), description, field definitions and settings. Each element of `fields` is a single-key object `{ \"<api_code>\": {...} }`, in field order.\nAlso answers for a table or a quick payment form token; `kind` says which it is.\nThe following are included when the matching parameter is `true`:\n- `include_analytics`: each analysable field's definition carries `analytics`;\n- `include_theme`: carries `theme` (the form theme);\n- `include_field_rules`: carries `field_rules` (field display rules);\n- `include_extended_attributes`: carries `extended_attributes` (source-tracking links);\n- `include_transactions`: carries `transactions` (payment statistics) when the form is bound to a payment account.\nReturns schema \"FormDetail\" (see get_schema).\nThe api_code of each field in the returned fields is its key when reading and writing entries.",
+  "description": "Show a form's structure\nReturns the form's name, `kind`, `scene`, public URL (`url`), description, field definitions and settings. Each element of `fields` is a single-key object `{ \"<api_code>\": {...} }`, in field order.\nAlso answers for a table or a quick payment form token; `kind` says which it is.\nReturns schema \"FormDetail\" (see get_schema).\nThe api_code of each field in the returned fields is its key when reading and writing entries.",
   "tag": "Forms",
   "method": "get",
   "path": "/forms/{form_token}",
@@ -308,7 +308,7 @@
  {
   "operationId": "createForm",
   "summary": "Create a form",
-  "description": "Create a form\nCreates a form from a list of field definitions and returns the full form structure. `name` and `fields` are required.\n- `scene` sets the form's scene; exam / evaluation question types (such as `SingleSelect`, `FillInBlank`) can only be used in the scenes that support them.\n- `layout=card` (paged) does not support PageBreak, Matrix*, TableField, GoodsField, ESignatureField, FormAssociation, MultipleBlanksField or any kind of Widget field.\n- The folder named by `folder_token` must be manageable and of kind form; otherwise returns 404 / 400 respectively.\n- `setting` accepts only whitelisted keys (see `FormSettingWriteInput`); `setting.notification_rules` replaces, as a whole, the notification rules created through the API.\n- The returned form structure carries `url` (the public fill URL).\nReturns schema \"Form\" (see get_schema).\nEach item of fields branches on type: get_schema(\"FieldInput\") maps each type to its schema in x-variants (TextField → \"TextFieldInput\", SingleSelect → \"SingleSelectInput\"), and get_schema on that name shows the properties that type accepts; do not guess field properties or schema names. For an exam or evaluation form use create_exam_form / create_evaluation_form.",
+  "description": "Create a form\nCreates a form from a list of field definitions and returns the full form structure.\n- `scene` sets the form's scene; exam / evaluation question types (such as `SingleSelect`, `FillInBlank`) can only be used in the scenes that support them.\nReturns schema \"Form\" (see get_schema).\nEach item of fields branches on type: get_schema(\"FieldInput\") maps each type to its schema in x-variants (TextField → \"TextFieldInput\", SingleSelect → \"SingleSelectInput\"), and get_schema on that name shows the properties that type accepts; do not guess field properties or schema names. For an exam or evaluation form use create_exam_form / create_evaluation_form.",
   "tag": "Forms",
   "method": "post",
   "path": "/forms",
@@ -375,7 +375,7 @@
       "classic",
       "card"
      ],
-     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout"
+     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout and cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo / WidgetButton"
     }
    },
    "additionalProperties": false,
@@ -1195,7 +1195,7 @@
  {
   "operationId": "previewFormFieldTypeChange",
   "summary": "Preview a field type change",
-  "description": "Preview a field type change\nUse before changing a field's type (the field's `type` in PATCH /forms/{form_token}): changes no data, and counts, from the field's current entries, how many would be kept and how many cleared after the conversion.\nThe conversion happens on the original field (api_code and data column unchanged), so only entry data is affected; matches the preview the web editor shows before converting.\n- Put every conversion of one edit in the `checks` of a single call (at most 20); `results` matches `checks` one to one, in order.\n- `supported=false` means the field cannot be converted to the target type, and the actual edit is refused too.\n- When converting multi-line text to a choice field such as single choice / multiple choice, also returns `choice_count`, the number of choices that would be generated from existing entries, and `choice_limit_exceeded`, whether that exceeds the choice limit (when it does, the conversion is refused rather than truncated).\n- When an item cannot be previewed (the field does not exist, `target_type` is not a type available to this form, etc.), its row returns `unavailable` with the reason; the other items return as usual.\n- Returns 400 when `checks` is missing, empty, over 20, not a JSON array, or has an item that is not an object.\nReturns schema \"FieldTypeChangePreviewResponse\" (see get_schema).",
+  "description": "Preview a field type change\nUse before changing a field's type (the field's `type` in PATCH /forms/{form_token}): changes no data, and counts, from the field's current entries, how many would be kept and how many cleared after the conversion; matches the preview the web editor shows before converting.\n- Put every conversion of one edit in the `checks` of a single call.\n- `supported: false`, or `choice_limit_exceeded: true` when multi-line text becomes a choice field, means the edit itself would be refused.\nReturns schema \"FieldTypeChangePreviewResponse\" (see get_schema).",
   "tag": "Forms",
   "method": "get",
   "path": "/forms/{form_token}/fields/preview_convert",
@@ -1289,7 +1289,7 @@
  {
   "operationId": "updateFormTheme",
   "summary": "Update a form's theme",
-  "description": "Update a form's theme\nPartially updates the form's theme (colors, background, header image, typography, form container, submit button); PUT is accepted too.\n- The request body must contain at least one of primary_color / secondary_color / wallpaper / header / typography / form_container / submit_button (`generate_header_image` is turned into header.header_image_url, so it counts too); otherwise 400.\n- Header image source precedence: header_image_base64 > header_image_url > header_image_attachment_id; when a header image is set and header.type is not given, header.type is set to image.\n- Background image source precedence: background_image_url > background_image_attachment_id. Setting or removing the background image also removes the preset background image that comes with the theme template; the background color is kept.\n- `header_image_attachment_id` / `background_image_attachment_id` take the `attachment_id` returned by \"Upload a form image\" (image_type header / wallpaper); pass an empty string `\"\"` to remove the current image.\n- `header.carousel_images` replaces the carousel images as a whole: at most 5, not empty; each item gives one of image_url / attachment_id; when it is passed and header.type is not given, header.type is set to carousel.\n- Keys in `text_style` and `typography.*` use underscores (e.g. font_size); the server converts them to hyphenated CSS keys and merges them into the existing styles; the response uses the hyphenated keys.\n- `generate_header_image` has AI generate a header image and consumes AI points; returns 402 when points are insufficient, 400 when generation fails.",
+  "description": "Update a form's theme\nPartially updates the form's theme: colors, background, header image, typography, form container and submit button.",
   "tag": "Form Settings",
   "method": "patch",
   "path": "/forms/{form_token}/theme",
@@ -1457,7 +1457,7 @@
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+        "description": "What to filter on; a field api_code for entries, where `creator_id` (`eq` with a user id, at most once) and `serial_number` (`eq` / `any_in` / `none_in`, several intersected) also work, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
        },
        "api_code": {
         "type": "string",
@@ -1495,7 +1495,7 @@
         "description": "Comparison; `equal` / `not_equal` / `start` / `end` are aliases of `eq` / `ne` / `gte` / `lte`. Each field type accepts only some operators, and an unsupported one returns 400 listing the available ones."
        },
        "value": {
-        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between`, `{\"unit\": \"day\", \"n\": 30}` for `within_last`, and no value for `null` / `not_null`."
+        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
        }
       }
      },
@@ -1511,7 +1511,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -1552,7 +1552,7 @@
        }
       ]
      ],
-     "description": "Sort rules, an array of SortRule objects, applied in order, with ascending serial number appended automatically at the end.\nOnly sortable fields are allowed; otherwise returns 400 listing the sortable fields. With `sort`, `next` becomes a row offset.\n"
+     "description": "Sort rules, an array of SortRule objects, applied in order, with ascending serial number appended automatically at the end.\nOnly sortable fields are allowed; otherwise returns 400 listing the sortable fields. With `sort`, `next` becomes a row offset. Without it, entries come by serial number, or by creation time when `filters` has a `created_at` condition.\n"
     },
     "created_at": {
      "type": "string",
@@ -2178,7 +2178,7 @@
  {
   "operationId": "aggregateEntries",
   "summary": "Aggregate entries",
-  "description": "Aggregate entries\nAggregates whole columns on the server over the entries matching the filters (sum, average, count, percentiles, etc.), optionally grouped by 1 to 2 fields. The response size depends only on the number of metrics and groups, not on the amount of data.\n- `metrics` is required, 1 to 20 items; the functions each field takes are in the `analytics.agg_funcs` returned by `GET /forms/{form_token}?include_analytics=true`.\n- `dimensions` is optional, at most 2 items; only fields whose `analytics.groupable` is true (single-value choice fields and date fields) can be grouped by, and a date field must specify `bucket`.\n- Without `dimensions`, `rows` has a single row; when grouped, one row per group, at most `limit` groups; `row_count` is the total number of groups, and `truncated` is true when there are more.\n- `filters` / `keyword` are the same as for the entry list, but `creator_id`, `serial_number` and association field conditions are not supported (returns 400).\n- Returns 400 when a field does not exist or is not readable by the caller, or a function or grouping does not apply to the field, and says which fields / functions / groupings are available.\nReturns schema \"EntryAggregateResponse\" (see get_schema).",
+  "description": "Aggregate entries\nAggregates whole columns on the server over the entries matching the filters (sum, average, count, percentiles, etc.), optionally grouped by 1 to 2 fields. The response size depends only on the number of metrics and groups, not on the amount of data.\n- `filters` / `keyword` work as in the entry list, except that `creator_id`, `serial_number` and association field conditions are not supported.\nReturns schema \"EntryAggregateResponse\" (see get_schema).",
   "tag": "Entries",
   "method": "get",
   "path": "/forms/{form_token}/entries/aggregate",
@@ -2288,7 +2288,7 @@
        }
       ]
      ],
-     "description": "Required. Metrics to compute, an array of 1 to 20 AggregateMetric objects; returns 400 when missing or empty.\nThe available functions depend on the field (the field's `analytics.agg_funcs` is authoritative):\n| Field | Functions |\n|---|---|\n| All fields | `count` `count_non_empty` `count_empty` |\n| Text | adds `count_unique` |\n| Number | adds `count_unique` `sum` `avg` `min` `max` `stddev` `median` `p25` `p75` `p90` |\n| Date | adds `count_unique` `min` `max` |\n"
+     "description": "Required. Metrics to compute, an array of 1 to 20 AggregateMetric objects; returns 400 when missing or empty.\n`count` / `count_non_empty` / `count_empty` work on every field; the rest depend on its type (`sum`, `avg` and the percentiles on numbers), and a field's `analytics.agg_funcs` from `GET /forms/{form_token}?include_analytics=true` lists exactly what it takes.\n"
     },
     "dimensions": {
      "type": [
@@ -2327,7 +2327,7 @@
        }
       ]
      ],
-     "description": "Fields to group by, an array of at most 2 AggregateDimension objects.\nOnly fields whose `analytics.groupable` is true can be grouped by; a date field must have a `bucket` (`day` / `week` / `month`, in Beijing time, UTC+8), and a non-date field must not have a `bucket`.\n"
+     "description": "Fields to group by, an array of at most 2 AggregateDimension objects.\nOnly fields whose `analytics.groupable` is true can be grouped by, such as single choice, multiple choice and date fields; a date field needs a `bucket`, in Beijing time (UTC+8).\n"
     },
     "limit": {
      "type": "integer",
@@ -2348,7 +2348,7 @@
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+        "description": "What to filter on; a field api_code for entries, where `creator_id` (`eq` with a user id, at most once) and `serial_number` (`eq` / `any_in` / `none_in`, several intersected) also work, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
        },
        "api_code": {
         "type": "string",
@@ -2386,7 +2386,7 @@
         "description": "Comparison; `equal` / `not_equal` / `start` / `end` are aliases of `eq` / `ne` / `gte` / `lte`. Each field type accepts only some operators, and an unsupported one returns 400 listing the available ones."
        },
        "value": {
-        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between`, `{\"unit\": \"day\", \"n\": 30}` for `within_last`, and no value for `null` / `not_null`."
+        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
        }
       }
      },
@@ -2402,7 +2402,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -2508,7 +2508,7 @@
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+        "description": "What to filter on; a field api_code for entries, where `creator_id` (`eq` with a user id, at most once) and `serial_number` (`eq` / `any_in` / `none_in`, several intersected) also work, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
        },
        "api_code": {
         "type": "string",
@@ -2546,7 +2546,7 @@
         "description": "Comparison; `equal` / `not_equal` / `start` / `end` are aliases of `eq` / `ne` / `gte` / `lte`. Each field type accepts only some operators, and an unsupported one returns 400 listing the available ones."
        },
        "value": {
-        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between`, `{\"unit\": \"day\", \"n\": 30}` for `within_last`, and no value for `null` / `not_null`."
+        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
        }
       }
      },
@@ -2562,7 +2562,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -2652,7 +2652,7 @@
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+        "description": "What to filter on; a field api_code for entries, where `creator_id` (`eq` with a user id, at most once) and `serial_number` (`eq` / `any_in` / `none_in`, several intersected) also work, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
        },
        "api_code": {
         "type": "string",
@@ -2690,7 +2690,7 @@
         "description": "Comparison; `equal` / `not_equal` / `start` / `end` are aliases of `eq` / `ne` / `gte` / `lte`. Each field type accepts only some operators, and an unsupported one returns 400 listing the available ones."
        },
        "value": {
-        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between`, `{\"unit\": \"day\", \"n\": 30}` for `within_last`, and no value for `null` / `not_null`."
+        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
        }
       }
      },
@@ -2882,7 +2882,7 @@
  {
   "operationId": "listMySubmittedEntries",
   "summary": "List my entries in a form",
-  "description": "List my entries in a form\nReturns the entries the current user submitted to the given form, newest first. The form need not be created by or shared with the current user: only the user's own entries are returned,\nwith only the fields the form makes public to submitters (hidden fields are neither returned nor usable for filtering or searching). Returns an empty list when the user has not submitted.\n- `fields` keeps only the given public fields; unknown or non-public api_codes are skipped (no error).\n- `filters` works as in the entry list, but cannot filter by `creator_id` (results are already limited to the user's own) or on non-public fields; doing so returns 400.\n- `keyword` searches only the user's own entries and is not subject to the form's entry-count limit.\n- Pagination: `next` is a row offset; `skip` and `next` cannot be combined. 50 rows per page by default, adjustable with `limit` (at most 1000).\n- An account access token has no \"current user\"; calling with one returns 400. Returns 404 when the form does not exist.",
+  "description": "List my entries in a form\nReturns the entries the current user submitted to the given form, newest first. The form need not be created by or shared with the current user: only the user's own entries are returned,\nwith only the fields the form makes public to submitters (hidden fields are neither returned nor usable for filtering or searching).\n- `filters` works as in the entry list, but cannot use `creator_id`, since results are already the user's own.\n- `keyword` is not subject to the form's entry-count limit.\n- An account access token has no \"current user\"; calling with one returns 400.",
   "tag": "Entries",
   "method": "get",
   "path": "/my/forms/{form_token}/entries",
@@ -2978,7 +2978,7 @@
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+        "description": "What to filter on; a field api_code for entries, where `creator_id` (`eq` with a user id, at most once) and `serial_number` (`eq` / `any_in` / `none_in`, several intersected) also work, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
        },
        "api_code": {
         "type": "string",
@@ -3016,7 +3016,7 @@
         "description": "Comparison; `equal` / `not_equal` / `start` / `end` are aliases of `eq` / `ne` / `gte` / `lte`. Each field type accepts only some operators, and an unsupported one returns 400 listing the available ones."
        },
        "value": {
-        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between`, `{\"unit\": \"day\", \"n\": 30}` for `within_last`, and no value for `null` / `not_null`."
+        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
        }
       }
      },
@@ -3032,7 +3032,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -3110,7 +3110,7 @@
  {
   "operationId": "searchMySubmittedEntries",
   "summary": "Search my entries",
-  "description": "Search my entries\nSearches the current user's own entries across forms with one keyword (only fields the form makes public to submitters are searched), and returns the match count and serial numbers for each matching form.\n- `keyword` is required; returns 400 when empty.\n- By default, searches every form the current user has submitted to (quick payment forms excluded); `form_tokens` limits it to some of them, and tokens not in the user's submission history are ignored.\n  Returns 400 when more than 20 forms are in the search; narrow them with `form_tokens`.\n- Forms with no match are left out of the result; when a form cannot be searched (e.g. the keyword is too long), that form returns `unavailable` with an explanation and the other forms return as usual.\n- At most 50 serial numbers are returned per form; `matched` is the form's actual total match count.\n- An account access token has no \"current user\"; calling with one returns 400.\nReturns schema \"MySearchResponse\" (see get_schema).",
+  "description": "Search my entries\nSearches the current user's own entries in every form they submitted to (quick payment forms excluded) with one keyword, over the fields each form makes public to submitters, and returns the match count and serial numbers for each matching form.\n- One call searches at most 20 forms; past that, name the ones to search in `form_tokens`.\n- An account access token has no \"current user\"; calling with one returns 400.\nReturns schema \"MySearchResponse\" (see get_schema).",
   "tag": "Entries",
   "method": "get",
   "path": "/my/search",
@@ -3154,7 +3154,7 @@
      "items": {
       "type": "string"
      },
-     "description": "Search only these forms. Comma-separated form tokens, or an array parameter (`form_tokens[]=`)."
+     "description": "Search only these of the forms the user submitted to; other tokens are not searched. Comma-separated form tokens, or an array parameter (`form_tokens[]=`)."
     }
    },
    "additionalProperties": false,
@@ -3172,7 +3172,7 @@
  {
   "operationId": "createEntryImport",
   "summary": "Import entries from an uploaded spreadsheet",
-  "description": "Import entries from an uploaded spreadsheet\nAppends each row of a spreadsheet uploaded with \"Upload an import file\" as an entry of this form. Upload the file first to get the import attachment ID (`attachment_id`), then say here which column goes into which field.\nProblems that can be detected up front, such as the file, the plan's import limit, the header row and the column mapping, are checked before the job is created; a rejected import writes no entries. Error messages include the spreadsheet's actual layout (row and column range, and the header contents), so the request can be fixed and retried.\nOnce validation passes, returns `201` and the entries are written in the background: `201` means the job has started, not finished; poll \"Show an entry import job\" for the result.\n- `attachment_id` must be an import file the current user uploaded for this form, otherwise returns 400 (the file cannot be found; upload it again); returns 400 when the file is not xls / xlsx / csv or cannot be read.\n- `columns` must not be empty; each item names the target field with `field_api_code`, and the source column with `column_label` (the header text, which must exactly match the header cell after trimming leading and trailing spaces) or `sheet_column_index` (the column number); when both are given, `sheet_column_index` wins.\n- The field must be one this form can import into; one field cannot map to several columns; when several header columns share a name, use `sheet_column_index` instead; the column number must be within the spreadsheet's column range.\n- `header_row_index` defaults to the first row of the spreadsheet, and there must be data rows below it.\n- Every required field of the form must have a column, otherwise returns 400 listing the missing fields.\n- `unique_field_code` names a field to deduplicate on: when a row's value for that field already exists in the form's entries, the row is skipped (counted in `skip_count`).\n- Returns 404 `form cannot be found` when the form does not exist or is not accessible to the current caller.\nOnly for a file the client actually holds and has uploaded with prepare_import_file_upload (or upload_import_file). Table / CSV text pasted into the conversation goes straight to create_entries (at most 200 per batch); do not turn it into a file to import.",
+  "description": "Import entries from an uploaded spreadsheet\nAppends each row of a spreadsheet uploaded with \"Upload an import file\" as an entry of this form. Upload the file first to get the import attachment ID (`attachment_id`), then say here which column goes into which field.\nOnce validation passes, returns `201` and the entries are written in the background: `201` means the job has started, not finished; poll \"Show an entry import job\" for the result.\n- Every required field of the form needs a column, and a field takes at most one column.\n- A refused import writes no entries, and its error shows the row and column range and the header of the spreadsheet, so fix the mapping from it and retry.\nOnly for a file the client actually holds and has uploaded with prepare_import_file_upload (or upload_import_file). Table / CSV text pasted into the conversation goes straight to create_entries (at most 200 per batch); do not turn it into a file to import.",
   "tag": "Entries",
   "method": "post",
   "path": "/forms/{form_token}/entry_imports",
@@ -3207,7 +3207,7 @@
     },
     "attachment_id": {
      "type": "string",
-     "description": "The import attachment `id` returned by \"Upload an import file\""
+     "description": "The import attachment `id` returned by \"Upload an import file\" for this form"
     },
     "columns": {
      "type": "array",
@@ -4099,7 +4099,7 @@
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+        "description": "What to filter on; a field api_code for entries, where `creator_id` (`eq` with a user id, at most once) and `serial_number` (`eq` / `any_in` / `none_in`, several intersected) also work, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
        },
        "api_code": {
         "type": "string",
@@ -4137,7 +4137,7 @@
         "description": "Comparison; `equal` / `not_equal` / `start` / `end` are aliases of `eq` / `ne` / `gte` / `lte`. Each field type accepts only some operators, and an unsupported one returns 400 listing the available ones."
        },
        "value": {
-        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between`, `{\"unit\": \"day\", \"n\": 30}` for `within_last`, and no value for `null` / `not_null`."
+        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
        }
       }
      },
@@ -5404,7 +5404,7 @@
  {
   "operationId": "prepareFormImageUpload",
   "summary": "Prepare a form image upload",
-  "description": "Prepare a form image upload\nIssues a one-time link for uploading a local image for a form, without sending its bytes in a request body.\n- With a shell that can read the file and reach the network, run `curl -F file=@<path> <upload_url>`, then use the returned `attachment_id` (or `url`) as \"Upload a form image\" says for its `image_type`.\n- Without one, or when curl fails (for example under a sandbox's network limits), give a public image URL or a small Base64 image where the image goes.",
+  "description": "Prepare a form image upload\nIssues a one-time link for uploading a local image for a form, without sending its bytes in a request body.\n- With a shell that can read the file and reach the network, run `curl -F file=@<path> <upload_url>`, then use the returned `attachment_id` (or `url`) where its `image_type` goes.\n- Without one, or when curl fails (for example under a sandbox's network limits), give a public image URL or a small Base64 image where the image goes.",
   "tag": "Uploads",
   "method": "post",
   "path": "/form_image_upload_urls",
@@ -5645,7 +5645,7 @@
  {
   "operationId": "uploadFormImage",
   "summary": "Upload a form image",
-  "description": "Upload a form image\nUploads an image for a form; it takes effect once a form, theme or public query references it.\n- `field_choice` / `goods_item` / `contact_widget`: a choice's `attachment_id`, a goods item's `attachment_ids` or a contact widget image's `attachment_id` in \"Create a form\" / \"Edit a form\".\n- `header` / `wallpaper` / `carousel`: `header.header_image_attachment_id`, `wallpaper.background_image_attachment_id` or `header.carousel_images[].attachment_id` in \"Update a form's theme\".\n- `opensearch_header`: `header.background_image.attachment_id` in \"Update a public query\".\n- `description`: the returned `url`, in an `<img src>` of the form `description` or a field's `notes`; a form takes at most 30 such images.\n- An `attachment_id` is taken only where its `image_type` goes, and only while the image is unused or already that form's; an image nothing uses within 7 days is deleted.",
+  "description": "Upload a form image\nUploads an image for a form; it takes effect once a form, theme or public query references it.\n- `description` returns a `url` for an `<img src>` in the form `description` or a field's `notes`, at most 30 per form; every other type returns an `attachment_id` for the property that names that `image_type`.\n- An `attachment_id` is taken only where its `image_type` goes, and only while the image is unused or already that form's; an image nothing uses within 7 days is deleted.",
   "tag": "Uploads",
   "method": "post",
   "path": "/form_image_attachments",
@@ -5996,7 +5996,7 @@
  {
   "operationId": "createForm",
   "summary": "Create a form",
-  "description": "Creates an online exam form (scene=exam, scored automatically). Use it, not create_form, when the user wants an exam, test or quiz; an evaluation such as a psychological test, ability assessment, self-assessment questionnaire or training feedback uses create_evaluation_form. Questions must use exam question types (SingleSelect / MultiSelect / TrueOrFalse / DropDownSelect / FillInBlank / ShortAnswer / FillInNumber), each with answers (the correct answer and its score; the default absolute mode has one correct answer and scores only a fully correct response). A question type's schema is the one FieldInput's x-variants names (SingleSelect → \"SingleSelectInput\"; see get_schema). Creates the form first, then applies exam_setting; if the settings are rejected, the form already exists and the result says so.\nCreates a form from a list of field definitions and returns the full form structure. `name` and `fields` are required.\n- `scene` sets the form's scene; exam / evaluation question types (such as `SingleSelect`, `FillInBlank`) can only be used in the scenes that support them.\n- `layout=card` (paged) does not support PageBreak, Matrix*, TableField, GoodsField, ESignatureField, FormAssociation, MultipleBlanksField or any kind of Widget field.\n- The folder named by `folder_token` must be manageable and of kind form; otherwise returns 404 / 400 respectively.\n- `setting` accepts only whitelisted keys (see `FormSettingWriteInput`); `setting.notification_rules` replaces, as a whole, the notification rules created through the API.\n- The returned form structure carries `url` (the public fill URL).",
+  "description": "Creates an online exam form (scene=exam, scored automatically). Use it, not create_form, when the user wants an exam, test or quiz; an evaluation such as a psychological test, ability assessment, self-assessment questionnaire or training feedback uses create_evaluation_form. Questions must use exam question types (SingleSelect / MultiSelect / TrueOrFalse / DropDownSelect / FillInBlank / ShortAnswer / FillInNumber), each with answers (the correct answer and its score; the default absolute mode has one correct answer and scores only a fully correct response). A question type's schema is the one FieldInput's x-variants names (SingleSelect → \"SingleSelectInput\"; see get_schema). Creates the form first, then applies exam_setting; if the settings are rejected, the form already exists and the result says so.\nCreates a form from a list of field definitions and returns the full form structure.\n- `scene` sets the form's scene; exam / evaluation question types (such as `SingleSelect`, `FillInBlank`) can only be used in the scenes that support them.",
   "tag": "Forms",
   "method": "post",
   "path": "/forms",
@@ -6047,7 +6047,7 @@
       "classic",
       "card"
      ],
-     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout"
+     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout and cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo / WidgetButton"
     },
     "scene": {
      "type": "string",
@@ -6108,7 +6108,7 @@
        }
       }
      },
-     "description": "Exam settings (updateExamSetting): Partially updates an exam form's settings; PUT is accepted too. Only for exam-scene forms; otherwise returns 400.\n- When the plan does not support \"show the score after submission\", `notice_after_filling_mode` is forced to none and `success_message_rich_text` is ignored.\n- `interval_comments` replaces the existing range comments as a whole; it takes effect only when `notice_after_filling_mode` (passed in this request or already saved) is grade / explaination / answer; passing an empty array does not turn range comments off.\n- Range comments must have end_point ≥ start_point and must not overlap; otherwise 400.\n- Passing `show_timeout: true` returns 400 when the form already has required questions; once the time limit is on, question fields cannot be made required (required candidate info fields are not affected); to turn on the time limit, make the questions optional first.\n- When `notice_after_filling_mode` is not none, the server clears success_redirect_url / success_redirect_fields in the form's settings.\n- A request body with no recognized keys is a no-op and returns the current settings."
+     "description": "Exam settings (updateExamSetting): Partially updates an exam form's settings."
     }
    },
    "additionalProperties": false,
@@ -6542,7 +6542,7 @@
        }
       }
      },
-     "description": "Exam settings (updateExamSetting): Partially updates an exam form's settings; PUT is accepted too. Only for exam-scene forms; otherwise returns 400.\n- When the plan does not support \"show the score after submission\", `notice_after_filling_mode` is forced to none and `success_message_rich_text` is ignored.\n- `interval_comments` replaces the existing range comments as a whole; it takes effect only when `notice_after_filling_mode` (passed in this request or already saved) is grade / explaination / answer; passing an empty array does not turn range comments off.\n- Range comments must have end_point ≥ start_point and must not overlap; otherwise 400.\n- Passing `show_timeout: true` returns 400 when the form already has required questions; once the time limit is on, question fields cannot be made required (required candidate info fields are not affected); to turn on the time limit, make the questions optional first.\n- When `notice_after_filling_mode` is not none, the server clears success_redirect_url / success_redirect_fields in the form's settings.\n- A request body with no recognized keys is a no-op and returns the current settings."
+     "description": "Exam settings (updateExamSetting): Partially updates an exam form's settings."
     }
    },
    "additionalProperties": false,
@@ -6566,7 +6566,7 @@
  {
   "operationId": "createForm",
   "summary": "Create a form",
-  "description": "Creates an evaluation form (scene=evaluation). Use it when the user wants an evaluation, psychological test, ability assessment, self-assessment questionnaire or training feedback; not create_form, and not create_exam_form (an exam with correct answers). A scored evaluation uses SingleSelect / MultiSelect / DropDownSelect / Rating / Nps: each question lists every choice with its score in answers and sets answer_setting_mode=relative (every choice scores, none is right or wrong; the default absolute accepts one correct answer and scores any other choice 0). A question type's schema is the one FieldInput's x-variants names (SingleSelect → \"SingleSelectInput\"; see get_schema). Do not score with a regular choice field's calculable / operand_value. A feedback questionnaire uses regular fields (RatingField / MatrixScaleField / TextArea, etc.) without scores. Creates the form first, then applies evaluation_setting (the report after submission, comments by total score range, dimensions).\nCreates a form from a list of field definitions and returns the full form structure. `name` and `fields` are required.\n- `scene` sets the form's scene; exam / evaluation question types (such as `SingleSelect`, `FillInBlank`) can only be used in the scenes that support them.\n- `layout=card` (paged) does not support PageBreak, Matrix*, TableField, GoodsField, ESignatureField, FormAssociation, MultipleBlanksField or any kind of Widget field.\n- The folder named by `folder_token` must be manageable and of kind form; otherwise returns 404 / 400 respectively.\n- `setting` accepts only whitelisted keys (see `FormSettingWriteInput`); `setting.notification_rules` replaces, as a whole, the notification rules created through the API.\n- The returned form structure carries `url` (the public fill URL).",
+  "description": "Creates an evaluation form (scene=evaluation). Use it when the user wants an evaluation, psychological test, ability assessment, self-assessment questionnaire or training feedback; not create_form, and not create_exam_form (an exam with correct answers). A scored evaluation uses SingleSelect / MultiSelect / DropDownSelect / Rating / Nps: each question lists every choice with its score in answers and sets answer_setting_mode=relative (every choice scores, none is right or wrong; the default absolute accepts one correct answer and scores any other choice 0). A question type's schema is the one FieldInput's x-variants names (SingleSelect → \"SingleSelectInput\"; see get_schema). Do not score with a regular choice field's calculable / operand_value. A feedback questionnaire uses regular fields (RatingField / MatrixScaleField / TextArea, etc.) without scores. Creates the form first, then applies evaluation_setting (the report after submission, comments by total score range, dimensions).\nCreates a form from a list of field definitions and returns the full form structure.\n- `scene` sets the form's scene; exam / evaluation question types (such as `SingleSelect`, `FillInBlank`) can only be used in the scenes that support them.",
   "tag": "Forms",
   "method": "post",
   "path": "/forms",
@@ -6617,7 +6617,7 @@
       "classic",
       "card"
      ],
-     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout"
+     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout and cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo / WidgetButton"
     },
     "scene": {
      "type": "string",
@@ -6626,7 +6626,7 @@
     },
     "evaluation_setting": {
      "type": "object",
-     "description": "Evaluation settings (updateEvaluationSetting): Partially updates an evaluation form's settings; PUT is accepted too. Only for evaluation-scene forms; otherwise returns 400.\n- When the plan does not support \"show the evaluation report after submission\", `notice_after_filling_mode` is forced to none.\n- `evaluation_comments` replaces the total score range comments as a whole, and an empty array turns range comments off; it takes effect only when `notice_after_filling_mode` (passed in this request or already saved) is reports / customize.\n- A comment by score range must give both start_point and end_point; comments written with conditions in the form editor read back as `id` + `conditions` and must be passed back with their original id when updating (only comment / retry may change; the conditions cannot be changed and no range can be added); leaving one out or changing it returns 400.\n- `indicator_setting.indicators` replaces the dimensions as a whole; pass `api_code` back to keep an existing dimension's identity. A dimension can bind only scorable questions visible on the form, referenced by `field_api_codes` or `field_cids`; referencing an unknown field returns 400.\n- When `notice_after_filling_mode` is not none, the server clears success_redirect_url / success_redirect_fields in the form's settings.\n- A request body with no recognized keys is a no-op and returns the current settings."
+     "description": "Evaluation settings (updateEvaluationSetting): Partially updates an evaluation form's settings (schema `EvaluationSettingInput`).\n- `evaluation_comments` replaces the total score range comments as a whole (an empty array turns them off) and takes effect only when `notice_after_filling_mode`, passed or already saved, is reports / customize. A comment written with conditions in the form editor reads back as `id` + `conditions`; pass it back under that id, where only `comment` / `retry` can change.\n- `indicator_setting.indicators` replaces the dimensions as a whole; pass `api_code` back to keep a dimension. A dimension binds visible scorable questions by `field_api_codes` or `field_cids`."
     }
    },
    "additionalProperties": false,
@@ -7008,7 +7008,7 @@
     },
     "evaluation_setting": {
      "type": "object",
-     "description": "Evaluation settings (updateEvaluationSetting): Partially updates an evaluation form's settings; PUT is accepted too. Only for evaluation-scene forms; otherwise returns 400.\n- When the plan does not support \"show the evaluation report after submission\", `notice_after_filling_mode` is forced to none.\n- `evaluation_comments` replaces the total score range comments as a whole, and an empty array turns range comments off; it takes effect only when `notice_after_filling_mode` (passed in this request or already saved) is reports / customize.\n- A comment by score range must give both start_point and end_point; comments written with conditions in the form editor read back as `id` + `conditions` and must be passed back with their original id when updating (only comment / retry may change; the conditions cannot be changed and no range can be added); leaving one out or changing it returns 400.\n- `indicator_setting.indicators` replaces the dimensions as a whole; pass `api_code` back to keep an existing dimension's identity. A dimension can bind only scorable questions visible on the form, referenced by `field_api_codes` or `field_cids`; referencing an unknown field returns 400.\n- When `notice_after_filling_mode` is not none, the server clears success_redirect_url / success_redirect_fields in the form's settings.\n- A request body with no recognized keys is a no-op and returns the current settings."
+     "description": "Evaluation settings (updateEvaluationSetting): Partially updates an evaluation form's settings (schema `EvaluationSettingInput`).\n- `evaluation_comments` replaces the total score range comments as a whole (an empty array turns them off) and takes effect only when `notice_after_filling_mode`, passed or already saved, is reports / customize. A comment written with conditions in the form editor reads back as `id` + `conditions`; pass it back under that id, where only `comment` / `retry` can change.\n- `indicator_setting.indicators` replaces the dimensions as a whole; pass `api_code` back to keep a dimension. A dimension binds visible scorable questions by `field_api_codes` or `field_cids`."
     }
    },
    "additionalProperties": false,
@@ -7094,7 +7094,7 @@
       "properties": {
        "field": {
         "type": "string",
-        "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+        "description": "What to filter on; a field api_code for entries, where `creator_id` (`eq` with a user id, at most once) and `serial_number` (`eq` / `any_in` / `none_in`, several intersected) also work, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
        },
        "api_code": {
         "type": "string",
@@ -7132,7 +7132,7 @@
         "description": "Comparison; `equal` / `not_equal` / `start` / `end` are aliases of `eq` / `ne` / `gte` / `lte`. Each field type accepts only some operators, and an unsupported one returns 400 listing the available ones."
        },
        "value": {
-        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between`, `{\"unit\": \"day\", \"n\": 30}` for `within_last`, and no value for `null` / `not_null`."
+        "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
        }
       }
      },
@@ -7148,7 +7148,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND.\n- Each field type accepts only some of the operators; an unsupported one returns 400 listing the available operators.\n- For choice fields (single choice / multiple choice / drop-down / cascading drop-down), `value` can be a choice api_code or a choice label; a cascading drop-down also accepts a `level1-level2` path.\n- For `between` / `not_between`, `value` is a two-element array `[min, max]`; matrix / table fields need `{\"<column api_code>\": [min, max]}`.\n- `within_last` works only on date fields; `value` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month).\n- `creator_id` is a special field that filters by submitter with `eq` (the value is a user id), and can appear only once.\n- `serial_number` is a special field that filters by serial number with `eq` / `any_in` / `none_in` (`none_in` leaves the listed entries out, as unticking rows after selecting all in the web app); several conditions are intersected.\n- For a relation field (RelationField), the `value` of `any_in` / `none_in` is serial numbers of entries in the related table; returns 400 when a serial number does not exist.\n- With a `created_at` condition, results are sorted by creation time instead.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",

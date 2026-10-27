@@ -1877,7 +1877,7 @@
    },
    "verifier_invite_url": {
     "type": "string",
-    "description": "Link that invites a verifier, who can then verify check-ins on site"
+    "description": "Link that invites a verifier, who can then verify check-ins on site; the creator of the campaign is a verifier already"
    },
    "manage_url": {
     "type": "string",
@@ -1907,7 +1907,7 @@
    },
    "checkin_field_api_code": {
     "type": "string",
-    "description": "Check-in field, a mobile, name, email, ID card or single-line text field; defaults to the first mobile field, then the first name field. Cannot be changed afterwards"
+    "description": "Check-in field, a mobile, name, email, ID card or single-line text field; defaults to the first mobile field, then the first name field, so it is required when the form has neither. Cannot be changed afterwards"
    },
    "name": {
     "type": "string",
@@ -1923,7 +1923,8 @@
    },
    "enable_checkin_code": {
     "type": "boolean",
-    "description": "After submitting, go on to the check-in code page; registrants show the code on site"
+    "default": true,
+    "description": "After submitting, go on to the check-in code page; registrants show the code on site. While on, check-in takes over the after-submit redirect and data push URL of the form, replacing any Webhook on it"
    },
    "checkin_field_required_unique": {
     "type": "boolean",
@@ -2060,7 +2061,7 @@
    },
    "enable_checkin_code": {
     "type": "boolean",
-    "description": "After submitting, go on to the check-in code page; registrants show the code on site"
+    "description": "After submitting, go on to the check-in code page; registrants show the code on site. While on, check-in takes over the after-submit redirect and data push URL of the form, replacing any Webhook on it"
    },
    "checkin_field_required_unique": {
     "type": "boolean",
@@ -3080,7 +3081,7 @@
      "schedule_time"
     ],
     "default": "all_new",
-    "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`"
+    "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`. To send when an entry is paid, use `matched_update` with the condition `{trigger: trade_status, operator: any_in, value: [paid]}`"
    },
    "scope_conditions": {
     "type": "array",
@@ -3095,7 +3096,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code; `trade_status` matches the payment status, e.g. `paid`"
+       "description": "Field api_code, or `trade_status` for the payment status"
       },
       "operator": {
        "type": "string",
@@ -3658,7 +3659,7 @@
      "schedule_time"
     ],
     "default": "all_new",
-    "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`"
+    "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`. To send when an entry is paid, use `matched_update` with the condition `{trigger: trade_status, operator: any_in, value: [paid]}`"
    },
    "scope_conditions": {
     "type": "array",
@@ -3673,7 +3674,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code; `trade_status` matches the payment status, e.g. `paid`"
+       "description": "Field api_code, or `trade_status` for the payment status"
       },
       "operator": {
        "type": "string",
@@ -4738,7 +4739,7 @@
   "properties": {
    "attachment_id": {
     "type": "string",
-    "description": "The import attachment `id` returned by \"Upload an import file\""
+    "description": "The import attachment `id` returned by \"Upload an import file\" for this form"
    },
    "columns": {
     "type": "array",
@@ -6264,7 +6265,7 @@
    },
    "evaluation_comments": {
     "type": "array",
-    "description": "Replaces the total-score range comments as a whole; an empty array turns range comments off. Ranges must not overlap",
+    "description": "Replaces the total-score range comments as a whole; an empty array turns range comments off. Ranges must not overlap. Takes effect only when notice_after_filling_mode is reports / customize",
     "items": {
      "type": "object",
      "description": "A range-based comment needs both start_point and end_point; a condition-based comment is passed back by the id it was read with, and only comment / retry can change",
@@ -16070,7 +16071,7 @@
     "properties": {
      "key": {
       "type": "string",
-      "description": "`open` means the current user can submit"
+      "description": "`open` means the current user can submit; any other value says why not, explained in `message`"
      },
      "message": {
       "type": [
@@ -16120,7 +16121,7 @@
    },
    "fields": {
     "type": "array",
-    "description": "Fields on the fill page, in fill order",
+    "description": "Fields on the fill page, in fill order; for a form view, labels, descriptions and required flags follow the view",
     "items": {
      "type": "object",
      "description": "Single-key object: the key is the field's api_code, the value is the field definition",
@@ -16623,7 +16624,7 @@
      "classic",
      "card"
     ],
-    "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout"
+    "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout and cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo / WidgetButton"
    }
   }
  },
@@ -16728,7 +16729,8 @@
    {
     "type": "object",
     "required": [
-     "folder_token"
+     "folder_token",
+     "billing_account_id"
     ],
     "properties": {
      "folder_token": {
@@ -16737,6 +16739,10 @@
        "null"
       ],
       "description": "Token of the folder the current identity put this form in (for an account token, the account owner's); null when the form is not in a folder"
+     },
+     "billing_account_id": {
+      "type": "string",
+      "description": "ID of the account the form belongs to, as `id` in `GET /billing_account`; a form shared from another account carries that account's"
      },
      "theme": {
       "type": "object",
@@ -17160,7 +17166,8 @@
       "entries_count",
       "last_entry_created_at",
       "creator",
-      "folder_token"
+      "folder_token",
+      "billing_account_id"
      ],
      "properties": {
       "name": {
@@ -17217,6 +17224,10 @@
         "null"
        ],
        "description": "Token of the folder the current identity put this form in (for an account token, the account owner's); null when the form is not in a folder"
+      },
+      "billing_account_id": {
+       "type": "string",
+       "description": "ID of the account the form belongs to, as `id` in `GET /billing_account`; a form shared from another account carries that account's"
       },
       "transactions": {
        "type": "object",
@@ -17837,7 +17848,8 @@
     "description": "Close once a given number of entries is collected",
     "properties": {
      "limit": {
-      "type": "integer"
+      "type": "integer",
+      "maximum": 2147483647
      }
     },
     "additionalProperties": false
@@ -18042,7 +18054,8 @@
       "description": "Pass false to delete the rule"
      },
      "limit": {
-      "type": "integer"
+      "type": "integer",
+      "maximum": 2147483647
      }
     },
     "additionalProperties": false
@@ -18322,7 +18335,8 @@
    "entries_count",
    "last_entry_created_at",
    "creator",
-   "folder_token"
+   "folder_token",
+   "billing_account_id"
   ],
   "properties": {
    "name": {
@@ -18379,6 +18393,10 @@
      "null"
     ],
     "description": "Token of the folder the current identity put this form in (for an account token, the account owner's); null when the form is not in a folder"
+   },
+   "billing_account_id": {
+    "type": "string",
+    "description": "ID of the account the form belongs to, as `id` in `GET /billing_account`; a form shared from another account carries that account's"
    },
    "transactions": {
     "type": "object",
@@ -18524,6 +18542,7 @@
    },
    "typography": {
     "type": "object",
+    "description": "CSS hyphenated keys",
     "properties": {
      "form_header": {
       "type": [
@@ -24135,7 +24154,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code; `trade_status` matches the payment status, e.g. `paid`"
+       "description": "Field api_code, or `trade_status` for the payment status"
       },
       "operator": {
        "type": "string",
@@ -24427,7 +24446,7 @@
   "properties": {
    "trigger": {
     "type": "string",
-    "description": "Field api_code; `trade_status` matches the payment status, e.g. `paid`"
+    "description": "Field api_code, or `trade_status` for the payment status"
    },
    "operator": {
     "type": "string",
@@ -24468,7 +24487,7 @@
    "schedule_time"
   ],
   "default": "all_new",
-  "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`"
+  "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`. To send when an entry is paid, use `matched_update` with the condition `{trigger: trade_status, operator: any_in, value: [paid]}`"
  },
  "NpsFieldInput": {
   "type": "object",
@@ -28738,7 +28757,7 @@
      "schedule_time"
     ],
     "default": "all_new",
-    "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`"
+    "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`. To send when an entry is paid, use `matched_update` with the condition `{trigger: trade_status, operator: any_in, value: [paid]}`"
    },
    "scope_conditions": {
     "type": "array",
@@ -28753,7 +28772,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code; `trade_status` matches the payment status, e.g. `paid`"
+       "description": "Field api_code, or `trade_status` for the payment status"
       },
       "operator": {
        "type": "string",
@@ -29919,7 +29938,7 @@
   "properties": {
    "field": {
     "type": "string",
-    "description": "What to filter on; a field api_code for entries, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
+    "description": "What to filter on; a field api_code for entries, where `creator_id` (`eq` with a user id, at most once) and `serial_number` (`eq` / `any_in` / `none_in`, several intersected) also work, or a form attribute such as `created_at` for form lists. Required unless the deprecated `api_code` or `trigger` is given instead."
    },
    "api_code": {
     "type": "string",
@@ -29957,7 +29976,7 @@
     "description": "Comparison; `equal` / `not_equal` / `start` / `end` are aliases of `eq` / `ne` / `gte` / `lte`. Each field type accepts only some operators, and an unsupported one returns 400 listing the available ones."
    },
    "value": {
-    "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between`, `{\"unit\": \"day\", \"n\": 30}` for `within_last`, and no value for `null` / `not_null`."
+    "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
    }
   }
  },
@@ -30727,7 +30746,8 @@
      "last_entry_created_at",
      "creator",
      "entries_count",
-     "folder_token"
+     "folder_token",
+     "billing_account_id"
     ],
     "properties": {
      "name": {
@@ -30779,6 +30799,10 @@
        "null"
       ],
       "description": "Token of the folder the current identity put this table in (for an account token, the account owner's); null when the table is not in a folder"
+     },
+     "billing_account_id": {
+      "type": "string",
+      "description": "ID of the account the table belongs to, as `id` in `GET /billing_account`; a table shared from another account carries that account's"
      }
     }
    },
@@ -33509,7 +33533,8 @@
       "last_entry_created_at",
       "creator",
       "entries_count",
-      "folder_token"
+      "folder_token",
+      "billing_account_id"
      ],
      "properties": {
       "name": {
@@ -33561,6 +33586,10 @@
         "null"
        ],
        "description": "Token of the folder the current identity put this table in (for an account token, the account owner's); null when the table is not in a folder"
+      },
+      "billing_account_id": {
+       "type": "string",
+       "description": "ID of the account the table belongs to, as `id` in `GET /billing_account`; a table shared from another account carries that account's"
       }
      }
     }
@@ -33584,7 +33613,8 @@
    "last_entry_created_at",
    "creator",
    "entries_count",
-   "folder_token"
+   "folder_token",
+   "billing_account_id"
   ],
   "properties": {
    "name": {
@@ -33636,6 +33666,10 @@
      "null"
     ],
     "description": "Token of the folder the current identity put this table in (for an account token, the account owner's); null when the table is not in a folder"
+   },
+   "billing_account_id": {
+    "type": "string",
+    "description": "ID of the account the table belongs to, as `id` in `GET /billing_account`; a table shared from another account carries that account's"
    }
   }
  },
@@ -33905,7 +33939,8 @@
        "text",
        "image",
        "carousel"
-      ]
+      ],
+      "description": "When omitted, follows what is passed with it, `image` for a header image and `carousel` for `carousel_images`"
      },
      "text": {
       "type": "string",
@@ -33954,7 +33989,7 @@
        "string",
        "null"
       ],
-      "description": "attachment_id returned by \"Upload a form image\" (image_type=header); an empty string removes the current header image. Lowest priority; header.type is set to image when not given"
+      "description": "attachment_id returned by \"Upload a form image\" (image_type=header); an empty string removes the current header image. Lowest priority"
      }
     },
     "additionalProperties": false
@@ -36821,7 +36856,7 @@
      "schedule_time"
     ],
     "default": "all_new",
-    "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`"
+    "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`. To send when an entry is paid, use `matched_update` with the condition `{trigger: trade_status, operator: any_in, value: [paid]}`"
    },
    "scope_conditions": {
     "type": "array",
@@ -36836,7 +36871,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code; `trade_status` matches the payment status, e.g. `paid`"
+       "description": "Field api_code, or `trade_status` for the payment status"
       },
       "operator": {
        "type": "string",
@@ -36956,7 +36991,7 @@
      "schedule_time"
     ],
     "default": "all_new",
-    "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`"
+    "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`. To send when an entry is paid, use `matched_update` with the condition `{trigger: trade_status, operator: any_in, value: [paid]}`"
    },
    "scope_conditions": {
     "type": "array",
@@ -36971,7 +37006,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code; `trade_status` matches the payment status, e.g. `paid`"
+       "description": "Field api_code, or `trade_status` for the payment status"
       },
       "operator": {
        "type": "string",
@@ -37484,7 +37519,7 @@
      "schedule_time"
     ],
     "default": "all_new",
-    "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`"
+    "description": "When it sends: on new entries, on changed entries, on new / changed entries matching `scope_conditions`, or at a time set by `schedule_time_rule`. To send when an entry is paid, use `matched_update` with the condition `{trigger: trade_status, operator: any_in, value: [paid]}`"
    },
    "scope_conditions": {
     "type": "array",
@@ -37499,7 +37534,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code; `trade_status` matches the payment status, e.g. `paid`"
+       "description": "Field api_code, or `trade_status` for the payment status"
       },
       "operator": {
        "type": "string",
