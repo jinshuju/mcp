@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/jinshuju/mcp/compare/v0.4.0...v0.5.0) (2026-10-27)
+
+
+### Features
+
+* add the prepare_*_upload tools for uploading local files ([6afec7a](https://github.com/jinshuju/mcp/commit/6afec7abe3ddbf05704b8d4b3a96bb827db07ff9))
+
+
+### Fixes
+
+* keep exam and evaluation question types out of create_form ([d3b5686](https://github.com/jinshuju/mcp/commit/d3b5686f43f0dccdb20e39d638c8f60dd1e5b60a))
+
 ## [0.4.0](https://github.com/jinshuju/mcp/compare/v0.3.0...v0.4.0) (2026-10-23)
 
 
