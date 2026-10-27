@@ -155,7 +155,6 @@ paths:
       operationId: createForm
       description: |
         Creates a form from a list of field definitions and returns the full form structure.
-        - `scene` sets the form's scene; exam / evaluation question types (such as `SingleSelect`, `FillInBlank`) can only be used in the scenes that support them.
 
         OAuth scope: forms
       requestBody:
@@ -9108,8 +9107,7 @@ components:
         fields:
           type: array
           minItems: 1
-          items:
-            $ref: '#/components/schemas/FieldInput'
+          description: 'Field definitions: FieldInput, or ExamFieldInput / EvaluationFieldInput when scene is exam / evaluation'
         setting:
           $ref: '#/components/schemas/FormSettingWriteInput'
         folder_token:
@@ -9228,19 +9226,6 @@ components:
           - WidgetContact
           - WidgetMap
           - WidgetMarquee
-          - SingleSelect
-          - MultiSelect
-          - ImageSingleSelect
-          - ImageMultiSelect
-          - TrueOrFalse
-          - DropDownSelect
-          - FillInBlank
-          - ShortAnswer
-          - FillInNumber
-          - Rating
-          - Nps
-          - Department
-          - Grade
         label:
           type: string
           description: Field label
@@ -9286,19 +9271,6 @@ components:
           WidgetContact: "#/components/schemas/WidgetContactInput"
           WidgetMap: "#/components/schemas/WidgetMapInput"
           WidgetMarquee: "#/components/schemas/WidgetMarqueeInput"
-          SingleSelect: "#/components/schemas/SingleSelectInput"
-          MultiSelect: "#/components/schemas/MultiSelectInput"
-          ImageSingleSelect: "#/components/schemas/ImageSingleSelectInput"
-          ImageMultiSelect: "#/components/schemas/ImageMultiSelectInput"
-          TrueOrFalse: "#/components/schemas/TrueOrFalseInput"
-          DropDownSelect: "#/components/schemas/DropDownSelectInput"
-          FillInBlank: "#/components/schemas/FillInBlankInput"
-          ShortAnswer: "#/components/schemas/ShortAnswerInput"
-          FillInNumber: "#/components/schemas/FillInNumberInput"
-          Rating: "#/components/schemas/RatingInput"
-          Nps: "#/components/schemas/NpsInput"
-          Department: "#/components/schemas/DepartmentInput"
-          Grade: "#/components/schemas/GradeInput"
       oneOf:
       - $ref: '#/components/schemas/TextFieldInput'
       - $ref: '#/components/schemas/TextAreaInput'
@@ -9339,19 +9311,6 @@ components:
       - $ref: '#/components/schemas/WidgetContactInput'
       - $ref: '#/components/schemas/WidgetMapInput'
       - $ref: '#/components/schemas/WidgetMarqueeInput'
-      - $ref: '#/components/schemas/SingleSelectInput'
-      - $ref: '#/components/schemas/MultiSelectInput'
-      - $ref: '#/components/schemas/ImageSingleSelectInput'
-      - $ref: '#/components/schemas/ImageMultiSelectInput'
-      - $ref: '#/components/schemas/TrueOrFalseInput'
-      - $ref: '#/components/schemas/DropDownSelectInput'
-      - $ref: '#/components/schemas/FillInBlankInput'
-      - $ref: '#/components/schemas/ShortAnswerInput'
-      - $ref: '#/components/schemas/FillInNumberInput'
-      - $ref: '#/components/schemas/RatingInput'
-      - $ref: '#/components/schemas/NpsInput'
-      - $ref: '#/components/schemas/DepartmentInput'
-      - $ref: '#/components/schemas/GradeInput'
       title: FieldInput
     ChoiceInput:
       type: object
@@ -10245,8 +10204,10 @@ components:
               type: array
               description: Fields to add; each may carry `position` (0-based) to set where it is inserted, otherwise it is appended at the end
               items:
+                description: A FieldInput; on an exam / evaluation form an ExamFieldInput / EvaluationFieldInput, on a table a TableColumnInput
                 anyOf:
-                - $ref: '#/components/schemas/FieldInput'
+                - $ref: '#/components/schemas/ExamFieldInput'
+                - $ref: '#/components/schemas/EvaluationFieldInput'
                 - $ref: '#/components/schemas/TableColumnInput'
             remove:
               type: array
@@ -15372,7 +15333,7 @@ components:
     PageBreakInput:
       type: object
       title: PageBreakInput
-      description: PageBreak field
+      description: PageBreak field; it starts the page below it, so a form with any PageBreak must have one as its first field (private fields may come before it)
       additionalProperties: false
       required:
       - type
@@ -16586,7 +16547,7 @@ components:
     DepartmentInput:
       type: object
       title: DepartmentInput
-      description: Department question, stored as RadioButton
+      description: Department question, stored as RadioButton; only when scene is exam
       additionalProperties: false
       required:
       - type
@@ -16648,7 +16609,7 @@ components:
     GradeInput:
       type: object
       title: GradeInput
-      description: Grade question, stored as RadioButton
+      description: Grade question, stored as RadioButton; only when scene is exam
       additionalProperties: false
       required:
       - type
@@ -17163,25 +17124,32 @@ components:
                       - WidgetContact
                       - WidgetVideo
                       - WidgetButton
-      - description: SingleSelect / MultiSelect / ImageSingleSelect / ImageMultiSelect / DropDownSelect can only be used when scene is exam / evaluation
+      - description: scene=exam takes ExamFieldInput
         if:
           properties:
-            fields:
-              type: array
-              contains:
-                properties:
-                  type:
-                    enum:
-                    - SingleSelect
-                    - MultiSelect
-                    - ImageSingleSelect
-                    - ImageMultiSelect
-                    - DropDownSelect
-                required:
-                - type
+            scene:
+              const: exam
           required:
-          - fields
+          - scene
         then:
+          properties:
+            fields:
+              items:
+                $ref: '#/components/schemas/ExamFieldInput'
+      - description: scene=evaluation takes EvaluationFieldInput
+        if:
+          properties:
+            scene:
+              const: evaluation
+          required:
+          - scene
+        then:
+          properties:
+            fields:
+              items:
+                $ref: '#/components/schemas/EvaluationFieldInput'
+      - description: Any other scene takes FieldInput
+        if:
           properties:
             scene:
               enum:
@@ -17189,52 +17157,11 @@ components:
               - evaluation
           required:
           - scene
-      - description: TrueOrFalse / FillInBlank / ShortAnswer / FillInNumber can only be used when scene is exam
-        if:
+        else:
           properties:
             fields:
-              type: array
-              contains:
-                properties:
-                  type:
-                    enum:
-                    - TrueOrFalse
-                    - FillInBlank
-                    - ShortAnswer
-                    - FillInNumber
-                required:
-                - type
-          required:
-          - fields
-        then:
-          properties:
-            scene:
-              enum:
-              - exam
-          required:
-          - scene
-      - description: Rating / Nps can only be used when scene is evaluation
-        if:
-          properties:
-            fields:
-              type: array
-              contains:
-                properties:
-                  type:
-                    enum:
-                    - Rating
-                    - Nps
-                required:
-                - type
-          required:
-          - fields
-        then:
-          properties:
-            scene:
-              enum:
-              - evaluation
-          required:
-          - scene
+              items:
+                $ref: '#/components/schemas/FieldInput'
     WidgetButtonItemInput:
       type: object
       title: WidgetButtonItemInput
@@ -21622,3 +21549,327 @@ components:
           - integer
           - 'null'
           description: The next page's row offset; null on the last page
+    ExamFieldInput:
+      type: object
+      description: 'A field definition for scene=exam, branched on type: the FieldInput types plus the ones only this scene takes'
+      required:
+      - type
+      - label
+      properties:
+        type:
+          type: string
+          enum:
+          - TextField
+          - TextArea
+          - NumberField
+          - EmailField
+          - MobileField
+          - IdCardField
+          - NameField
+          - RadioButton
+          - CheckBox
+          - DropDown
+          - DateTimeField
+          - RatingField
+          - TableField
+          - TelephoneField
+          - AddressField
+          - AttachmentField
+          - GeoField
+          - LinkField
+          - NpsField
+          - TimeField
+          - SortField
+          - ESignatureField
+          - AudioField
+          - CascadeDropDown
+          - LikertField
+          - MatrixField
+          - MatrixScaleField
+          - GoodsField
+          - FormulaField
+          - ReservationField
+          - FormAssociation
+          - ImageRadioButton
+          - ImageCheckBox
+          - SectionBreak
+          - PageBreak
+          - WidgetButton
+          - WidgetContact
+          - WidgetMap
+          - WidgetMarquee
+          - SingleSelect
+          - MultiSelect
+          - ImageSingleSelect
+          - ImageMultiSelect
+          - TrueOrFalse
+          - DropDownSelect
+          - FillInBlank
+          - ShortAnswer
+          - FillInNumber
+          - Department
+          - Grade
+        label:
+          type: string
+          description: Field label
+      discriminator:
+        propertyName: type
+        mapping:
+          TextField: "#/components/schemas/TextFieldInput"
+          TextArea: "#/components/schemas/TextAreaInput"
+          NumberField: "#/components/schemas/NumberFieldInput"
+          EmailField: "#/components/schemas/EmailFieldInput"
+          MobileField: "#/components/schemas/MobileFieldInput"
+          IdCardField: "#/components/schemas/IdCardFieldInput"
+          NameField: "#/components/schemas/NameFieldInput"
+          RadioButton: "#/components/schemas/RadioButtonInput"
+          CheckBox: "#/components/schemas/CheckBoxInput"
+          DropDown: "#/components/schemas/DropDownInput"
+          DateTimeField: "#/components/schemas/DateTimeFieldInput"
+          RatingField: "#/components/schemas/RatingFieldInput"
+          TableField: "#/components/schemas/TableFieldInput"
+          TelephoneField: "#/components/schemas/TelephoneFieldInput"
+          AddressField: "#/components/schemas/AddressFieldInput"
+          AttachmentField: "#/components/schemas/AttachmentFieldInput"
+          GeoField: "#/components/schemas/GeoFieldInput"
+          LinkField: "#/components/schemas/LinkFieldInput"
+          NpsField: "#/components/schemas/NpsFieldInput"
+          TimeField: "#/components/schemas/TimeFieldInput"
+          SortField: "#/components/schemas/SortFieldInput"
+          ESignatureField: "#/components/schemas/ESignatureFieldInput"
+          AudioField: "#/components/schemas/AudioFieldInput"
+          CascadeDropDown: "#/components/schemas/CascadeDropDownInput"
+          LikertField: "#/components/schemas/LikertFieldInput"
+          MatrixField: "#/components/schemas/MatrixFieldInput"
+          MatrixScaleField: "#/components/schemas/MatrixScaleFieldInput"
+          GoodsField: "#/components/schemas/GoodsFieldInput"
+          FormulaField: "#/components/schemas/FormulaFieldInput"
+          ReservationField: "#/components/schemas/ReservationFieldInput"
+          FormAssociation: "#/components/schemas/FormAssociationInput"
+          ImageRadioButton: "#/components/schemas/ImageRadioButtonInput"
+          ImageCheckBox: "#/components/schemas/ImageCheckBoxInput"
+          SectionBreak: "#/components/schemas/SectionBreakInput"
+          PageBreak: "#/components/schemas/PageBreakInput"
+          WidgetButton: "#/components/schemas/WidgetButtonInput"
+          WidgetContact: "#/components/schemas/WidgetContactInput"
+          WidgetMap: "#/components/schemas/WidgetMapInput"
+          WidgetMarquee: "#/components/schemas/WidgetMarqueeInput"
+          SingleSelect: "#/components/schemas/SingleSelectInput"
+          MultiSelect: "#/components/schemas/MultiSelectInput"
+          ImageSingleSelect: "#/components/schemas/ImageSingleSelectInput"
+          ImageMultiSelect: "#/components/schemas/ImageMultiSelectInput"
+          TrueOrFalse: "#/components/schemas/TrueOrFalseInput"
+          DropDownSelect: "#/components/schemas/DropDownSelectInput"
+          FillInBlank: "#/components/schemas/FillInBlankInput"
+          ShortAnswer: "#/components/schemas/ShortAnswerInput"
+          FillInNumber: "#/components/schemas/FillInNumberInput"
+          Department: "#/components/schemas/DepartmentInput"
+          Grade: "#/components/schemas/GradeInput"
+      oneOf:
+      - $ref: '#/components/schemas/TextFieldInput'
+      - $ref: '#/components/schemas/TextAreaInput'
+      - $ref: '#/components/schemas/NumberFieldInput'
+      - $ref: '#/components/schemas/EmailFieldInput'
+      - $ref: '#/components/schemas/MobileFieldInput'
+      - $ref: '#/components/schemas/IdCardFieldInput'
+      - $ref: '#/components/schemas/NameFieldInput'
+      - $ref: '#/components/schemas/RadioButtonInput'
+      - $ref: '#/components/schemas/CheckBoxInput'
+      - $ref: '#/components/schemas/DropDownInput'
+      - $ref: '#/components/schemas/DateTimeFieldInput'
+      - $ref: '#/components/schemas/RatingFieldInput'
+      - $ref: '#/components/schemas/TableFieldInput'
+      - $ref: '#/components/schemas/TelephoneFieldInput'
+      - $ref: '#/components/schemas/AddressFieldInput'
+      - $ref: '#/components/schemas/AttachmentFieldInput'
+      - $ref: '#/components/schemas/GeoFieldInput'
+      - $ref: '#/components/schemas/LinkFieldInput'
+      - $ref: '#/components/schemas/NpsFieldInput'
+      - $ref: '#/components/schemas/TimeFieldInput'
+      - $ref: '#/components/schemas/SortFieldInput'
+      - $ref: '#/components/schemas/ESignatureFieldInput'
+      - $ref: '#/components/schemas/AudioFieldInput'
+      - $ref: '#/components/schemas/CascadeDropDownInput'
+      - $ref: '#/components/schemas/LikertFieldInput'
+      - $ref: '#/components/schemas/MatrixFieldInput'
+      - $ref: '#/components/schemas/MatrixScaleFieldInput'
+      - $ref: '#/components/schemas/GoodsFieldInput'
+      - $ref: '#/components/schemas/FormulaFieldInput'
+      - $ref: '#/components/schemas/ReservationFieldInput'
+      - $ref: '#/components/schemas/FormAssociationInput'
+      - $ref: '#/components/schemas/ImageRadioButtonInput'
+      - $ref: '#/components/schemas/ImageCheckBoxInput'
+      - $ref: '#/components/schemas/SectionBreakInput'
+      - $ref: '#/components/schemas/PageBreakInput'
+      - $ref: '#/components/schemas/WidgetButtonInput'
+      - $ref: '#/components/schemas/WidgetContactInput'
+      - $ref: '#/components/schemas/WidgetMapInput'
+      - $ref: '#/components/schemas/WidgetMarqueeInput'
+      - $ref: '#/components/schemas/SingleSelectInput'
+      - $ref: '#/components/schemas/MultiSelectInput'
+      - $ref: '#/components/schemas/ImageSingleSelectInput'
+      - $ref: '#/components/schemas/ImageMultiSelectInput'
+      - $ref: '#/components/schemas/TrueOrFalseInput'
+      - $ref: '#/components/schemas/DropDownSelectInput'
+      - $ref: '#/components/schemas/FillInBlankInput'
+      - $ref: '#/components/schemas/ShortAnswerInput'
+      - $ref: '#/components/schemas/FillInNumberInput'
+      - $ref: '#/components/schemas/DepartmentInput'
+      - $ref: '#/components/schemas/GradeInput'
+      title: ExamFieldInput
+    EvaluationFieldInput:
+      type: object
+      description: 'A field definition for scene=evaluation, branched on type: the FieldInput types plus the ones only this scene takes'
+      required:
+      - type
+      - label
+      properties:
+        type:
+          type: string
+          enum:
+          - TextField
+          - TextArea
+          - NumberField
+          - EmailField
+          - MobileField
+          - IdCardField
+          - NameField
+          - RadioButton
+          - CheckBox
+          - DropDown
+          - DateTimeField
+          - RatingField
+          - TableField
+          - TelephoneField
+          - AddressField
+          - AttachmentField
+          - GeoField
+          - LinkField
+          - NpsField
+          - TimeField
+          - SortField
+          - ESignatureField
+          - AudioField
+          - CascadeDropDown
+          - LikertField
+          - MatrixField
+          - MatrixScaleField
+          - GoodsField
+          - FormulaField
+          - ReservationField
+          - FormAssociation
+          - ImageRadioButton
+          - ImageCheckBox
+          - SectionBreak
+          - PageBreak
+          - WidgetButton
+          - WidgetContact
+          - WidgetMap
+          - WidgetMarquee
+          - SingleSelect
+          - MultiSelect
+          - ImageSingleSelect
+          - ImageMultiSelect
+          - DropDownSelect
+          - Rating
+          - Nps
+        label:
+          type: string
+          description: Field label
+      discriminator:
+        propertyName: type
+        mapping:
+          TextField: "#/components/schemas/TextFieldInput"
+          TextArea: "#/components/schemas/TextAreaInput"
+          NumberField: "#/components/schemas/NumberFieldInput"
+          EmailField: "#/components/schemas/EmailFieldInput"
+          MobileField: "#/components/schemas/MobileFieldInput"
+          IdCardField: "#/components/schemas/IdCardFieldInput"
+          NameField: "#/components/schemas/NameFieldInput"
+          RadioButton: "#/components/schemas/RadioButtonInput"
+          CheckBox: "#/components/schemas/CheckBoxInput"
+          DropDown: "#/components/schemas/DropDownInput"
+          DateTimeField: "#/components/schemas/DateTimeFieldInput"
+          RatingField: "#/components/schemas/RatingFieldInput"
+          TableField: "#/components/schemas/TableFieldInput"
+          TelephoneField: "#/components/schemas/TelephoneFieldInput"
+          AddressField: "#/components/schemas/AddressFieldInput"
+          AttachmentField: "#/components/schemas/AttachmentFieldInput"
+          GeoField: "#/components/schemas/GeoFieldInput"
+          LinkField: "#/components/schemas/LinkFieldInput"
+          NpsField: "#/components/schemas/NpsFieldInput"
+          TimeField: "#/components/schemas/TimeFieldInput"
+          SortField: "#/components/schemas/SortFieldInput"
+          ESignatureField: "#/components/schemas/ESignatureFieldInput"
+          AudioField: "#/components/schemas/AudioFieldInput"
+          CascadeDropDown: "#/components/schemas/CascadeDropDownInput"
+          LikertField: "#/components/schemas/LikertFieldInput"
+          MatrixField: "#/components/schemas/MatrixFieldInput"
+          MatrixScaleField: "#/components/schemas/MatrixScaleFieldInput"
+          GoodsField: "#/components/schemas/GoodsFieldInput"
+          FormulaField: "#/components/schemas/FormulaFieldInput"
+          ReservationField: "#/components/schemas/ReservationFieldInput"
+          FormAssociation: "#/components/schemas/FormAssociationInput"
+          ImageRadioButton: "#/components/schemas/ImageRadioButtonInput"
+          ImageCheckBox: "#/components/schemas/ImageCheckBoxInput"
+          SectionBreak: "#/components/schemas/SectionBreakInput"
+          PageBreak: "#/components/schemas/PageBreakInput"
+          WidgetButton: "#/components/schemas/WidgetButtonInput"
+          WidgetContact: "#/components/schemas/WidgetContactInput"
+          WidgetMap: "#/components/schemas/WidgetMapInput"
+          WidgetMarquee: "#/components/schemas/WidgetMarqueeInput"
+          SingleSelect: "#/components/schemas/SingleSelectInput"
+          MultiSelect: "#/components/schemas/MultiSelectInput"
+          ImageSingleSelect: "#/components/schemas/ImageSingleSelectInput"
+          ImageMultiSelect: "#/components/schemas/ImageMultiSelectInput"
+          DropDownSelect: "#/components/schemas/DropDownSelectInput"
+          Rating: "#/components/schemas/RatingInput"
+          Nps: "#/components/schemas/NpsInput"
+      oneOf:
+      - $ref: '#/components/schemas/TextFieldInput'
+      - $ref: '#/components/schemas/TextAreaInput'
+      - $ref: '#/components/schemas/NumberFieldInput'
+      - $ref: '#/components/schemas/EmailFieldInput'
+      - $ref: '#/components/schemas/MobileFieldInput'
+      - $ref: '#/components/schemas/IdCardFieldInput'
+      - $ref: '#/components/schemas/NameFieldInput'
+      - $ref: '#/components/schemas/RadioButtonInput'
+      - $ref: '#/components/schemas/CheckBoxInput'
+      - $ref: '#/components/schemas/DropDownInput'
+      - $ref: '#/components/schemas/DateTimeFieldInput'
+      - $ref: '#/components/schemas/RatingFieldInput'
+      - $ref: '#/components/schemas/TableFieldInput'
+      - $ref: '#/components/schemas/TelephoneFieldInput'
+      - $ref: '#/components/schemas/AddressFieldInput'
+      - $ref: '#/components/schemas/AttachmentFieldInput'
+      - $ref: '#/components/schemas/GeoFieldInput'
+      - $ref: '#/components/schemas/LinkFieldInput'
+      - $ref: '#/components/schemas/NpsFieldInput'
+      - $ref: '#/components/schemas/TimeFieldInput'
+      - $ref: '#/components/schemas/SortFieldInput'
+      - $ref: '#/components/schemas/ESignatureFieldInput'
+      - $ref: '#/components/schemas/AudioFieldInput'
+      - $ref: '#/components/schemas/CascadeDropDownInput'
+      - $ref: '#/components/schemas/LikertFieldInput'
+      - $ref: '#/components/schemas/MatrixFieldInput'
+      - $ref: '#/components/schemas/MatrixScaleFieldInput'
+      - $ref: '#/components/schemas/GoodsFieldInput'
+      - $ref: '#/components/schemas/FormulaFieldInput'
+      - $ref: '#/components/schemas/ReservationFieldInput'
+      - $ref: '#/components/schemas/FormAssociationInput'
+      - $ref: '#/components/schemas/ImageRadioButtonInput'
+      - $ref: '#/components/schemas/ImageCheckBoxInput'
+      - $ref: '#/components/schemas/SectionBreakInput'
+      - $ref: '#/components/schemas/PageBreakInput'
+      - $ref: '#/components/schemas/WidgetButtonInput'
+      - $ref: '#/components/schemas/WidgetContactInput'
+      - $ref: '#/components/schemas/WidgetMapInput'
+      - $ref: '#/components/schemas/WidgetMarqueeInput'
+      - $ref: '#/components/schemas/SingleSelectInput'
+      - $ref: '#/components/schemas/MultiSelectInput'
+      - $ref: '#/components/schemas/ImageSingleSelectInput'
+      - $ref: '#/components/schemas/ImageMultiSelectInput'
+      - $ref: '#/components/schemas/DropDownSelectInput'
+      - $ref: '#/components/schemas/RatingInput'
+      - $ref: '#/components/schemas/NpsInput'
+      title: EvaluationFieldInput

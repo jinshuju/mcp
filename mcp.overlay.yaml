@@ -89,19 +89,21 @@ composites:
     scene: exam
     settingOperation: updateExamSetting
     settingKey: exam_setting
+    fieldSchema: ExamFieldInput
     title: Create an exam form
     description: >-
       Creates an online exam form (scene=exam, scored automatically). Use it, not create_form, when the user wants an exam, test or quiz;
       an evaluation such as a psychological test, ability assessment, self-assessment questionnaire or training feedback uses create_evaluation_form.
       Questions must use exam question types (SingleSelect / MultiSelect / TrueOrFalse / DropDownSelect / FillInBlank / ShortAnswer / FillInNumber),
       each with answers (the correct answer and its score; the default absolute mode has one correct answer and scores only a fully correct response).
-      A question type's schema is the one FieldInput's x-variants names (SingleSelect → "SingleSelectInput"; see get_schema).
+      A question type's schema is the one ExamFieldInput's x-variants names (SingleSelect → "SingleSelectInput"; see get_schema).
       Creates the form first, then applies exam_setting; if the settings are rejected, the form already exists and the result says so.
   edit_exam_form:
     kind: scene_form_update
     scene: exam
     settingOperation: updateExamSetting
     settingKey: exam_setting
+    fieldSchema: ExamFieldInput
     title: Edit an exam form
     description: >-
       Edits an exam form: name / description / adding, removing and changing questions / general settings, plus the exam settings in exam_setting.
@@ -111,13 +113,14 @@ composites:
     scene: evaluation
     settingOperation: updateEvaluationSetting
     settingKey: evaluation_setting
+    fieldSchema: EvaluationFieldInput
     title: Create an evaluation form
     description: >-
       Creates an evaluation form (scene=evaluation). Use it when the user wants an evaluation, psychological test, ability assessment,
       self-assessment questionnaire or training feedback; not create_form, and not create_exam_form (an exam with correct answers).
       A scored evaluation uses SingleSelect / MultiSelect / DropDownSelect / Rating / Nps: each question lists every choice with its score in answers
       and sets answer_setting_mode=relative (every choice scores, none is right or wrong; the default absolute accepts one correct answer and scores any other choice 0).
-      A question type's schema is the one FieldInput's x-variants names (SingleSelect → "SingleSelectInput"; see get_schema).
+      A question type's schema is the one EvaluationFieldInput's x-variants names (SingleSelect → "SingleSelectInput"; see get_schema).
       Do not score with a regular choice field's calculable / operand_value. A feedback questionnaire uses regular fields (RatingField / MatrixScaleField / TextArea, etc.) without scores.
       Creates the form first, then applies evaluation_setting (the report after submission, comments by total score range, dimensions).
   edit_evaluation_form:
@@ -125,6 +128,7 @@ composites:
     scene: evaluation
     settingOperation: updateEvaluationSetting
     settingKey: evaluation_setting
+    fieldSchema: EvaluationFieldInput
     title: Edit an evaluation form
     description: >-
       Edits an evaluation form: name / description / adding, removing and changing questions / general settings, plus the evaluation settings in evaluation_setting.
@@ -141,6 +145,7 @@ composites:
 
 # Large schemas that branch on type are not inlined into a tool's inputSchema / outputSchema;
 # they become a one-line pointer, read on demand through the `get_schema` tool / `jinshuju://schemas/{name}` resource.
+# The first six are named in get_schema's description, so the scene-only field schemas go last.
 pointerSchemas:
   - FieldInput
   - FieldUpdateInput
@@ -160,6 +165,8 @@ pointerSchemas:
   - EntryData
   - TradeMerchant
   - BillingAccount
+  - ExamFieldInput
+  - EvaluationFieldInput
 
 # Combined constraints (if/then) used only for server-side validation tell the model nothing; drop them from tool inputs. The server still validates them.
 omitSchemas:
@@ -191,7 +198,8 @@ parameters:
       - To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not "contains": it matches only entries with exactly the same set of choices.
 
 # ---- 6. Overrides by operation: descriptionAppend (appended note), description (replaces the openapi description entirely; only when the
-#         original is noise to the model), annotations (override the inferred ones), outputSchema (force true / false) ----
+#         original is noise to the model), annotations (override the inferred ones), outputSchema (force true / false),
+#         fieldSchema (the field schema fields / fields.add point at; the exam / evaluation composites set their own) ----
 tools:
   listForms:
     descriptionAppend: >-
@@ -199,11 +207,15 @@ tools:
   getForm:
     descriptionAppend: The api_code of each field in the returned fields is its key when reading and writing entries.
   createForm:
+    fieldSchema: FieldInput
     descriptionAppend: >-
       Each item of fields branches on type: get_schema("FieldInput") maps each type to its schema in x-variants (TextField → "TextFieldInput",
-      SingleSelect → "SingleSelectInput"), and get_schema on that name shows the properties that type accepts; do not guess field properties or schema names. For an exam or evaluation form use create_exam_form / create_evaluation_form.
+      RadioButton → "RadioButtonInput"), and get_schema on that name shows the properties that type accepts; do not guess field properties or schema names. For an exam or evaluation form use create_exam_form / create_evaluation_form.
   updateForm:
+    fieldSchema: FieldInput
     descriptionAppend: Before removing a field or choice, check_field_data tells whether it already has entries; removal cannot be undone. To change only field rules, use edit_field_rules.
+  updateTable:
+    fieldSchema: FieldInput
   deleteEntry:
     annotations: { destructiveHint: true }
   createEntryImport:

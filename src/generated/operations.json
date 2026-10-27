@@ -63,7 +63,7 @@
  "createForm": {
   "operationId": "createForm",
   "summary": "Create a form",
-  "description": "Creates a form from a list of field definitions and returns the full form structure.\n- `scene` sets the form's scene; exam / evaluation question types (such as `SingleSelect`, `FillInBlank`) can only be used in the scenes that support them.",
+  "description": "Creates a form from a list of field definitions and returns the full form structure.",
   "tag": "Forms",
   "method": "post",
   "path": "/forms",

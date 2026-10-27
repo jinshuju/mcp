@@ -17,7 +17,7 @@ export const INSTRUCTIONS = [
   'MCP server for Jinshuju (金数据) forms, tables and entries. Each tool maps to the open API v1 and is generated from its openapi.yaml.',
   "Usual path: list_forms finds the form token → get_form shows the fields' api_code → list_entries / count_entries / aggregate_entries read entries;",
   'create_entry / patch_entries write them, keyed by api_code.',
-  'To create a form: get_schema("FieldInput") maps each field type to its schema in x-variants (TextField → TextFieldInput, SingleSelect → SingleSelectInput), get_schema on that name shows the type\'s properties, then call create_form.',
+  'To create a form: get_schema("FieldInput") maps each field type to its schema in x-variants (TextField → TextFieldInput, RadioButton → RadioButtonInput), get_schema on that name shows the type\'s properties, then call create_form.',
   'Wherever an input says `Shape: schema "X"`, look X up with get_schema; do not guess.',
   "An error gives the HTTP status and the server's error_description / errors; fix the call as they say and retry. On 429, wait as Retry-After says.",
   'A personal token sees only the forms its user created or that are shared with them; an account token sees every form in the account.'

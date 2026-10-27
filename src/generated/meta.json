@@ -2,7 +2,7 @@
   "generatedFrom": {
     "title": "Jinshuju API v1",
     "version": "1.0",
-    "sha256": "7ce4e0ea14bc174b"
+    "sha256": "aecc3bef9088dcc7"
   },
   "baseUrl": "https://jinshuju.net/api/v1",
   "toolCount": 64,
@@ -74,24 +74,26 @@
     "count_entries": "countEntries+countEntriesAcrossForms"
   },
   "pointerSchemas": [
-    "BillingAccount",
-    "EntryData",
-    "EvaluationSetting",
-    "EvaluationSettingInput",
-    "FieldDefinition",
     "FieldInput",
     "FieldUpdateInput",
-    "FormSetting",
-    "FormSettingInput",
+    "FieldDefinition",
     "FormSettingWriteInput",
-    "FormTheme",
-    "FormView",
-    "FormViewInput",
-    "GoodsItemInput",
-    "OpensearchQuery",
-    "OpensearchQueryInput",
+    "FormSettingInput",
+    "FormSetting",
     "ThemeInput",
-    "TradeMerchant"
+    "FormTheme",
+    "EvaluationSettingInput",
+    "EvaluationSetting",
+    "FormViewInput",
+    "FormView",
+    "OpensearchQueryInput",
+    "OpensearchQuery",
+    "GoodsItemInput",
+    "EntryData",
+    "TradeMerchant",
+    "BillingAccount",
+    "ExamFieldInput",
+    "EvaluationFieldInput"
   ],
   "omitSchemas": [
     "FormCreateConstraints"

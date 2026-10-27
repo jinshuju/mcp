@@ -189,6 +189,41 @@ test('input shapes of the projection and composite tools', () => {
   assert.deepEqual(count.form_token.type, ['string', 'array']);
 });
 
+test('each form tool points its fields at the field schema of its scene; create_form offers no scene that has its own tool', () => {
+  const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
+  type Schema = {
+    type?: string;
+    description?: string;
+    items?: Schema;
+    anyOf?: Schema[];
+    properties?: Record<string, Schema>;
+  };
+  const fieldSchemas = (name: string) => {
+    const fields = (byName[name].inputSchema.properties as Record<string, Schema>).fields;
+    const branches = fields.type === 'array' ? [fields.items!] : fields.properties!.add.items!.anyOf!;
+    return branches.flatMap((branch) => /Shape: schema "(\w+)"/.exec(branch.description ?? '')?.slice(1) ?? []);
+  };
+  const expected: Record<string, string> = {
+    create_form: 'FieldInput',
+    edit_form: 'FieldInput',
+    edit_table: 'FieldInput',
+    create_exam_form: 'ExamFieldInput',
+    edit_exam_form: 'ExamFieldInput',
+    create_evaluation_form: 'EvaluationFieldInput',
+    edit_evaluation_form: 'EvaluationFieldInput'
+  };
+  for (const [name, schema] of Object.entries(expected)) assert.deepEqual(fieldSchemas(name), [schema], name);
+  for (const name of ['edit_form', 'edit_table', 'edit_exam_form', 'edit_evaluation_form']) {
+    const add = (byName[name].inputSchema.properties as Record<string, Schema>).fields.properties!.add;
+    assert.equal(add.items!.description, undefined, `${name} leaves out which form takes which field schema`);
+  }
+  const scenes = (byName.create_form.inputSchema.properties as Record<string, { enum: string[] }>).scene.enum;
+  assert.ok(scenes.includes('form'));
+  assert.ok(!scenes.includes('exam') && !scenes.includes('evaluation'));
+  assert.doesNotMatch(byName.create_form.description, /ExamFieldInput|SingleSelect/);
+  assert.ok(META.pointerSchemas.slice(0, 6).includes('FieldInput'), "get_schema's description names FieldInput");
+});
+
 test('large schemas become pointers and are found in the get_schema catalog', () => {
   assert.ok(SCHEMAS.FieldInput && SCHEMAS.TextFieldInput);
   const variants = SCHEMAS.FieldInput['x-variants'] as Record<string, string>;

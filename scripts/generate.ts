@@ -25,6 +25,8 @@ interface ToolOverride {
   annotations?: Json;
   outputSchema?: boolean;
   title?: string;
+  /** The field schema a form tool's fields (create) / fields.add (edit) point at */
+  fieldSchema?: string;
 }
 interface Overlay {
   include: Record<string, string>;
@@ -38,6 +40,7 @@ interface Overlay {
       settingKey?: string;
       title?: string;
       description?: string;
+      fieldSchema?: string;
     }
   >;
   pointerSchemas?: string[];
@@ -61,6 +64,14 @@ const bodyParam = overlay.bodyParam ?? {};
 const toolOverrides = overlay.tools ?? {};
 const parameterOverrides = overlay.parameters ?? {};
 const outputSchemaMaxChars = overlay.outputSchemaMaxChars ?? 700;
+
+// A schema the overlay names but the spec lacks would ship as a dead get_schema pointer; fail the generation instead.
+for (const name of [
+  ...pointer,
+  ...[...Object.values(toolOverrides), ...Object.values(overlay.composites ?? {})].flatMap((o) => o.fieldSchema ?? [])
+]) {
+  if (!schemas[name]) throw new Error(`mcp.overlay.yaml names schema ${name}, which spec/openapi.yaml does not have`);
+}
 
 // ---------- $ref resolution ----------
 
@@ -471,9 +482,38 @@ for (const operationId of rawOps.keys()) operations[operationId] = buildOperatio
 
 const tools: ToolSpec[] = [];
 
+/**
+ * Points a form tool's field definitions at one field schema: create's fields.items, or edit's fields.add.items beside
+ * the table columns. The API takes the field schemas of every scene and checks the scene itself; each tool shows only
+ * the one its forms take, without the openapi description of which form takes which.
+ */
+function useFieldSchema(inputSchema: Json, name: string): void {
+  const fields = (inputSchema.properties as Json).fields as Json;
+  if (fields.type === 'array') {
+    delete fields.description;
+    fields.items = pointerStub(name);
+    return;
+  }
+  const add = (fields.properties as Json).add as Json;
+  const branches = ((add.items as Json).anyOf as Json[]).filter((branch) => !isPointerStub(branch));
+  add.items = { anyOf: [pointerStub(name), ...branches] };
+}
+
+// A scene with its own create tool is left out of create_form's scene.
+const sceneCreateTools = new Set(
+  Object.values(overlay.composites ?? {})
+    .filter((composite) => composite.kind === 'scene_form_create')
+    .map((composite) => composite.scene)
+);
+
 for (const [operationId, name] of Object.entries(overlay.include)) {
   const override = toolOverrides[operationId] ?? {};
   const built = buildOperation(operationId, bodyParam[operationId] ?? 'flatten');
+  if (override.fieldSchema) useFieldSchema(built.inputSchema, override.fieldSchema);
+  if (operationId === 'createForm') {
+    const scene = (built.inputSchema.properties as Json).scene as Json;
+    scene.enum = (scene.enum as string[]).filter((value) => !sceneCreateTools.has(value));
+  }
   const outputSchema = override.outputSchema === false ? undefined : (built.outputSchema ?? undefined);
   tools.push({
     ...built.operation,
@@ -541,6 +581,7 @@ for (const [name, composite] of Object.entries(overlay.composites ?? {})) {
       throw new Error(`composite ${name}: scene / settingOperation / settingKey are required`);
     }
     const setting = buildOperation(composite.settingOperation, 'flatten');
+    if (composite.fieldSchema) useFieldSchema(inputSchema, composite.fieldSchema);
     delete properties.scene;
     if (composite.kind === 'scene_form_create') {
       // Models pass scene to these tools whatever the description says: accept it, pinned to the tool's own
@@ -638,7 +679,7 @@ const meta = {
       t.composite ? `${t.operationId}+${t.composite.settingOperation ?? 'countEntriesAcrossForms'}` : t.operationId
     ])
   ),
-  pointerSchemas: [...pointer].sort(),
+  pointerSchemas: overlay.pointerSchemas ?? [],
   omitSchemas: [...omit].sort(),
   tags: Object.fromEntries(
     ((spec.tags as Json[]) ?? []).map((t) => [t.name as string, (t.description as string) ?? ''])
