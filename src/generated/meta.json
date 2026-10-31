@@ -2,11 +2,11 @@
   "generatedFrom": {
     "title": "Jinshuju API v1",
     "version": "1.0",
-    "sha256": "aecc3bef9088dcc7"
+    "sha256": "3021567c7e2472a8"
   },
   "baseUrl": "https://jinshuju.net/api/v1",
   "toolCount": 64,
-  "operationCount": 176,
+  "operationCount": 177,
   "tools": {
     "list_forms": "listForms",
     "get_form": "getForm",
@@ -109,7 +109,7 @@
     "Fill": "Fill links: read the fill page (`/f/`, `/v/`) as a submitter and submit entries through it.",
     "OpenSearch": "Public queries.",
     "Folders": "Folders.",
-    "Predefined Choices Sets": "Predefined choice sets.",
+    "Artifacts": "Artifacts Jiri delivered in its conversations, and their versions. Each can be downloaded; only an HTML artifact also has a share link, and who can open it is set here.",
     "Templates": "Using templates.",
     "Contacts": "Contacts.",
     "Account": "Current user and account: members, e-invoices, payment history, SMS signatures and templates, SMTP accounts.",
