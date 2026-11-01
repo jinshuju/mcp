@@ -30,6 +30,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -50,6 +55,7 @@
    "filters",
    "sort",
    "next",
+   "page",
    "skip",
    "limit",
    "include_transactions"
@@ -178,13 +184,18 @@
     },
     "next": {
      "type": "string",
-     "description": "`next` from the previous page's response, passed back as is to get the next page. Cannot be combined with `skip`."
+     "description": "`next` from the previous page's response, passed back as is to get the next page. Cannot be combined with `page` or `skip`."
+    },
+    "page": {
+     "type": "integer",
+     "minimum": 1,
+     "description": "Page number from 1, for jumping to a page or reading pages in parallel; `(page - 1) × limit` can be at most 10000, and the returned `next` continues from there. Cannot be combined with `next` or `skip`."
     },
     "skip": {
      "type": "integer",
      "minimum": 0,
      "maximum": 10000,
-     "description": "Starting row offset (from 0, at most 10000), for reading in parallel slices; the returned `next` still pages onward. Cannot be combined with `next`."
+     "description": "Deprecated, use `page`. Starting row offset (from 0, at most 10000); the returned `next` still pages onward. Cannot be combined with `next` or `page`."
     },
     "limit": {
      "type": "integer",
@@ -604,6 +615,19 @@
             },
             "selected": {
              "type": "boolean"
+            },
+            "quota": {
+             "type": [
+              "integer",
+              "null"
+             ],
+             "minimum": 0,
+             "description": "Maximum number of places, read back as `quota_setting`; 0 closes the choice. Changing a limit keeps the places already taken; null lifts the limit"
+            },
+            "recover_quota": {
+             "type": "integer",
+             "minimum": 1,
+             "description": "Places to give back to a single choice, multiple choice or drop-down choice with a limit, keeping the limit, as deleting an entry does; the places left stop at the limit"
             }
            },
            "additionalProperties": false
@@ -642,7 +666,7 @@
            "show",
            "abort"
           ],
-          "description": "`show` / `abort`, defaults to show"
+          "description": "show (default): the targets stay hidden, and anything written into them is dropped, until the conditions hold"
          },
          "operator": {
           "type": "string",
@@ -707,7 +731,7 @@
            "show",
            "abort"
           ],
-          "description": "`show` / `abort`, defaults to show"
+          "description": "show (default): the targets stay hidden, and anything written into them is dropped, until the conditions hold"
          },
          "operator": {
           "type": "string",
@@ -1390,6 +1414,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -1413,6 +1442,7 @@
    "sort",
    "created_at",
    "next",
+   "page",
    "skip",
    "include_labels",
    "limit"
@@ -1561,13 +1591,18 @@
       "integer",
       "string"
      ],
-     "description": "`next` from the previous page's response. Under the default sort it is a serial-number cursor (returns entries with serial number ≥ this value); with filters / creation-time ordering / an explicit sort it is a row offset. Cannot be combined with `skip`. Also accepts a string: one starting with an integer is read as that integer, anything else as 0, i.e. starting from the first page."
+     "description": "`next` from the previous page's response. Under the default sort it is a serial-number cursor (returns entries with serial number ≥ this value); with filters / creation-time ordering / an explicit sort it is a row offset. Cannot be combined with `page` or `skip`. Also accepts a string: one starting with an integer is read as that integer, anything else as 0, i.e. starting from the first page."
+    },
+    "page": {
+     "type": "integer",
+     "minimum": 1,
+     "description": "Page number from 1, for jumping to a page or reading pages in parallel; `(page - 1) × limit` can be at most 10000, and the returned `next` continues from there. Cannot be combined with `next` or `skip`."
     },
     "skip": {
      "type": "integer",
      "minimum": 0,
      "maximum": 10000,
-     "description": "Starting row offset (from 0, max 10000), for reading in parallel slices. Cannot be combined with `next`."
+     "description": "Deprecated, use `page`. Starting row offset (from 0, max 10000). Cannot be combined with `next` or `page`."
     },
     "include_labels": {
      "type": "boolean",
@@ -1614,7 +1649,7 @@
       "integer",
       "null"
      ],
-     "description": "Cursor for the next page (the serial number under the default sort, a row offset otherwise); null on the last page"
+     "description": "Pass back as `next` to get the next page; null on the last page"
     }
    }
   },
@@ -2153,13 +2188,36 @@
        },
        "reason": {
         "type": "string",
-        "description": "For example `invalid_serial_number`, `invalid_attributes`"
+        "enum": [
+         "invalid_serial_number",
+         "invalid_attributes",
+         "not_found_or_forbidden",
+         "version_conflict",
+         "validation_failed"
+        ]
        },
        "errors": {
-        "type": "array",
-        "items": {
-         "type": "string"
-        }
+        "description": "`validation_failed` gives `{ \"<api_code>\": [\"error message\"] }`; `not_found_or_forbidden` and `version_conflict` give null",
+        "oneOf": [
+         {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         },
+         {
+          "type": "object",
+          "additionalProperties": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          }
+         },
+         {
+          "type": "null"
+         }
+        ]
        }
       }
      }
@@ -2815,7 +2873,7 @@
  {
   "operationId": "listMyFilledForms",
   "summary": "List the forms I have submitted to",
-  "description": "List the forms I have submitted to\nReturns the forms the current user has submitted entries to as a submitter (quick payment forms excluded), most recent submission first. These forms need not be created by or shared with the current user;\neach row gives the current user's own submission count and latest submission time, not the form's total entry count. Deleted forms do not appear in `data` (`total` still counts them).\n- Pagination: `next` is a row offset, passed back as is for the next page; `skip` and `next` cannot be combined. 50 rows per page by default, adjustable with `limit` (at most 1000).\n- An account access token has no \"current user\"; calling with one returns 400.\nReturns schema \"MyFilledFormListResponse\" (see get_schema).",
+  "description": "List the forms I have submitted to\nReturns the forms the current user has submitted entries to as a submitter (quick payment forms excluded), most recent submission first. These forms need not be created by or shared with the current user;\neach row gives the current user's own submission count and latest submission time, not the form's total entry count. Deleted forms do not appear in `data` (`total` still counts them).\n- Pagination: `next` is a row offset, passed back as is for the next page; only one of `next`, `page` and `skip` can be passed. 50 rows per page by default, adjustable with `limit` (at most 1000).\n- An account access token has no \"current user\"; calling with one returns 400.\nReturns schema \"MyFilledFormListResponse\" (see get_schema).",
   "tag": "Forms",
   "method": "get",
   "path": "/my/forms",
@@ -2831,6 +2889,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -2839,6 +2902,7 @@
   "paramNames": [
    "limit",
    "next",
+   "page",
    "skip"
   ],
   "successStatus": 200,
@@ -2859,13 +2923,18 @@
     "next": {
      "type": "integer",
      "minimum": 0,
-     "description": "`next` from the previous page's response (a row offset, starting at 0); pass it back unchanged to get the next page. Cannot be combined with `skip`."
+     "description": "`next` from the previous page's response (a row offset, starting at 0); pass it back unchanged to get the next page. Cannot be combined with `page` or `skip`."
+    },
+    "page": {
+     "type": "integer",
+     "minimum": 1,
+     "description": "Page number from 1, for jumping to a page or reading pages in parallel; `(page - 1) × limit` can be at most 10000, and the returned `next` continues from there. Cannot be combined with `next` or `skip`."
     },
     "skip": {
      "type": "integer",
      "minimum": 0,
      "maximum": 10000,
-     "description": "Starting row offset (from 0, max 10000), for reading in parallel slices. Cannot be combined with `next`."
+     "description": "Deprecated, use `page`. Starting row offset (from 0, max 10000). Cannot be combined with `next` or `page`."
     }
    },
    "additionalProperties": false
@@ -2923,6 +2992,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -2936,6 +3010,7 @@
    "include_labels",
    "limit",
    "next",
+   "page",
    "skip"
   ],
   "successStatus": 200,
@@ -3050,13 +3125,18 @@
     "next": {
      "type": "integer",
      "minimum": 0,
-     "description": "`next` from the previous page's response (a row offset, starting at 0); pass it back unchanged to get the next page. Cannot be combined with `skip`."
+     "description": "`next` from the previous page's response (a row offset, starting at 0); pass it back unchanged to get the next page. Cannot be combined with `page` or `skip`."
+    },
+    "page": {
+     "type": "integer",
+     "minimum": 1,
+     "description": "Page number from 1, for jumping to a page or reading pages in parallel; `(page - 1) × limit` can be at most 10000, and the returned `next` continues from there. Cannot be combined with `next` or `skip`."
     },
     "skip": {
      "type": "integer",
      "minimum": 0,
      "maximum": 10000,
-     "description": "Starting row offset (from 0, max 10000), for reading in parallel slices. Cannot be combined with `next`."
+     "description": "Deprecated, use `page`. Starting row offset (from 0, max 10000). Cannot be combined with `next` or `page`."
     }
    },
    "additionalProperties": false,
@@ -3913,7 +3993,7 @@
  {
   "operationId": "listFormViewEntries",
   "summary": "List a view's entries",
-  "description": "List a view's entries\nReturns the form's entries under the view's filters and sort rules, at most 50 per page. The returned fields are limited to those in the view's prefer_columns (serial_number always included); when prefer_columns is empty, all pushable fields are returned. Sorting follows the view's sort rules, with serial_number ascending appended when they do not include serial_number. Paginate with the next parameter (a row offset); next is null on the last page. Returns 400 when the view's filters use an operator the query engine does not support. Only views visible to the caller are accessible, otherwise 404 (View cannot be found).",
+  "description": "List a view's entries\nReturns the form's entries under the view's filters and sort rules. The returned fields are limited to those in the view's prefer_columns (serial_number always included); when prefer_columns is empty, all pushable fields are returned. Sorting follows the view's sort rules, with serial_number ascending appended when they do not include serial_number. Returns 400 when the view's filters use an operator the query engine does not support. Only views visible to the caller are accessible, otherwise 404 (View cannot be found).",
   "tag": "Views",
   "method": "get",
   "path": "/forms/{form_token}/views/{view_token}/entries",
@@ -3934,6 +4014,16 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "include_labels",
     "in": "query",
     "required": false
@@ -3943,6 +4033,8 @@
    "form_token",
    "view_token",
    "next",
+   "page",
+   "limit",
    "include_labels"
   ],
   "successStatus": 200,
@@ -3966,7 +4058,17 @@
     "next": {
      "type": "integer",
      "minimum": 0,
-     "description": "The next value from the previous page's response (a row offset, starting at 0); a negative value is treated as 0"
+     "description": "`next` from the previous page's response (a row offset, starting at 0); pass it back unchanged to get the next page. Cannot be combined with `page` or `skip`."
+    },
+    "page": {
+     "type": "integer",
+     "minimum": 1,
+     "description": "Page number from 1, for jumping to a page or reading pages in parallel; `(page - 1) × limit` can be at most 10000, and the returned `next` continues from there. Cannot be combined with `next` or `skip`."
+    },
+    "limit": {
+     "type": "integer",
+     "default": 50,
+     "description": "Page size. Defaults to 50, max 1000 (larger values are treated as 1000). With 0, returns only `total`, and `data` is empty."
     },
     "include_labels": {
      "type": "boolean",
@@ -4009,7 +4111,7 @@
       "integer",
       "null"
      ],
-     "description": "Cursor for the next page (the serial number under the default sort, a row offset otherwise); null on the last page"
+     "description": "Pass back as `next` to get the next page; null on the last page"
     }
    }
   },
@@ -4023,7 +4125,7 @@
  {
   "operationId": "listTables",
   "summary": "List tables",
-  "description": "List tables\nReturns the tables (`kind=table`) visible to the current caller. Pagination, `q`, `filters`, `sort`, `next`, `skip` and `limit` mean the same as in the form list; 50 per page by default, up to 1000.\nReturns schema \"TableListResponse\" (see get_schema).",
+  "description": "List tables\nReturns the tables (`kind=table`) visible to the current caller. Pagination, `q`, `filters`, `sort`, `next`, `page`, `skip` and `limit` mean the same as in the form list; 50 per page by default, up to 1000.\nReturns schema \"TableListResponse\" (see get_schema).",
   "tag": "Tables",
   "method": "get",
   "path": "/tables",
@@ -4051,6 +4153,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -4066,6 +4173,7 @@
    "filters",
    "sort",
    "next",
+   "page",
    "skip",
    "limit"
   ],
@@ -4193,13 +4301,18 @@
     },
     "next": {
      "type": "string",
-     "description": "`next` from the previous page's response, passed back as is to get the next page. Cannot be combined with `skip`."
+     "description": "`next` from the previous page's response, passed back as is to get the next page. Cannot be combined with `page` or `skip`."
+    },
+    "page": {
+     "type": "integer",
+     "minimum": 1,
+     "description": "Page number from 1, for jumping to a page or reading pages in parallel; `(page - 1) × limit` can be at most 10000, and the returned `next` continues from there. Cannot be combined with `next` or `skip`."
     },
     "skip": {
      "type": "integer",
      "minimum": 0,
      "maximum": 10000,
-     "description": "Starting row offset (from 0, at most 10000), for reading in parallel slices; the returned `next` still pages onward. Cannot be combined with `next`."
+     "description": "Deprecated, use `page`. Starting row offset (from 0, at most 10000); the returned `next` still pages onward. Cannot be combined with `next` or `page`."
     },
     "limit": {
      "type": "integer",
@@ -4598,6 +4711,19 @@
             },
             "selected": {
              "type": "boolean"
+            },
+            "quota": {
+             "type": [
+              "integer",
+              "null"
+             ],
+             "minimum": 0,
+             "description": "Maximum number of places, read back as `quota_setting`; 0 closes the choice. Changing a limit keeps the places already taken; null lifts the limit"
+            },
+            "recover_quota": {
+             "type": "integer",
+             "minimum": 1,
+             "description": "Places to give back to a single choice, multiple choice or drop-down choice with a limit, keeping the limit, as deleting an entry does; the places left stop at the limit"
             }
            },
            "additionalProperties": false
@@ -4636,7 +4762,7 @@
            "show",
            "abort"
           ],
-          "description": "`show` / `abort`, defaults to show"
+          "description": "show (default): the targets stay hidden, and anything written into them is dropped, until the conditions hold"
          },
          "operator": {
           "type": "string",
@@ -4701,7 +4827,7 @@
            "show",
            "abort"
           ],
-          "description": "`show` / `abort`, defaults to show"
+          "description": "show (default): the targets stay hidden, and anything written into them is dropped, until the conditions hold"
          },
          "operator": {
           "type": "string",
@@ -5087,7 +5213,7 @@
  {
   "operationId": "listFolders",
   "summary": "List folders",
-  "description": "List folders\nLists the folders the current user has manage permission on (form folders and table folders alike, told apart by `kind`), newest first. With an account-level credential, returns the account owner's folders.\n`limit` defaults to 50 and is clamped to 1 to 100; there is no paging: `total` is the full count, `count` the number returned this time.",
+  "description": "List folders\nLists the folders the current user has manage permission on (form folders and table folders alike, told apart by `kind`), newest first. With an account-level credential, returns the account owner's folders.",
   "tag": "Folders",
   "method": "get",
   "path": "/folders",
@@ -5096,10 +5222,22 @@
     "name": "limit",
     "in": "query",
     "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "page",
+    "in": "query",
+    "required": false
    }
   ],
   "paramNames": [
-   "limit"
+   "limit",
+   "next",
+   "page"
   ],
   "successStatus": 200,
   "scopes": [
@@ -5116,6 +5254,16 @@
      "maximum": 100,
      "default": 50,
      "description": "Maximum number to return; defaults to 50, at most 100"
+    },
+    "next": {
+     "type": "integer",
+     "minimum": 0,
+     "description": "`next` from the previous page's response (a row offset, starting at 0); pass it back unchanged to get the next page. Cannot be combined with `page` or `skip`."
+    },
+    "page": {
+     "type": "integer",
+     "minimum": 1,
+     "description": "Page number from 1, for jumping to a page or reading pages in parallel; `(page - 1) × limit` can be at most 10000, and the returned `next` continues from there. Cannot be combined with `next` or `skip`."
     }
    },
    "additionalProperties": false
@@ -5282,7 +5430,7 @@
  {
   "operationId": "listBillingAccountUsers",
   "summary": "List account members",
-  "description": "List account members\nLists the members of the current account (deactivated members included), by status ascending (active first), then by creation time, newest first.\n`limit` defaults to 50 and is clamped to 1 to 100; there is no paging: `total` is the total number of members, `count` the number returned this time.",
+  "description": "List account members\nLists the members of the current account (deactivated members included), by status ascending (active first), then by creation time, newest first.",
   "tag": "Account",
   "method": "get",
   "path": "/billing_account/users",
@@ -5291,10 +5439,22 @@
     "name": "limit",
     "in": "query",
     "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "page",
+    "in": "query",
+    "required": false
    }
   ],
   "paramNames": [
-   "limit"
+   "limit",
+   "next",
+   "page"
   ],
   "successStatus": 200,
   "scopes": [
@@ -5311,6 +5471,16 @@
      "maximum": 100,
      "default": 50,
      "description": "Maximum number to return; defaults to 50, at most 100"
+    },
+    "next": {
+     "type": "integer",
+     "minimum": 0,
+     "description": "`next` from the previous page's response (a row offset, starting at 0); pass it back unchanged to get the next page. Cannot be combined with `page` or `skip`."
+    },
+    "page": {
+     "type": "integer",
+     "minimum": 1,
+     "description": "Page number from 1, for jumping to a page or reading pages in parallel; `(page - 1) × limit` can be at most 10000, and the returned `next` continues from there. Cannot be combined with `next` or `skip`."
     }
    },
    "additionalProperties": false
@@ -5876,7 +6046,7 @@
          "show",
          "abort"
         ],
-        "description": "`show` / `abort`, defaults to show"
+        "description": "show (default): the targets stay hidden, and anything written into them is dropped, until the conditions hold"
        },
        "operator": {
         "type": "string",
@@ -5941,7 +6111,7 @@
          "show",
          "abort"
         ],
-        "description": "`show` / `abort`, defaults to show"
+        "description": "show (default): the targets stay hidden, and anything written into them is dropped, until the conditions hold"
        },
        "operator": {
         "type": "string",
@@ -6343,6 +6513,19 @@
             },
             "selected": {
              "type": "boolean"
+            },
+            "quota": {
+             "type": [
+              "integer",
+              "null"
+             ],
+             "minimum": 0,
+             "description": "Maximum number of places, read back as `quota_setting`; 0 closes the choice. Changing a limit keeps the places already taken; null lifts the limit"
+            },
+            "recover_quota": {
+             "type": "integer",
+             "minimum": 1,
+             "description": "Places to give back to a single choice, multiple choice or drop-down choice with a limit, keeping the limit, as deleting an entry does; the places left stop at the limit"
             }
            },
            "additionalProperties": false
@@ -6381,7 +6564,7 @@
            "show",
            "abort"
           ],
-          "description": "`show` / `abort`, defaults to show"
+          "description": "show (default): the targets stay hidden, and anything written into them is dropped, until the conditions hold"
          },
          "operator": {
           "type": "string",
@@ -6446,7 +6629,7 @@
            "show",
            "abort"
           ],
-          "description": "`show` / `abort`, defaults to show"
+          "description": "show (default): the targets stay hidden, and anything written into them is dropped, until the conditions hold"
          },
          "operator": {
           "type": "string",
@@ -6861,6 +7044,19 @@
             },
             "selected": {
              "type": "boolean"
+            },
+            "quota": {
+             "type": [
+              "integer",
+              "null"
+             ],
+             "minimum": 0,
+             "description": "Maximum number of places, read back as `quota_setting`; 0 closes the choice. Changing a limit keeps the places already taken; null lifts the limit"
+            },
+            "recover_quota": {
+             "type": "integer",
+             "minimum": 1,
+             "description": "Places to give back to a single choice, multiple choice or drop-down choice with a limit, keeping the limit, as deleting an entry does; the places left stop at the limit"
             }
            },
            "additionalProperties": false
@@ -6899,7 +7095,7 @@
            "show",
            "abort"
           ],
-          "description": "`show` / `abort`, defaults to show"
+          "description": "show (default): the targets stay hidden, and anything written into them is dropped, until the conditions hold"
          },
          "operator": {
           "type": "string",
@@ -6964,7 +7160,7 @@
            "show",
            "abort"
           ],
-          "description": "`show` / `abort`, defaults to show"
+          "description": "show (default): the targets stay hidden, and anything written into them is dropped, until the conditions hold"
          },
          "operator": {
           "type": "string",

@@ -30,6 +30,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -50,6 +55,7 @@
    "filters",
    "sort",
    "next",
+   "page",
    "skip",
    "limit",
    "include_transactions"
@@ -272,6 +278,35 @@
   ],
   "responseSchema": "FieldTypeChangePreviewResponse"
  },
+ "listFormConditionTriggerableFields": {
+  "operationId": "listFormConditionTriggerableFields",
+  "summary": "List the fields a filter condition can use",
+  "description": "Read before writing filter conditions (the `scope_conditions` of a routine or a notification rule, a view's `filter`): lists the fields a condition can name and, for each operator a field takes, what its `value` holds. Write conditions as the examples show.\n- A condition is `{ \"trigger\": <trigger>, \"operator\": <operator>, \"value\": <an example> }`, with `\"scope_attr\"` added when the field's is not null; leave `value` out when the example is `null`.\n- Use only the fields and operators listed here.\n- For a routine's `event.scope_conditions`, ask with `fields_context=routine`: a routine filters only on its source's own fields, and formula and linked fields are left out.\n- A cooperator gets only the fields their role can read.",
+  "tag": "Forms",
+  "method": "get",
+  "path": "/forms/{form_token}/condition_triggerable_fields",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "fields_context",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "fields_context"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "ConditionTriggerableFieldListResponse"
+ },
  "listEntries": {
   "operationId": "listEntries",
   "summary": "List entries",
@@ -319,6 +354,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -342,6 +382,7 @@
    "sort",
    "created_at",
    "next",
+   "page",
    "skip",
    "include_labels",
    "limit"
@@ -1074,7 +1115,7 @@
  "updateFormSetting": {
   "operationId": "updateFormSetting",
   "summary": "Update a form's settings",
-  "description": "Partially updates the form's settings, writing only the keys present in the request; PUT is accepted too.\n- `submission_region_limited` / `submission_regions` are a paid feature and read-only here; to write them, use `setting` on the \"Edit a form\" endpoint.\n- `manually_close_rule`, `by_time_range_close_rule`, `by_entries_close_rule` and `fill_frequency` are nested objects; the server creates or updates them as nested attributes.\n- Returns `{ \"status\": \"ok\" }` on success; returns 400 when model validation fails, with body `{ \"errors\": \"...\", \"status\": \"failed\" }` (not the common error shape).",
+  "description": "Partially updates the form's settings, writing only the keys present in the request; PUT is accepted too.\n- `submission_region_limited` / `submission_regions` (a paid feature), `payment_expirable` and `payment_expiration_time` are read-only here; to write them, use `setting` on the \"Edit a form\" endpoint.",
   "tag": "Form Settings",
   "method": "patch",
   "path": "/forms/{form_token}/setting",
@@ -1154,7 +1195,7 @@
  "updateAccessPolicy": {
   "operationId": "updateAccessPolicy",
   "summary": "Update the fill frequency limit",
-  "description": "Updates the form's fill frequency limit (fill_frequency); PUT is accepted too.\nThis endpoint takes only the `fill_frequency` key; for the other access policy keys, use PATCH /forms/{form_token}/setting.\nReturns `{ \"status\": \"ok\" }` on success; returns 400 when validation fails, with body `{ \"errors\": \"...\", \"status\": \"failed\" }` (not the common error shape).",
+  "description": "Updates the form's fill frequency limit (fill_frequency); PUT is accepted too.\nThis endpoint takes only the `fill_frequency` key; for the other access policy keys, use PATCH /forms/{form_token}/setting.",
   "tag": "Form Settings",
   "method": "patch",
   "path": "/forms/{form_token}/access_policy",
@@ -1416,6 +1457,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -1429,6 +1475,7 @@
    "status",
    "limit",
    "next",
+   "page",
    "skip"
   ],
   "successStatus": 200,
@@ -1865,7 +1912,7 @@
  "listFormViewEntries": {
   "operationId": "listFormViewEntries",
   "summary": "List a view's entries",
-  "description": "Returns the form's entries under the view's filters and sort rules, at most 50 per page. The returned fields are limited to those in the view's prefer_columns (serial_number always included); when prefer_columns is empty, all pushable fields are returned. Sorting follows the view's sort rules, with serial_number ascending appended when they do not include serial_number. Paginate with the next parameter (a row offset); next is null on the last page. Returns 400 when the view's filters use an operator the query engine does not support. Only views visible to the caller are accessible, otherwise 404 (View cannot be found).",
+  "description": "Returns the form's entries under the view's filters and sort rules. The returned fields are limited to those in the view's prefer_columns (serial_number always included); when prefer_columns is empty, all pushable fields are returned. Sorting follows the view's sort rules, with serial_number ascending appended when they do not include serial_number. Returns 400 when the view's filters use an operator the query engine does not support. Only views visible to the caller are accessible, otherwise 404 (View cannot be found).",
   "tag": "Views",
   "method": "get",
   "path": "/forms/{form_token}/views/{view_token}/entries",
@@ -1886,6 +1933,16 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "include_labels",
     "in": "query",
     "required": false
@@ -1895,6 +1952,8 @@
    "form_token",
    "view_token",
    "next",
+   "page",
+   "limit",
    "include_labels"
   ],
   "successStatus": 200,
@@ -2173,6 +2232,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -2185,6 +2249,7 @@
    "end_date",
    "limit",
    "next",
+   "page",
    "skip"
   ],
   "successStatus": 200,
@@ -2323,6 +2388,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -2335,6 +2405,7 @@
    "mobile",
    "limit",
    "next",
+   "page",
    "skip"
   ],
   "successStatus": 200,
@@ -2607,6 +2678,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -2619,6 +2695,7 @@
    "end_date",
    "limit",
    "next",
+   "page",
    "skip"
   ],
   "successStatus": 200,
@@ -2723,6 +2800,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -2735,6 +2817,7 @@
    "email",
    "limit",
    "next",
+   "page",
    "skip"
   ],
   "successStatus": 200,
@@ -2896,7 +2979,7 @@
  "listTables": {
   "operationId": "listTables",
   "summary": "List tables",
-  "description": "Returns the tables (`kind=table`) visible to the current caller. Pagination, `q`, `filters`, `sort`, `next`, `skip` and `limit` mean the same as in the form list; 50 per page by default, up to 1000.",
+  "description": "Returns the tables (`kind=table`) visible to the current caller. Pagination, `q`, `filters`, `sort`, `next`, `page`, `skip` and `limit` mean the same as in the form list; 50 per page by default, up to 1000.",
   "tag": "Tables",
   "method": "get",
   "path": "/tables",
@@ -2924,6 +3007,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -2939,6 +3027,7 @@
    "filters",
    "sort",
    "next",
+   "page",
    "skip",
    "limit"
   ],
@@ -3107,6 +3196,35 @@
   ],
   "responseSchema": "FieldTypeChangePreviewResponse"
  },
+ "listTableConditionTriggerableFields": {
+  "operationId": "listTableConditionTriggerableFields",
+  "summary": "List the columns a filter condition can use",
+  "description": "Same as GET /forms/{form_token}/condition_triggerable_fields, for a table. Write conditions as the examples show.",
+  "tag": "Tables",
+  "method": "get",
+  "path": "/tables/{table_token}/condition_triggerable_fields",
+  "params": [
+   {
+    "name": "table_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "fields_context",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "table_token",
+   "fields_context"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "ConditionTriggerableFieldListResponse"
+ },
  "listTableEntries": {
   "operationId": "listTableEntries",
   "summary": "List table entries",
@@ -3154,6 +3272,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -3177,6 +3300,7 @@
    "sort",
    "created_at",
    "next",
+   "page",
    "skip",
    "include_labels",
    "limit"
@@ -3973,7 +4097,7 @@
  "listTableViewEntries": {
   "operationId": "listTableViewEntries",
   "summary": "List a table view's entries",
-  "description": "Returns entries using the table view's filters and sort, at most 50 per page; pagination and the rules for which fields are returned are the same as for form view entries. Returns 404 (table cannot be found) when the token is not a table.",
+  "description": "Returns entries using the table view's filters and sort; pagination and the rules for which fields are returned are the same as for form view entries. Returns 404 (table cannot be found) when the token is not a table.",
   "tag": "Views",
   "method": "get",
   "path": "/tables/{table_token}/views/{view_token}/entries",
@@ -3994,6 +4118,16 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "include_labels",
     "in": "query",
     "required": false
@@ -4003,6 +4137,8 @@
    "table_token",
    "view_token",
    "next",
+   "page",
+   "limit",
    "include_labels"
   ],
   "successStatus": 200,
@@ -4028,11 +4164,23 @@
     "name": "limit",
     "in": "query",
     "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "page",
+    "in": "query",
+    "required": false
    }
   ],
   "paramNames": [
    "form_token",
-   "limit"
+   "limit",
+   "next",
+   "page"
   ],
   "successStatus": 200,
   "scopes": [
@@ -4252,7 +4400,7 @@
  "listFolders": {
   "operationId": "listFolders",
   "summary": "List folders",
-  "description": "Lists the folders the current user has manage permission on (form folders and table folders alike, told apart by `kind`), newest first. With an account-level credential, returns the account owner's folders.\n`limit` defaults to 50 and is clamped to 1 to 100; there is no paging: `total` is the full count, `count` the number returned this time.",
+  "description": "Lists the folders the current user has manage permission on (form folders and table folders alike, told apart by `kind`), newest first. With an account-level credential, returns the account owner's folders.",
   "tag": "Folders",
   "method": "get",
   "path": "/folders",
@@ -4261,10 +4409,22 @@
     "name": "limit",
     "in": "query",
     "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "page",
+    "in": "query",
+    "required": false
    }
   ],
   "paramNames": [
-   "limit"
+   "limit",
+   "next",
+   "page"
   ],
   "successStatus": 200,
   "scopes": [
@@ -4314,56 +4474,92 @@
   ],
   "responseSchema": "Folder"
  },
- "listPredefinedChoicesSets": {
-  "operationId": "listPredefinedChoicesSets",
-  "summary": "List predefined choice sets",
-  "description": "Lists the current account's custom predefined choice sets (type custom), only those matching the locale of the current request (as the server implements it); the built-in global choice sets are not returned.",
-  "tag": "Predefined Choices Sets",
+ "listArtifacts": {
+  "operationId": "listArtifacts",
+  "summary": "List artifacts",
+  "description": "The artifacts Jiri delivered for the current user in the current account, the most recently delivered first; one entry per artifact, however many versions it has.\n- Paging: `next` is a row offset; pass it back unchanged for the next page. Only one of `next`, `page` and `skip` can be passed. 50 per page by default, `limit` changes it (at most 1000).\n- An artifact belongs to a person: an account access token returns `400`.",
+  "tag": "Artifacts",
   "method": "get",
-  "path": "/predefined_choices_sets",
-  "params": [],
-  "paramNames": [],
-  "successStatus": 200,
-  "scopes": [
-   "form_setting"
-  ]
- },
- "createPredefinedChoicesSet": {
-  "operationId": "createPredefinedChoicesSet",
-  "summary": "Create a predefined choice set",
-  "description": "Creates a custom predefined choice set in the current account. It looks up by `label`: when the account already has a set with the same label, that set's `choices` are overwritten (in effect an update); otherwise a new set is created.\nThe request body must be wrapped under the `predefined_choices_set` key; returns 400 when the key is missing. Empty strings in `choices` are dropped; neither `label` nor the remaining `choices` may be empty, otherwise returns 400 with the body `{ errors, status: \"failed\" }`.\nReturns 200 on success (not 201).",
-  "tag": "Predefined Choices Sets",
-  "method": "post",
-  "path": "/predefined_choices_sets",
-  "params": [],
-  "paramNames": [],
-  "body": {
-   "contentType": "application/json",
-   "required": true,
-   "flatten": true
-  },
-  "successStatus": 200,
-  "scopes": [
-   "form_setting"
+  "path": "/artifacts",
+  "params": [
+   {
+    "name": "q",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   }
   ],
-  "responseSchema": "PredefinedChoicesSet"
+  "paramNames": [
+   "q",
+   "limit",
+   "next",
+   "page",
+   "skip"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "artifacts"
+  ],
+  "responseSchema": "ArtifactListResponse"
  },
- "updatePredefinedChoicesSet": {
-  "operationId": "updatePredefinedChoicesSet",
-  "summary": "Update a predefined choice set",
-  "description": "Updates the `label` and / or `choices` of one of the current account's custom predefined choice sets. PUT is also accepted and behaves the same.\nOnly a set of type custom that belongs to the current account can be updated: a global set or another account's set returns 403 `{ errors: \"forbidden\", status: \"failed\" }`; an ID that does not exist returns 404 `{ errors: \"not found\", status: \"failed\" }`; a validation failure returns 400 `{ errors, status: \"failed\" }`.",
-  "tag": "Predefined Choices Sets",
+ "getPublishedArtifact": {
+  "operationId": "getPublishedArtifact",
+  "summary": "Show how an artifact is shared",
+  "description": "Returns the artifact's share link and who can open it; the first call creates the link, open to its owner only. Only an HTML artifact has a share link; other files can only be downloaded (`download_url` in the list).",
+  "tag": "Artifacts",
+  "method": "get",
+  "path": "/artifacts/{artifact_id}/published_artifact",
+  "params": [
+   {
+    "name": "artifact_id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "artifact_id"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "artifacts"
+  ],
+  "responseSchema": "PublishedArtifact"
+ },
+ "updatePublishedArtifact": {
+  "operationId": "updatePublishedArtifact",
+  "summary": "Change who can open an artifact's share link",
+  "description": "Sets who can open the share link and which version it shows.\n- `version_id` is required unless `allowed_audience` is `private`; without it the request is refused (`version_required`) and nothing is published",
+  "tag": "Artifacts",
   "method": "patch",
-  "path": "/predefined_choices_sets/{id}",
+  "path": "/artifacts/{artifact_id}/published_artifact",
   "params": [
    {
-    "name": "id",
+    "name": "artifact_id",
     "in": "path",
     "required": true
    }
   ],
   "paramNames": [
-   "id"
+   "artifact_id"
   ],
   "body": {
    "contentType": "application/json",
@@ -4372,31 +4568,9 @@
   },
   "successStatus": 200,
   "scopes": [
-   "form_setting"
+   "artifacts"
   ],
-  "responseSchema": "PredefinedChoicesSet"
- },
- "deletePredefinedChoicesSet": {
-  "operationId": "deletePredefinedChoicesSet",
-  "summary": "Delete a predefined choice set",
-  "description": "Deletes one of the current account's custom predefined choice sets; returns 200 with no response body on success.\nOnly a set of type custom that belongs to the current account can be deleted: a global set or another account's set returns 403 `{ errors: \"forbidden\", status: \"failed\" }`; an ID that does not exist returns 404 `{ errors: \"not found\", status: \"failed\" }`.",
-  "tag": "Predefined Choices Sets",
-  "method": "delete",
-  "path": "/predefined_choices_sets/{id}",
-  "params": [
-   {
-    "name": "id",
-    "in": "path",
-    "required": true
-   }
-  ],
-  "paramNames": [
-   "id"
-  ],
-  "successStatus": 200,
-  "scopes": [
-   "form_setting"
-  ]
+  "responseSchema": "PublishedArtifact"
  },
  "createTemplateUsage": {
   "operationId": "createTemplateUsage",
@@ -4420,7 +4594,7 @@
  "listContacts": {
   "operationId": "listContacts",
   "summary": "List contacts",
-  "description": "Lists the current user's contacts page by page, by ID descending, a fixed 50 per page. With an account-level credential, returns the account owner's contacts.\nCursor paging: `next` in the response is the ID of the first contact on the next page; pass it as the query parameter `next` to get that page. `next` is null when there is no more data.",
+  "description": "Lists the current user's contacts page by page, by ID descending. With an account-level credential, returns the account owner's contacts.",
   "tag": "Contacts",
   "method": "get",
   "path": "/contacts",
@@ -4429,10 +4603,22 @@
     "name": "next",
     "in": "query",
     "required": false
+   },
+   {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
    }
   ],
   "paramNames": [
-   "next"
+   "next",
+   "page",
+   "limit"
   ],
   "successStatus": 200,
   "scopes": [
@@ -4472,7 +4658,7 @@
  "listBillingAccountUsers": {
   "operationId": "listBillingAccountUsers",
   "summary": "List account members",
-  "description": "Lists the members of the current account (deactivated members included), by status ascending (active first), then by creation time, newest first.\n`limit` defaults to 50 and is clamped to 1 to 100; there is no paging: `total` is the total number of members, `count` the number returned this time.",
+  "description": "Lists the members of the current account (deactivated members included), by status ascending (active first), then by creation time, newest first.",
   "tag": "Account",
   "method": "get",
   "path": "/billing_account/users",
@@ -4481,10 +4667,22 @@
     "name": "limit",
     "in": "query",
     "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "page",
+    "in": "query",
+    "required": false
    }
   ],
   "paramNames": [
-   "limit"
+   "limit",
+   "next",
+   "page"
   ],
   "successStatus": 200,
   "scopes": [
@@ -4631,6 +4829,11 @@
     "name": "next",
     "in": "query",
     "required": false
+   },
+   {
+    "name": "page",
+    "in": "query",
+    "required": false
    }
   ],
   "paramNames": [
@@ -4641,7 +4844,8 @@
    "form_token",
    "order_no",
    "limit",
-   "next"
+   "next",
+   "page"
   ],
   "successStatus": 200,
   "scopes": [
@@ -4745,6 +4949,11 @@
     "name": "next",
     "in": "query",
     "required": false
+   },
+   {
+    "name": "page",
+    "in": "query",
+    "required": false
    }
   ],
   "paramNames": [
@@ -4754,7 +4963,8 @@
    "refund_no",
    "include",
    "limit",
-   "next"
+   "next",
+   "page"
   ],
   "successStatus": 200,
   "scopes": [
@@ -4799,6 +5009,11 @@
     "name": "next",
     "in": "query",
     "required": false
+   },
+   {
+    "name": "page",
+    "in": "query",
+    "required": false
    }
   ],
   "paramNames": [
@@ -4807,7 +5022,8 @@
    "status",
    "include",
    "limit",
-   "next"
+   "next",
+   "page"
   ],
   "successStatus": 200,
   "scopes": [
@@ -4854,6 +5070,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -4863,6 +5084,7 @@
    "status",
    "limit",
    "next",
+   "page",
    "skip"
   ],
   "successStatus": 200,
@@ -4944,7 +5166,7 @@
  "listSmsTemplates": {
   "operationId": "listSmsTemplates",
   "summary": "List SMS templates",
-  "description": "Lists the templates the current user created and the ones other members share, newest first. Pagination as in the form list; 50 per page by default, up to 1000.",
+  "description": "Lists the templates the current user created, the ones other members share and the official ones, newest first with the official ones last. Pagination as in the form list; 50 per page by default, up to 1000.",
   "tag": "Account",
   "method": "get",
   "path": "/sms/templates",
@@ -4980,6 +5202,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -4992,6 +5219,7 @@
    "status",
    "limit",
    "next",
+   "page",
    "skip"
   ],
   "successStatus": 200,
@@ -5281,7 +5509,7 @@
  "listMyFilledForms": {
   "operationId": "listMyFilledForms",
   "summary": "List the forms I have submitted to",
-  "description": "Returns the forms the current user has submitted entries to as a submitter (quick payment forms excluded), most recent submission first. These forms need not be created by or shared with the current user;\neach row gives the current user's own submission count and latest submission time, not the form's total entry count. Deleted forms do not appear in `data` (`total` still counts them).\n- Pagination: `next` is a row offset, passed back as is for the next page; `skip` and `next` cannot be combined. 50 rows per page by default, adjustable with `limit` (at most 1000).\n- An account access token has no \"current user\"; calling with one returns 400.",
+  "description": "Returns the forms the current user has submitted entries to as a submitter (quick payment forms excluded), most recent submission first. These forms need not be created by or shared with the current user;\neach row gives the current user's own submission count and latest submission time, not the form's total entry count. Deleted forms do not appear in `data` (`total` still counts them).\n- Pagination: `next` is a row offset, passed back as is for the next page; only one of `next`, `page` and `skip` can be passed. 50 rows per page by default, adjustable with `limit` (at most 1000).\n- An account access token has no \"current user\"; calling with one returns 400.",
   "tag": "Forms",
   "method": "get",
   "path": "/my/forms",
@@ -5297,6 +5525,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -5305,6 +5538,7 @@
   "paramNames": [
    "limit",
    "next",
+   "page",
    "skip"
   ],
   "successStatus": 200,
@@ -5359,6 +5593,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -5372,6 +5611,7 @@
    "include_labels",
    "limit",
    "next",
+   "page",
    "skip"
   ],
   "successStatus": 200,
@@ -5543,7 +5783,7 @@
  "listRoutines": {
   "operationId": "listRoutines",
   "summary": "List routines",
-  "description": "The current user's own routines, newest first.\n- Paging: `next` is a row offset; pass it back unchanged for the next page. `skip` and `next` cannot be passed together. 50 per page by default, `limit` changes it (at most 1000).\n- Routines belong to a person: a credential with no current user (an account access token and the like) returns `403`, and so does an account that cannot use routines yet.",
+  "description": "The current user's own routines, newest first.\n- Paging: `next` is a row offset; pass it back unchanged for the next page. Only one of `next`, `page` and `skip` can be passed. 50 per page by default, `limit` changes it (at most 1000).\n- Routines belong to a person: a credential with no current user (an account access token and the like) returns `403`, and so does an account that cannot use routines yet.",
   "tag": "Routines",
   "method": "get",
   "path": "/routines",
@@ -5564,6 +5804,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -5573,6 +5818,7 @@
    "state",
    "limit",
    "next",
+   "page",
    "skip"
   ],
   "successStatus": 200,
@@ -5584,7 +5830,7 @@
  "createRoutine": {
   "operationId": "createRoutine",
   "summary": "Create a routine",
-  "description": "Creates a routine, enabled from the start. The rules and messages are those of the routines page: a name of at most 60 characters, an instruction of at most 2000, only forms, tables, views and query pages you can reach as objects, at most 20 enabled routines per person, and a one-off time later than now. A data trigger's source is added to the objects.\n- A routine against the rules returns `422`, and `errors` gives each reason with its `code` and the page's message.\n- Delete authorization (`delete_authorized`) cannot be set here: a body that names it, true or false, returns `422` `delete_authorization_page_only` and creates nothing.\n- Jiri running a routine cannot create routines (`403`).",
+  "description": "Creates a routine, enabled from the start. The rules and messages are those of the routines page: a name of at most 60 characters, an instruction of at most 2000, only forms, tables, views and query pages you can reach as objects, at most 20 enabled routines per person, and a one-off time later than now. A data trigger's source is added to the objects.\n- A routine against the rules returns `422`, and `errors` gives each reason with its `code` and the page's message.\n- Delete authorization (`delete_authorized`) cannot be set here: a body that names it, true or false, returns `422` `delete_authorization_page_only` and creates nothing.\n- The response's `preview_condition_matches` shows which of your latest entries of the source meet each condition group; if they are not the ones the routine is meant for, fix the conditions.\n- Jiri running a routine cannot create routines (`403`).",
   "tag": "Routines",
   "method": "post",
   "path": "/routines",
@@ -5599,7 +5845,7 @@
   "scopes": [
    "routines"
   ],
-  "responseSchema": "Routine"
+  "responseSchema": "RoutineDetail"
  },
  "getRoutine": {
   "operationId": "getRoutine",
@@ -5622,12 +5868,12 @@
   "scopes": [
    "routines"
   ],
-  "responseSchema": "Routine"
+  "responseSchema": "RoutineDetail"
  },
  "updateRoutine": {
   "operationId": "updateRoutine",
   "summary": "Update a routine",
-  "description": "Changes the name, instruction, objects, trigger kind, schedule or data trigger. A key left out, or null, keeps what the routine has; `objects` given replaces them all.\n- The rules and messages are those of creating. A changed schedule cancels the runs queued for the old one; a changed instruction or objects stops a run in progress.\n- A body that names `delete_authorized`, true or false, returns `422` `delete_authorization_page_only` and changes nothing.\n- Jiri running a routine cannot update routines (`403`).",
+  "description": "Changes the name, instruction, objects, trigger kind, schedule or data trigger. A key left out, or null, keeps what the routine has; `objects` given replaces them all.\n- The rules, messages and `preview_condition_matches` are those of creating. A changed schedule cancels the runs queued for the old one; a changed instruction or objects stops a run in progress.\n- A body that names `delete_authorized`, true or false, returns `422` `delete_authorization_page_only` and changes nothing.\n- Jiri running a routine cannot update routines (`403`).",
   "tag": "Routines",
   "method": "patch",
   "path": "/routines/{id}",
@@ -5650,7 +5896,7 @@
   "scopes": [
    "routines"
   ],
-  "responseSchema": "Routine"
+  "responseSchema": "RoutineDetail"
  },
  "deleteRoutine": {
   "operationId": "deleteRoutine",
@@ -5695,7 +5941,7 @@
   "scopes": [
    "routines"
   ],
-  "responseSchema": "Routine"
+  "responseSchema": "RoutineDetail"
  },
  "resumeRoutine": {
   "operationId": "resumeRoutine",
@@ -5718,7 +5964,7 @@
   "scopes": [
    "routines"
   ],
-  "responseSchema": "Routine"
+  "responseSchema": "RoutineDetail"
  },
  "runRoutine": {
   "operationId": "runRoutine",
@@ -5766,6 +6012,11 @@
     "required": false
    },
    {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "skip",
     "in": "query",
     "required": false
@@ -5775,6 +6026,7 @@
    "routine_id",
    "limit",
    "next",
+   "page",
    "skip"
   ],
   "successStatus": 200,
