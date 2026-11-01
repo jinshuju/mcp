@@ -63,6 +63,7 @@ include:
   getCurrentUser: get_current_user
   getBillingAccount: get_current_billing_account
   listBillingAccountUsers: list_account_users
+  getTradeMerchant: get_merchant
   # Uploads. prepare_*_upload issue a one-time link the client POSTs a local file to (the bytes never pass through the model);
   # upload_* send the content as base64 through MCP, which only works for small content.
   prepareEntryAttachmentUpload: prepare_entry_attachment_upload

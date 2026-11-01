@@ -5,7 +5,7 @@
     "sha256": "3021567c7e2472a8"
   },
   "baseUrl": "https://jinshuju.net/api/v1",
-  "toolCount": 64,
+  "toolCount": 65,
   "operationCount": 177,
   "tools": {
     "list_forms": "listForms",
@@ -60,6 +60,7 @@
     "get_current_user": "getCurrentUser",
     "get_current_billing_account": "getBillingAccount",
     "list_account_users": "listBillingAccountUsers",
+    "get_merchant": "getTradeMerchant",
     "prepare_entry_attachment_upload": "prepareEntryAttachmentUpload",
     "prepare_form_image_upload": "prepareFormImageUpload",
     "prepare_import_file_upload": "prepareImportFileUpload",

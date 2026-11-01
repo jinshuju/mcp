@@ -45,7 +45,7 @@ src/
 Dependency direction: `app` / `stdio` → `server` → `tools` → `composites` → `result` → `api` → `credential`; `types`, `config` and `version` depend on nothing.
 `analytics` is used only by `app` / `node` (stdio does not report), and depends on `auth` (token hash), `tools` (the full set of argument names) and `validation` (the `context` argument name).
 
-The overlay's `include` decides the tool set: 58 tools map one to one onto operations,
+The overlay's `include` decides the tool set: 59 tools map one to one onto operations,
 `edit_field_rules` is a projection of `field_rules` in the `updateForm` request body, and the 4 exam / evaluation create and edit tools and `count_entries` are composite tools.
 `operations.json` holds every operation in openapi.yaml, so composite tools can call operations that are not exposed on their own (such as `updateExamSetting`).
 

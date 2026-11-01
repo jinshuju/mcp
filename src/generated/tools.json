@@ -5493,6 +5493,38 @@
   }
  },
  {
+  "operationId": "getTradeMerchant",
+  "summary": "Show the 小金商户",
+  "description": "Show the 小金商户\nReturns the current account's 小金商户 (the merchant Jinshuju collects payments for) and its onboarding progress: merchant profile, legal entity and contact details, balance, settlement details, payment channel authorization, freeze status, bound payment forms, and the URL for the next step.\n- An account without a 小金商户 still gets 200, with `merchant_stage` saying how far onboarding has got; an account that collects payments through its own WeChat Pay / Alipay merchant (direct connection) has no rate, settlement account, balance or onboarding status on Jinshuju.\n- `balance` is null when the balance lookup failed, which does not mean the balance is 0.",
+  "tag": "Trade",
+  "method": "get",
+  "path": "/trade/merchant",
+  "params": [],
+  "paramNames": [],
+  "successStatus": 200,
+  "scopes": [
+   "users"
+  ],
+  "responseSchema": "TradeMerchant",
+  "name": "get_merchant",
+  "title": "Show the 小金商户",
+  "inputSchema": {
+   "type": "object",
+   "properties": {},
+   "additionalProperties": false
+  },
+  "outputSchema": {
+   "type": "object",
+   "description": "Shape: schema \"TradeMerchant\"; call get_schema (name=\"TradeMerchant\") or read the resource jinshuju://schemas/TradeMerchant."
+  },
+  "annotations": {
+   "readOnlyHint": true,
+   "destructiveHint": false,
+   "idempotentHint": true,
+   "openWorldHint": false
+  }
+ },
+ {
   "operationId": "prepareEntryAttachmentUpload",
   "summary": "Prepare an entry attachment upload",
   "description": "Prepare an entry attachment upload\nIssues a one-time link for uploading a local file to an attachment field, or to an attachment column of a table field, without sending its bytes in a request body.\n- With a shell that can read the file and reach the network, run `curl -F file=@<path> <upload_url>`, then put the returned `attachment_id` in the field when creating or updating an entry.\n- Without one, or when curl fails (for example under a sandbox's network limits), send small content as Base64 to \"Upload an entry attachment\".",
