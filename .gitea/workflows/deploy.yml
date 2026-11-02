@@ -13,6 +13,7 @@ name: Deploy
 #   secrets.WDL_ADMIN_TOKEN  Control-plane token of the namespace (what `wdl token` stores for deploys by hand)
 #   vars.WDL_CONTROL_URL     Control-plane URL
 #   vars.WDL_NS              Namespace the worker lives in
+#   vars.NPM_REGISTRY        Registry npx fetches the wdl CLI from (the internal Nexus mirror)
 on:
   push:
     branches: [main]
@@ -66,5 +67,11 @@ jobs:
       - run: npm run check
       - run: npm test
       # wdl bundles with the project's own wrangler (node_modules/.bin), uploads and promotes the new version.
+      # npx fetches the CLI through the internal Nexus mirror: from the runner, registry.npmjs.org can stall long
+      # enough to hit the job timeout (run 9283, attempt 1).
       - name: Deploy
-        run: npx --yes @wdl-dev/cli@1.9.2 deploy .
+        env:
+          npm_config_registry: ${{ vars.NPM_REGISTRY }}
+        run: |
+          test -n "$npm_config_registry" || { echo "vars.NPM_REGISTRY is missing"; exit 1; }
+          npx --yes @wdl-dev/cli@1.9.2 deploy .
