@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.6.0](https://github.com/jinshuju/mcp/compare/v0.5.0...v0.6.0) (2026-11-03)
+
+
+### Features
+
+* add field scope_attr ([f61680d](https://github.com/jinshuju/mcp/commit/f61680de783e5b526465f157fdb1ec9a324d8560))
+* add fields quota_setting and 8 more; update tools get_entry and 3 more ([ba1206f](https://github.com/jinshuju/mcp/commit/ba1206f4609a0c4594a1db841efbd1cc0076de0f))
+* add the get_merchant tool ([41b33d3](https://github.com/jinshuju/mcp/commit/41b33d36502ffed002193a00d5bec6c1fb65fb44))
+
+
+### Fixes
+
+* forget a token the API refuses during a tool call ([5e8b032](https://github.com/jinshuju/mcp/commit/5e8b032042618824b9d3c6eb8897d872afdf51a6))
+
+
+### Performance
+
+* share token verifications across isolates through a KV namespace ([5538092](https://github.com/jinshuju/mcp/commit/5538092da8a983718f77fc16fbee7436350736f6))
+
 ## [0.5.0](https://github.com/jinshuju/mcp/compare/v0.4.0...v0.5.0) (2026-10-27)
 
 
