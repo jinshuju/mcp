@@ -100,6 +100,13 @@
         "deprecated": true,
         "description": "Deprecated alias of `field`; use `field`."
        },
+       "scope_attr": {
+        "type": "string",
+        "enum": [
+         "date_time"
+        ],
+        "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
+       },
        "operator": {
         "type": "string",
         "enum": [
@@ -1497,6 +1504,13 @@
         "deprecated": true,
         "description": "Deprecated alias of `field`; use `field`."
        },
+       "scope_attr": {
+        "type": "string",
+        "enum": [
+         "date_time"
+        ],
+        "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
+       },
        "operator": {
         "type": "string",
         "enum": [
@@ -2416,6 +2430,13 @@
         "deprecated": true,
         "description": "Deprecated alias of `field`; use `field`."
        },
+       "scope_attr": {
+        "type": "string",
+        "enum": [
+         "date_time"
+        ],
+        "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
+       },
        "operator": {
         "type": "string",
         "enum": [
@@ -2576,6 +2597,13 @@
         "deprecated": true,
         "description": "Deprecated alias of `field`; use `field`."
        },
+       "scope_attr": {
+        "type": "string",
+        "enum": [
+         "date_time"
+        ],
+        "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
+       },
        "operator": {
         "type": "string",
         "enum": [
@@ -2719,6 +2747,13 @@
         "type": "string",
         "deprecated": true,
         "description": "Deprecated alias of `field`; use `field`."
+       },
+       "scope_attr": {
+        "type": "string",
+        "enum": [
+         "date_time"
+        ],
+        "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
        },
        "operator": {
         "type": "string",
@@ -3062,6 +3097,13 @@
         "type": "string",
         "deprecated": true,
         "description": "Deprecated alias of `field`; use `field`."
+       },
+       "scope_attr": {
+        "type": "string",
+        "enum": [
+         "date_time"
+        ],
+        "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
        },
        "operator": {
         "type": "string",
@@ -4216,6 +4258,13 @@
         "type": "string",
         "deprecated": true,
         "description": "Deprecated alias of `field`; use `field`."
+       },
+       "scope_attr": {
+        "type": "string",
+        "enum": [
+         "date_time"
+        ],
+        "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
        },
        "operator": {
         "type": "string",
@@ -7331,6 +7380,13 @@
         "type": "string",
         "deprecated": true,
         "description": "Deprecated alias of `field`; use `field`."
+       },
+       "scope_attr": {
+        "type": "string",
+        "enum": [
+         "date_time"
+        ],
+        "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
        },
        "operator": {
         "type": "string",

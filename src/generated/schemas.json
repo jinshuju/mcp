@@ -3579,7 +3579,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code, or `trade_status` for the payment status"
+       "description": "Field api_code (a table column as `<table>.<column>`), or `trade_status` for the payment status, whose codes include `paid`, `refunded` and `TRANSACTION_TIMEOUT`"
       },
       "operator": {
        "type": "string",
@@ -3599,13 +3599,25 @@
         "like",
         "not_like",
         "match"
-       ]
+       ],
+       "description": "Each field type takes the operators of the notification settings page's conditions, and also those the entry query handles beyond them, such as eq on text, gte on a date, eq / ne with one code on a radio button or with the exact set on a checkbox; any other returns 400 listing the page's"
       },
       "value": {
-       "description": "Value to compare with; choice fields take choice api_codes"
+       "description": "Value in the shape the field type and operator take, as the notification settings page saves it (an array of choice api_codes on a choice field); another shape returns 400 naming the format with an example"
       },
       "group_index": {
        "type": "integer"
+      },
+      "scope_attr": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "date_time",
+        null
+       ],
+       "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
       }
      },
      "additionalProperties": false
@@ -4157,7 +4169,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code, or `trade_status` for the payment status"
+       "description": "Field api_code (a table column as `<table>.<column>`), or `trade_status` for the payment status, whose codes include `paid`, `refunded` and `TRANSACTION_TIMEOUT`"
       },
       "operator": {
        "type": "string",
@@ -4177,13 +4189,25 @@
         "like",
         "not_like",
         "match"
-       ]
+       ],
+       "description": "Each field type takes the operators of the notification settings page's conditions, and also those the entry query handles beyond them, such as eq on text, gte on a date, eq / ne with one code on a radio button or with the exact set on a checkbox; any other returns 400 listing the page's"
       },
       "value": {
-       "description": "Value to compare with; choice fields take choice api_codes"
+       "description": "Value in the shape the field type and operator take, as the notification settings page saves it (an array of choice api_codes on a choice field); another shape returns 400 naming the format with an example"
       },
       "group_index": {
        "type": "integer"
+      },
+      "scope_attr": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "date_time",
+        null
+       ],
+       "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
       }
      },
      "additionalProperties": false
@@ -30568,6 +30592,13 @@
       },
       "value": {
        "description": "Condition value; its type depends on the field and the operator: a two-element array for between; {\"unit\": \"day\", \"n\": 30} for within_last (unit can be minute / day / week / month); on choice fields, pass choice api_codes or choice texts, with \"null\" meaning not filled in; null / not_null take no value."
+      },
+      "scope_attr": {
+       "type": "string",
+       "enum": [
+        "date_time"
+       ],
+       "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
       }
      }
     }
@@ -30748,6 +30779,13 @@
    },
    "value": {
     "description": "Condition value; its type depends on the field and the operator: a two-element array for between; {\"unit\": \"day\", \"n\": 30} for within_last (unit can be minute / day / week / month); on choice fields, pass choice api_codes or choice texts, with \"null\" meaning not filled in; null / not_null take no value."
+   },
+   "scope_attr": {
+    "type": "string",
+    "enum": [
+     "date_time"
+    ],
+    "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
    }
   }
  },
@@ -30869,6 +30907,13 @@
       },
       "value": {
        "description": "Condition value; its type depends on the field and the operator: a two-element array for between; {\"unit\": \"day\", \"n\": 30} for within_last (unit can be minute / day / week / month); on choice fields, pass choice api_codes or choice texts, with \"null\" meaning not filled in; null / not_null take no value."
+      },
+      "scope_attr": {
+       "type": "string",
+       "enum": [
+        "date_time"
+       ],
+       "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
       }
      }
     }
@@ -34723,7 +34768,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code, or `trade_status` for the payment status"
+       "description": "Field api_code (a table column as `<table>.<column>`), or `trade_status` for the payment status, whose codes include `paid`, `refunded` and `TRANSACTION_TIMEOUT`"
       },
       "operator": {
        "type": "string",
@@ -34743,13 +34788,25 @@
         "like",
         "not_like",
         "match"
-       ]
+       ],
+       "description": "Each field type takes the operators of the notification settings page's conditions, and also those the entry query handles beyond them, such as eq on text, gte on a date, eq / ne with one code on a radio button or with the exact set on a checkbox; any other returns 400 listing the page's"
       },
       "value": {
-       "description": "Value to compare with; choice fields take choice api_codes"
+       "description": "Value in the shape the field type and operator take, as the notification settings page saves it (an array of choice api_codes on a choice field); another shape returns 400 naming the format with an example"
       },
       "group_index": {
        "type": "integer"
+      },
+      "scope_attr": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "date_time",
+        null
+       ],
+       "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
       }
      },
      "additionalProperties": false
@@ -35015,7 +35072,7 @@
   "properties": {
    "trigger": {
     "type": "string",
-    "description": "Field api_code, or `trade_status` for the payment status"
+    "description": "Field api_code (a table column as `<table>.<column>`), or `trade_status` for the payment status, whose codes include `paid`, `refunded` and `TRANSACTION_TIMEOUT`"
    },
    "operator": {
     "type": "string",
@@ -35035,13 +35092,25 @@
      "like",
      "not_like",
      "match"
-    ]
+    ],
+    "description": "Each field type takes the operators of the notification settings page's conditions, and also those the entry query handles beyond them, such as eq on text, gte on a date, eq / ne with one code on a radio button or with the exact set on a checkbox; any other returns 400 listing the page's"
    },
    "value": {
-    "description": "Value to compare with; choice fields take choice api_codes"
+    "description": "Value in the shape the field type and operator take, as the notification settings page saves it (an array of choice api_codes on a choice field); another shape returns 400 naming the format with an example"
    },
    "group_index": {
     "type": "integer"
+   },
+   "scope_attr": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "enum": [
+     "date_time",
+     null
+    ],
+    "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
    }
   },
   "additionalProperties": false
@@ -38753,7 +38822,7 @@
    },
    "scope_conditions": {
     "type": "array",
-    "description": "Data conditions, written as view filters are. Conditions with the same `group_index` are joined by AND or OR by its sign; groups are joined by OR. Each item reads only the keys below.",
+    "description": "Data conditions, written as the routines page saves them. Conditions with the same `group_index` are joined by AND or OR by its sign; groups are joined by OR. Each item reads only the keys below. A condition on an operator or value its field type does not take returns `422` saying what the field takes.",
     "items": {
      "type": "object",
      "properties": {
@@ -38763,7 +38832,7 @@
       },
       "operator": {
        "type": "string",
-       "description": "The comparison, such as eq, ne, gt, lt, any_in, none_in, null, not_null, like or between"
+       "description": "The comparison, one the field type offers on the routines page, such as any_in on a choice field or between on a date, or one the entry query handles beyond them, such as eq on text, gte on a date, eq / ne with one code on a radio button or with the exact set on a checkbox"
       },
       "value": {
        "description": "The value compared with"
@@ -38774,7 +38843,7 @@
       },
       "scope_attr": {
        "type": "string",
-       "description": "The attribute the condition applies to"
+       "description": "`date_time` for the date of a reservation field; left out otherwise"
       }
      }
     }
@@ -38914,7 +38983,7 @@
        },
        "scope_conditions": {
         "type": "array",
-        "description": "Data conditions, written as view filters are. Conditions with the same `group_index` are joined by AND or OR by its sign; groups are joined by OR. Each item reads only the keys below.",
+        "description": "Data conditions, written as the routines page saves them. Conditions with the same `group_index` are joined by AND or OR by its sign; groups are joined by OR. Each item reads only the keys below. A condition on an operator or value its field type does not take returns `422` saying what the field takes.",
         "items": {
          "type": "object",
          "properties": {
@@ -38924,7 +38993,7 @@
           },
           "operator": {
            "type": "string",
-           "description": "The comparison, such as eq, ne, gt, lt, any_in, none_in, null, not_null, like or between"
+           "description": "The comparison, one the field type offers on the routines page, such as any_in on a choice field or between on a date, or one the entry query handles beyond them, such as eq on text, gte on a date, eq / ne with one code on a radio button or with the exact set on a checkbox"
           },
           "value": {
            "description": "The value compared with"
@@ -38935,7 +39004,7 @@
           },
           "scope_attr": {
            "type": "string",
-           "description": "The attribute the condition applies to"
+           "description": "`date_time` for the date of a reservation field; left out otherwise"
           }
          }
         }
@@ -39444,7 +39513,7 @@
         "invalid",
         "delete_authorization_page_only"
        ],
-       "description": "What kind of reason it is: `active_limit` 20 routines are enabled already; `once_passed` a one-off's time has passed; `object_unavailable` an object or the data trigger's source does not exist or you cannot reach it;\n`field_unavailable` a trigger field does not exist, cannot be seen or cannot be watched (formula and association fields); `delete_authorization_page_only` the body named `delete_authorized`; `invalid` anything else.\n"
+       "description": "What kind of reason it is: `active_limit` 20 routines are enabled already; `once_passed` a one-off's time has passed; `object_unavailable` an object or the data trigger's source does not exist or you cannot reach it;\n`field_unavailable` a trigger field does not exist, cannot be seen, cannot be watched (formula and association fields) or cannot be used in a condition; `delete_authorization_page_only` the body named `delete_authorized`; `invalid` anything else, such as a condition's operator or value its field type does not take.\n"
       },
       "message": {
        "type": "string",
@@ -39952,7 +40021,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code, or `trade_status` for the payment status"
+       "description": "Field api_code (a table column as `<table>.<column>`), or `trade_status` for the payment status, whose codes include `paid`, `refunded` and `TRANSACTION_TIMEOUT`"
       },
       "operator": {
        "type": "string",
@@ -39972,13 +40041,25 @@
         "like",
         "not_like",
         "match"
-       ]
+       ],
+       "description": "Each field type takes the operators of the notification settings page's conditions, and also those the entry query handles beyond them, such as eq on text, gte on a date, eq / ne with one code on a radio button or with the exact set on a checkbox; any other returns 400 listing the page's"
       },
       "value": {
-       "description": "Value to compare with; choice fields take choice api_codes"
+       "description": "Value in the shape the field type and operator take, as the notification settings page saves it (an array of choice api_codes on a choice field); another shape returns 400 naming the format with an example"
       },
       "group_index": {
        "type": "integer"
+      },
+      "scope_attr": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "date_time",
+        null
+       ],
+       "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
       }
      },
      "additionalProperties": false
@@ -41569,6 +41650,13 @@
     "type": "string",
     "deprecated": true,
     "description": "Deprecated alias of `field`; use `field`."
+   },
+   "scope_attr": {
+    "type": "string",
+    "enum": [
+     "date_time"
+    ],
+    "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
    },
    "operator": {
     "type": "string",
@@ -48864,7 +48952,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code, or `trade_status` for the payment status"
+       "description": "Field api_code (a table column as `<table>.<column>`), or `trade_status` for the payment status, whose codes include `paid`, `refunded` and `TRANSACTION_TIMEOUT`"
       },
       "operator": {
        "type": "string",
@@ -48884,13 +48972,25 @@
         "like",
         "not_like",
         "match"
-       ]
+       ],
+       "description": "Each field type takes the operators of the notification settings page's conditions, and also those the entry query handles beyond them, such as eq on text, gte on a date, eq / ne with one code on a radio button or with the exact set on a checkbox; any other returns 400 listing the page's"
       },
       "value": {
-       "description": "Value to compare with; choice fields take choice api_codes"
+       "description": "Value in the shape the field type and operator take, as the notification settings page saves it (an array of choice api_codes on a choice field); another shape returns 400 naming the format with an example"
       },
       "group_index": {
        "type": "integer"
+      },
+      "scope_attr": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "date_time",
+        null
+       ],
+       "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
       }
      },
      "additionalProperties": false
@@ -48999,7 +49099,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code, or `trade_status` for the payment status"
+       "description": "Field api_code (a table column as `<table>.<column>`), or `trade_status` for the payment status, whose codes include `paid`, `refunded` and `TRANSACTION_TIMEOUT`"
       },
       "operator": {
        "type": "string",
@@ -49019,13 +49119,25 @@
         "like",
         "not_like",
         "match"
-       ]
+       ],
+       "description": "Each field type takes the operators of the notification settings page's conditions, and also those the entry query handles beyond them, such as eq on text, gte on a date, eq / ne with one code on a radio button or with the exact set on a checkbox; any other returns 400 listing the page's"
       },
       "value": {
-       "description": "Value to compare with; choice fields take choice api_codes"
+       "description": "Value in the shape the field type and operator take, as the notification settings page saves it (an array of choice api_codes on a choice field); another shape returns 400 naming the format with an example"
       },
       "group_index": {
        "type": "integer"
+      },
+      "scope_attr": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "date_time",
+        null
+       ],
+       "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
       }
      },
      "additionalProperties": false
@@ -49527,7 +49639,7 @@
      "properties": {
       "trigger": {
        "type": "string",
-       "description": "Field api_code, or `trade_status` for the payment status"
+       "description": "Field api_code (a table column as `<table>.<column>`), or `trade_status` for the payment status, whose codes include `paid`, `refunded` and `TRANSACTION_TIMEOUT`"
       },
       "operator": {
        "type": "string",
@@ -49547,13 +49659,25 @@
         "like",
         "not_like",
         "match"
-       ]
+       ],
+       "description": "Each field type takes the operators of the notification settings page's conditions, and also those the entry query handles beyond them, such as eq on text, gte on a date, eq / ne with one code on a radio button or with the exact set on a checkbox; any other returns 400 listing the page's"
       },
       "value": {
-       "description": "Value to compare with; choice fields take choice api_codes"
+       "description": "Value in the shape the field type and operator take, as the notification settings page saves it (an array of choice api_codes on a choice field); another shape returns 400 naming the format with an example"
       },
       "group_index": {
        "type": "integer"
+      },
+      "scope_attr": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "date_time",
+        null
+       ],
+       "description": "Only for a reservation field tested by its date: `date_time`; leave it out otherwise. `GET /forms/{form_token}/condition_triggerable_fields` gives it for each field that needs it"
       }
      },
      "additionalProperties": false
