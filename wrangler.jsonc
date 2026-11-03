@@ -1,5 +1,5 @@
 {
-  // Workers-style deployment (Cloudflare Workers, or any compatible self-hosted platform such as WDL). The server is stateless: no Durable Objects, KV or OAuth Provider.
+  // Workers-style deployment (Cloudflare Workers, or any compatible self-hosted platform such as WDL). Requests are stateless: no Durable Objects or OAuth Provider, and the one KV namespace below is only a cache.
   // The public URL comes from the runtime variable / secret JINSHUJU_MCP_PUBLIC_URL, not from here; a comma-separated list
   // (custom domain + the platform's default prefixed URL) is chosen by the request's Host. Without it the URL is inferred from the request and X-Forwarded-*; on WDL that cannot recover https or the prefix, so set it.
   "name": "jinshuju-mcp",
@@ -7,6 +7,10 @@
   "compatibility_date": "2026-06-17",
   "compatibility_flags": ["nodejs_compat"],
   "routes": ["mcp.jinshuju.net/*", "jinshuju.net/*"],
+  // Token verifications shared by every isolate (see src/auth.ts); without the binding each isolate caches on its own.
+  // On WDL the id is a namespace-local name, created on first use. On Cloudflare, create a namespace
+  // (`wrangler kv namespace create TOKEN_CACHE`) and put its id here, or remove the entry.
+  "kv_namespaces": [{ "binding": "TOKEN_CACHE", "id": "token-cache" }],
   "wdl": {
     "session_policy": "restart"
   }

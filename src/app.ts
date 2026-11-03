@@ -33,7 +33,14 @@ import {
 import { captureException, setUser } from '@sentry/cloudflare';
 import { analyticsFromConfig, CONTEXT_INSTRUCTIONS, type McpAnalytics, type RequestAnalytics } from './analytics.js';
 import { JinshujuApi, TransportError } from './api.js';
-import { TokenVerifier, bearerToken, challenge, loadAuthServerMetadata, userIdOf } from './auth.js';
+import {
+  TokenVerifier,
+  bearerToken,
+  challenge,
+  loadAuthServerMetadata,
+  userIdOf,
+  type SharedTokenCache
+} from './auth.js';
 import type { Config } from './config.js';
 import { DEFAULTS } from './config.js';
 import { StaticCredential } from './credential.js';
@@ -48,6 +55,11 @@ export interface AppOptions {
   authServerMetadata?: OAuthMetadata;
   /** Analytics. Omitted, config decides (on only with posthogApiKey); null forces it off; node.ts / tests pass their own instance */
   analytics?: McpAnalytics | null;
+  /**
+   * A cache of token verifications every instance shares (the Workers entry passes its KV binding). Omitted, each
+   * instance caches only in its own memory.
+   */
+  tokenCache?: SharedTokenCache;
 }
 
 export const MCP_PATH = '/mcp';
@@ -59,6 +71,7 @@ export function createApp(options: AppOptions = {}): Hono {
   const verifier = new TokenVerifier({
     api,
     cacheTtlMs: cfg.tokenCacheTtlMs,
+    shared: options.tokenCache ? { store: options.tokenCache, ttlMs: cfg.tokenSharedCacheTtlMs } : undefined,
     authServer: cfg.authServer,
     fetch: fetchImpl
   });

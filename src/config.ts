@@ -14,8 +14,13 @@ export interface Config {
   publicUrls: string[];
   /** Most characters one tool result returns; beyond it the result is truncated with a hint to narrow it */
   maxResultChars: number;
-  /** How long token verification results are cached in HTTP mode (ms) */
+  /** How long token verification results are cached in HTTP mode, in each instance's own memory (ms) */
   tokenCacheTtlMs: number;
+  /**
+   * How long token verification results stay in the cache every instance shares (ms), when the deployment binds one
+   * (the Workers KV binding TOKEN_CACHE). OAuth access tokens live about two hours, so a longer time saves little.
+   */
+  tokenSharedCacheTtlMs: number;
   /** Timeout of API calls (ms) */
   timeoutMs: number;
   /** PostHog project token (phc_…) for MCP analytics in HTTP mode; nothing is reported when empty */
@@ -32,6 +37,7 @@ export const DEFAULTS: Config = {
   publicUrls: [],
   maxResultChars: 120_000,
   tokenCacheTtlMs: 5 * 60_000,
+  tokenSharedCacheTtlMs: 60 * 60_000,
   timeoutMs: 60_000,
   posthogHost: 'https://us.i.posthog.com',
   collectIntent: true
@@ -67,6 +73,7 @@ export function configFromEnv(env: EnvLike = process.env): Config {
     publicUrls: publicUrlsFromEnv(env.JINSHUJU_MCP_PUBLIC_URL),
     maxResultChars: int(env.JINSHUJU_MCP_MAX_RESULT_CHARS, DEFAULTS.maxResultChars),
     tokenCacheTtlMs: int(env.JINSHUJU_MCP_TOKEN_CACHE_TTL_MS, DEFAULTS.tokenCacheTtlMs),
+    tokenSharedCacheTtlMs: int(env.JINSHUJU_MCP_TOKEN_SHARED_CACHE_TTL_MS, DEFAULTS.tokenSharedCacheTtlMs),
     timeoutMs: int(env.JINSHUJU_MCP_TIMEOUT_MS, DEFAULTS.timeoutMs),
     posthogApiKey: env.POSTHOG_API_KEY?.trim() || undefined,
     posthogHost: (env.POSTHOG_HOST?.trim() || DEFAULTS.posthogHost).replace(/\/$/, ''),

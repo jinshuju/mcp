@@ -9,7 +9,8 @@ How `@jinshuju/mcp` fits together, and why. The README says what it does and [DE
 - **Generated at build time, not at run time.** `npm run generate` turns the YAML into `src/generated/*.json`, which is committed.
   Nothing parses YAML or resolves `$ref` at run time; a Workers cold start is as fast as a Node process, and a PR shows the tool diff directly.
 - **Stateless.** One `McpServer` per HTTP request, remembering nothing. This is the MCP 2026-07-28 model, and it is why the service scales out freely
-  without Durable Objects / KV / sticky sessions. Clients on the 2025 legacy handshake are served statelessly by the SDK's fallback.
+  without Durable Objects / sticky sessions. Clients on the 2025 legacy handshake are served statelessly by the SDK's fallback.
+  The one thing kept across requests is the token verification cache (see step 2 below), and losing it costs only API requests.
 - **Resource Server only.** Tokens are issued by account.jinshuju.net and checked by API v1; this service issues none.
 - **The server owns the vocabulary.** Field types, scenes and operators belong to the API; this service validates shapes (JSON Schema) and passes the words through unchanged.
 
@@ -31,7 +32,7 @@ src/
   server.ts       buildServer: McpServer + tools + resources + instructions
   credential.ts   Credential interface + Bearer string credential (no Node dependencies; the only one in the Worker bundle)
   cli-credential.ts  Local credential for stdio: ~/.jinshuju/config.json (shared with @jinshuju/cli, with refresh)
-  auth.ts         HTTP authentication: Bearer extraction, verification cached by token hash (GET /me), 401 challenge, AS metadata
+  auth.ts         HTTP authentication: Bearer extraction, verification cached by token hash in memory and an optional shared KV (GET /me), 401 challenge, AS metadata
   analytics.ts    PostHog MCP analytics (@posthog/mcp): instruments the McpServer per request, decides what is and is not reported
   app.ts          Hono app: /, /healthz, /.well-known/*, /mcp
   node.ts         Node entry (official deployment: Docker)
@@ -56,7 +57,12 @@ The overlay's `include` decides the tool set: 59 tools map one to one onto opera
 2. `TokenVerifier` looks the token's SHA-256 up in its cache; on a miss it calls `GET /me`. Only `401` means invalid (`403` means insufficient scope; the token itself is valid).
    When `GET /me` does not answer `200` (an OAuth token without the `users` scope gets `403`), the user id comes from the authorization server's `GET /oauth/token/info`
    (`resource_owner_id`, the same id; no name), which answers for any scope; personal and account tokens get `401` there and stay anonymous.
-   The result is cached for 5 minutes, so a tool call does not spend an extra API request.
+   The result is cached at two levels, both keyed by the token's SHA-256: the isolate's own memory (5 minutes), and, when the Workers entry has the KV binding
+   `TOKEN_CACHE`, a namespace every isolate shares (1 hour; the value holds the user id and an end time, never the token or the name).
+   A platform spreads one client's requests over many isolates, so the memory level alone misses nearly every time; the shared level is what lets a handshake
+   (initialize, the initialized notification, tools/list) and the calls after it spend one `GET /me` between them. One hour because OAuth access tokens live
+   about two: a longer entry would mostly outlive its token. Only valid tokens are cached. When the API answers a tool call with `401`, both levels forget the token.
+   A shared cache that fails or times out is treated as a miss.
 3. `createMcpHandler` uses a factory to build an `McpServer` for this request (`buildServer`); the token is closed over in every tool handler.
    With `POSTHOG_API_KEY` set, the factory also runs `analytics.instrument(server, authInfo)`: the user id and the session id derived from the token are closed over in this one request.
    Requests on the 2025 legacy handshake (`isLegacyRequest`) do not take the SDK's own stateless fallback; they get their own `enableJsonResponse` transport:
@@ -131,7 +137,8 @@ over ten thousand tokens; as one line plus a `get_schema` tool, the model reads 
   The public URL can be set with `JINSHUJU_MCP_PUBLIC_URL` (it may carry a path prefix, e.g. `https://host/jinshuju-mcp`; a comma-separated list is chosen by the request's Host,
   falling back to the first), otherwise the reverse proxy's `X-Forwarded-Proto/Host/Prefix` are trusted. Under a prefix, `resource_metadata` in the 401 challenge points to the well-known document under this service's own path,
   not the domain root (the root does not belong to this service); RFC 9728 lets clients fetch the URL the challenge gives.
-- **Workers (optional).** `wrangler.jsonc` has no bindings; `worker.ts` just exports the Hono app. Platforms like WDL forward in plain text after TLS termination,
+- **Workers (optional).** `worker.ts` exports the Hono app; `wrangler.jsonc`'s one binding is the KV namespace `TOKEN_CACHE` for the shared token cache
+  (WDL creates it on first use; on Cloudflare, create one and put its id there, or drop the entry and keep the per-isolate cache). Platforms like WDL forward in plain text after TLS termination,
   with `X-Forwarded-Proto` set to http and no `X-Forwarded-Prefix`, so inferring from the request gives the wrong URL. `JINSHUJU_MCP_PUBLIC_URL` is therefore required there,
   listing both the custom domain and the platform's default prefixed URL; the service picks one by Host.
 

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/client';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { createApp } from './app.js';
+import type { SharedTokenCache } from './auth.js';
 
 const AS = {
   issuer: 'https://account.test',
@@ -11,7 +12,7 @@ const AS = {
   response_types_supported: ['code']
 };
 
-function app(meCalls: { count: number }, token = 'good') {
+function app(meCalls: { count: number }, token = 'good', tokenCache?: SharedTokenCache) {
   const fetchImpl: typeof fetch = async (input, init) => {
     const url = String(input);
     const auth = new Headers(init?.headers).get('authorization');
@@ -31,8 +32,20 @@ function app(meCalls: { count: number }, token = 'good') {
   return createApp({
     config: { apiBaseUrl: 'https://api.test/api/v1', publicUrls: ['https://mcp.test'] },
     fetch: fetchImpl,
-    authServerMetadata: AS
+    authServerMetadata: AS,
+    tokenCache
   });
+}
+
+/** An MCP client whose requests go straight to the given app. */
+async function connect(a: ReturnType<typeof createApp>, token = 'good'): Promise<Client> {
+  const transport = new StreamableHTTPClientTransport(new URL('https://mcp.test/mcp'), {
+    fetch: async (input, init) => a.request(input instanceof Request ? input : String(input), init),
+    requestInit: { headers: { Authorization: `Bearer ${token}` } }
+  });
+  const client = new Client({ name: 'test', version: '0.0.0' });
+  await client.connect(transport);
+  return client;
 }
 
 test("no token: 401 with WWW-Authenticate pointing at this server's PRM", async () => {
@@ -198,6 +211,28 @@ test('invalid token: 401; valid token: tools/list succeeds and the verification 
   assert.equal(result.isError, undefined);
   await client.close();
   assert.equal(me.count, 2, 'one failure + one success, then a cache hit');
+});
+
+test('with a shared token cache, a second instance serves a whole session without verifying again', async () => {
+  const values = new Map<string, string>();
+  const tokenCache: SharedTokenCache = {
+    get: async (key) => values.get(key) ?? null,
+    put: async (key, value) => void values.set(key, value),
+    delete: async (key) => void values.delete(key)
+  };
+  const me = { count: 0 };
+  // Two apps over one cache: two isolates of one deployment
+  const first = await connect(app(me, 'good', tokenCache));
+  await first.listTools();
+  await first.close();
+  assert.equal(me.count, 1);
+
+  const second = await connect(app(me, 'good', tokenCache));
+  await second.listTools();
+  const result = await second.callTool({ name: 'list_forms', arguments: { limit: 1 } });
+  assert.equal(result.isError, undefined);
+  await second.close();
+  assert.equal(me.count, 1, 'the second instance found the verification in the shared cache');
 });
 
 test('legacy (2025 handshake) client: initialize goes through the stateless fallback', async () => {
