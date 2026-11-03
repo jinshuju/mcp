@@ -50,8 +50,7 @@ function verifier(
   };
   const v = new TokenVerifier({
     api: new JinshujuApi({ baseUrl: 'https://api.test/api/v1', fetch: fetchImpl }),
-    cacheTtlMs: 60_000,
-    shared: options.shared ? { store: options.shared, ttlMs: HOUR } : undefined,
+    shared: options.shared,
     authServer: 'https://account.test/',
     fetch: fetchImpl,
     now: options.now
@@ -137,7 +136,6 @@ test('without an authorization server, a token GET /me does not name stays anony
   };
   const v = new TokenVerifier({
     api: new JinshujuApi({ baseUrl: 'https://api.test/api/v1', fetch: fetchImpl }),
-    cacheTtlMs: 60_000,
     fetch: fetchImpl
   });
   const info = await v.verify('forms-only');
@@ -217,7 +215,7 @@ test('a shared entry lasts its TTL, and the memory cache it fills ends with it',
   t = HOUR - 30_000;
   await b.v.verify('good');
   assert.equal(b.calls.length, 0, 'still in the shared cache');
-  // Within b's 60-second memory TTL, but past the shared entry: b must not keep the token any longer than the shared cache
+  // Within b's 5-minute memory TTL, but past the shared entry: b must not keep the token any longer than the shared cache
   t = HOUR + 1;
   await b.v.verify('good');
   assert.equal(b.calls.length, 1);

@@ -17,22 +17,20 @@ After changing `mcp.overlay.yaml` or updating `spec/openapi.yaml`, run `npm run 
 
 ## Environment variables
 
-| Variable                                 | Meaning                                                                                                                                                |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `JINSHUJU_ACCESS_TOKEN`                  | Credential for stdio mode; when set, the config file is not read                                                                                       |
-| `JINSHUJU_CONFIG`                        | Config file path, default `~/.jinshuju/config.json`                                                                                                    |
-| `JINSHUJU_API_BASE_URL`                  | API URL, default `https://jinshuju.net/api/v1`                                                                                                         |
-| `JINSHUJU_AUTH_HOST`                     | Authorization server, default `https://account.jinshuju.net`                                                                                           |
-| `JINSHUJU_MCP_PUBLIC_URL`                | Public URL in HTTP mode (the resource in the OAuth metadata); a comma-separated list is chosen by the request's Host; empty infers it from the request |
-| `JINSHUJU_MCP_MAX_RESULT_CHARS`          | Maximum characters of one result, default 120000; longer results are truncated with a hint to page                                                     |
-| `JINSHUJU_MCP_TOKEN_CACHE_TTL_MS`        | Token verification cache in HTTP mode, in each instance's memory, default 5 minutes                                                                    |
-| `JINSHUJU_MCP_TOKEN_SHARED_CACHE_TTL_MS` | Token verification cache shared by every instance (Workers KV binding `TOKEN_CACHE`), default 1 hour                                                   |
-| `POSTHOG_API_KEY`                        | PostHog project token (`phc_…`); when set, HTTP mode reports MCP analytics, see below                                                                  |
-| `POSTHOG_HOST`                           | PostHog ingestion host, default `https://us.i.posthog.com`                                                                                             |
-| `JINSHUJU_MCP_COLLECT_INTENT`            | Whether the model writes the user's intent in each call (`context` argument → `$mcp_intent`), default `true`                                           |
-| `SENTRY_DSN`                             | Sentry project DSN; when set, the Workers entry reports exceptions, see below                                                                          |
-| `SENTRY_ENVIRONMENT`                     | Sentry environment name, optional                                                                                                                      |
-| `PORT` / `HOST`                          | Where the Node entry listens, default 8787 / 0.0.0.0                                                                                                   |
+| Variable                        | Meaning                                                                                                                                                |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `JINSHUJU_ACCESS_TOKEN`         | Credential for stdio mode; when set, the config file is not read                                                                                       |
+| `JINSHUJU_CONFIG`               | Config file path, default `~/.jinshuju/config.json`                                                                                                    |
+| `JINSHUJU_API_BASE_URL`         | API URL, default `https://jinshuju.net/api/v1`                                                                                                         |
+| `JINSHUJU_AUTH_HOST`            | Authorization server, default `https://account.jinshuju.net`                                                                                           |
+| `JINSHUJU_MCP_PUBLIC_URL`       | Public URL in HTTP mode (the resource in the OAuth metadata); a comma-separated list is chosen by the request's Host; empty infers it from the request |
+| `JINSHUJU_MCP_MAX_RESULT_CHARS` | Maximum characters of one result, default 120000; longer results are truncated with a hint to page                                                     |
+| `POSTHOG_API_KEY`               | PostHog project token (`phc_…`); when set, HTTP mode reports MCP analytics, see below                                                                  |
+| `POSTHOG_HOST`                  | PostHog ingestion host, default `https://us.i.posthog.com`                                                                                             |
+| `JINSHUJU_MCP_COLLECT_INTENT`   | Whether the model writes the user's intent in each call (`context` argument → `$mcp_intent`), default `true`                                           |
+| `SENTRY_DSN`                    | Sentry project DSN; when set, the Workers entry reports exceptions, see below                                                                          |
+| `SENTRY_ENVIRONMENT`            | Sentry environment name, optional                                                                                                                      |
+| `PORT` / `HOST`                 | Where the Node entry listens, default 8787 / 0.0.0.0                                                                                                   |
 
 ## Deployment
 

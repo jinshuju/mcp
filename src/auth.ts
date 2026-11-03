@@ -5,9 +5,9 @@
  *   issues no tokens;
  * - the request's Bearer (an OAuth token or a personal / account access token) goes to API v1 as is;
  * - the API decides whether a token is valid: one light call (GET /me) checks it, and the result is cached by token
- *   hash, so every request does not spend an extra API request. The cache has two levels: this isolate's own map, and,
- *   when the deployment binds one, a KV namespace every instance shares. A platform spreads one client's requests over
- *   many isolates, so without the shared level nearly every request misses;
+ *   hash, so every request does not spend an extra API request. The cache has two levels: this isolate's own map
+ *   (5 minutes), and, when the deployment binds one, a KV namespace every instance shares (1 hour). A platform spreads one
+ *   client's requests over many isolates, so without the shared level nearly every request misses;
  * - GET /me also names the user. An OAuth token without the `users` scope gets 403 there, so the user id then comes from
  *   the authorization server's token info, which answers whatever the token's scopes;
  * - with no token or an invalid one, answers 401 + WWW-Authenticate: Bearer resource_metadata=..., and the client
@@ -31,10 +31,8 @@ export interface SharedTokenCache {
 
 export interface VerifierOptions {
   api: JinshujuApi;
-  /** How long a verification stays in this isolate's own cache (ms) */
-  cacheTtlMs: number;
-  /** A cache every instance shares, asked when this isolate's own cache misses; its entries live `ttlMs`. */
-  shared?: { store: SharedTokenCache; ttlMs: number };
+  /** A cache every instance shares, asked when this isolate's own cache misses */
+  shared?: SharedTokenCache;
   /** OAuth authorization server (issuer). When set, a valid token GET /me does not name is looked up at its token info. */
   authServer?: string;
   /** The fetch used for the token info lookup; the global fetch by default */
@@ -46,11 +44,21 @@ export interface VerifierOptions {
 /** Time limit of the token info lookup: it only names the user, so a slow authorization server must not hold up the request for long. */
 const TOKEN_INFO_TIMEOUT_MS = 5_000;
 
+/**
+ * How long a verification stays in this isolate's own memory. Shorter than the shared entry, so a token forgotten on
+ * another isolate (the API refused it there) is verified again here within minutes.
+ */
+const MEMORY_TTL_MS = 5 * 60_000;
+
+/**
+ * How long a verification stays in the shared cache. OAuth access tokens live about two hours, so a longer entry would
+ * mostly outlive its token; a revoked token passes handshakes and tools/list for at most this long (tool calls are
+ * checked by the API, and a 401 there forgets it).
+ */
+const SHARED_TTL_MS = 60 * 60_000;
+
 /** Key prefix in the shared cache, followed by the token's SHA-256 (never the token itself). */
 const SHARED_KEY_PREFIX = 'auth:';
-
-/** Workers KV refuses an expirationTtl under 60 seconds. */
-const MIN_SHARED_TTL_SECONDS = 60;
 
 /**
  * A shared cache entry: the user id (absent when no user was identified) and when the entry ends. Only what a request
@@ -93,7 +101,7 @@ export class TokenVerifier {
         shared.userId === undefined || shared.userId === null ? undefined : { userId: shared.userId }
       );
       // Never longer than the shared entry: a token forgotten elsewhere must not live on here past it
-      this.remember(key, info, Math.min(this.now() + this.options.cacheTtlMs, shared.until));
+      this.remember(key, info, Math.min(this.now() + MEMORY_TTL_MS, shared.until));
       return info;
     }
     const res = await this.options.api.raw('GET', '/me', token);
@@ -101,7 +109,7 @@ export class TokenVerifier {
     if (res.status === 401) return undefined;
     const me = (res.status === 200 ? res.json : undefined) as { id?: unknown; name?: unknown } | undefined;
     const info = authInfo(token, me ? { userId: me.id, userName: me.name } : await this.tokenOwner(token));
-    this.remember(key, info, this.now() + this.options.cacheTtlMs);
+    this.remember(key, info, this.now() + MEMORY_TTL_MS);
     await this.writeShared(key, info);
     return info;
   }
@@ -113,7 +121,7 @@ export class TokenVerifier {
     const shared = this.options.shared;
     if (!shared) return;
     try {
-      await shared.store.delete(SHARED_KEY_PREFIX + key);
+      await shared.delete(SHARED_KEY_PREFIX + key);
     } catch (error) {
       console.warn('shared token cache delete failed:', error);
     }
@@ -133,7 +141,7 @@ export class TokenVerifier {
     if (!shared) return undefined;
     let raw: string | null;
     try {
-      raw = await shared.store.get(SHARED_KEY_PREFIX + key);
+      raw = await shared.get(SHARED_KEY_PREFIX + key);
     } catch (error) {
       console.warn('shared token cache read failed:', error);
       return undefined;
@@ -151,10 +159,9 @@ export class TokenVerifier {
   private async writeShared(key: string, info: AuthInfo): Promise<void> {
     const shared = this.options.shared;
     if (!shared) return;
-    const entry: SharedEntry = { userId: info.extra?.userId, until: this.now() + shared.ttlMs };
-    const expirationTtl = Math.max(MIN_SHARED_TTL_SECONDS, Math.ceil(shared.ttlMs / 1000));
+    const entry: SharedEntry = { userId: info.extra?.userId, until: this.now() + SHARED_TTL_MS };
     try {
-      await shared.store.put(SHARED_KEY_PREFIX + key, JSON.stringify(entry), { expirationTtl });
+      await shared.put(SHARED_KEY_PREFIX + key, JSON.stringify(entry), { expirationTtl: SHARED_TTL_MS / 1000 });
     } catch (error) {
       console.warn('shared token cache write failed:', error);
     }

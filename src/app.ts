@@ -70,8 +70,7 @@ export function createApp(options: AppOptions = {}): Hono {
   const api = new JinshujuApi({ baseUrl: cfg.apiBaseUrl, fetch: fetchImpl, timeoutMs: cfg.timeoutMs });
   const verifier = new TokenVerifier({
     api,
-    cacheTtlMs: cfg.tokenCacheTtlMs,
-    shared: options.tokenCache ? { store: options.tokenCache, ttlMs: cfg.tokenSharedCacheTtlMs } : undefined,
+    shared: options.tokenCache,
     authServer: cfg.authServer,
     fetch: fetchImpl
   });
