@@ -1,7 +1,7 @@
 /**
  * The credential source interface and its simplest implementation.
  *
- * HTTP mode: every request brings its own Bearer, and the credential is that string (StaticCredential).
+ * HTTP mode: every request brings its own Bearer, and app.ts wraps it in a credential that, on a 401, has the token verifier forget it.
  * The local credential for stdio mode (~/.jinshuju/config.json, with refresh) lives in cli-credential.ts,
  * which depends on node:fs; this file uses no Node API, so the Worker bundle pulls in no node: modules.
  */

@@ -61,7 +61,7 @@ The overlay's `include` decides the tool set: 59 tools map one to one onto opera
    `TOKEN_CACHE`, a namespace every isolate shares (1 hour; the value holds the user id and an end time, never the token or the name).
    A platform spreads one client's requests over many isolates, so the memory level alone misses nearly every time; the shared level is what lets a handshake
    (initialize, the initialized notification, tools/list) and the calls after it spend one `GET /me` between them. One hour because OAuth access tokens live
-   about two: a longer entry would mostly outlive its token. Only valid tokens are cached. When the API answers a tool call with `401`, both levels forget the token.
+   about two: a longer entry would mostly outlive its token. Only valid tokens are cached. When the API answers a tool call with `401`, both levels forget the token (step 5).
    A shared cache that fails or times out is treated as a miss.
 3. `createMcpHandler` uses a factory to build an `McpServer` for this request (`buildServer`); the token is closed over in every tool handler.
    With `POSTHOG_API_KEY` set, the factory also runs `analytics.instrument(server, authInfo)`: the user id and the session id derived from the token are closed over in this one request.
@@ -73,7 +73,8 @@ The overlay's `include` decides the tool set: 59 tools map one to one onto opera
 5. `JinshujuApi.call` builds the URL: path parameters are `encodeURIComponent`ed, empty query values are left out, arrays are sent as `name[]=` (how the server reads arrays),
    and a parameter declared with `content: application/json` (`filters` / `sort` / `metrics` / `dimensions` / `checks`) is sent as one value holding the JSON text, whether the model passed the array or the text;
    the request body = the arguments left after removing path / query parameters (flatten), or the `bodyParam` key; JSON / multipart (the base64 triple becomes a file again).
-   When the API answers `401`, the credential refreshes once and retries (only meaningful for stdio OAuth sessions). For composite tools, `composites.ts` decides which request goes first
+   When the API answers `401`, the credential refreshes once and retries (only stdio OAuth sessions can). In HTTP mode it cannot renew the client's token, so it has the verifier forget it instead:
+   the refusal reaches the client as an `isError` result inside a `200`, and its next request gets the `401` challenge that has it re-authorize. For composite tools, `composites.ts` decides which request goes first
    and what to say on failure (creating an exam form: the form first, then the settings, and a rejected setting says plainly "The form was created"; editing an exam form: the settings first, and if they are rejected none of the other changes are sent).
 6. `toToolResult`: 2xx → compact JSON text (truncated past `maxResultChars` with a hint to use fields / limit / next);
    tools with an `outputSchema` also get `structuredContent`; non-2xx → `isError`, with the HTTP status, `error_description`,

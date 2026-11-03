@@ -12,20 +12,24 @@ const AS = {
   response_types_supported: ['code']
 };
 
-function app(meCalls: { count: number }, token = 'good', tokenCache?: SharedTokenCache) {
+/** An app over a fake API that accepts `token` until `revoked()` says otherwise. */
+function app(meCalls: { count: number }, token = 'good', tokenCache?: SharedTokenCache, revoked = () => false) {
   const fetchImpl: typeof fetch = async (input, init) => {
     const url = String(input);
-    const auth = new Headers(init?.headers).get('authorization');
+    const accepted = new Headers(init?.headers).get('authorization') === `Bearer ${token}` && !revoked();
+    const refused = () => new Response('{"error":"invalid_token"}', { status: 401 });
     if (url.endsWith('/me')) {
       meCalls.count++;
-      return auth === `Bearer ${token}`
+      return accepted
         ? new Response('{"id":"u1","name":"周"}', { headers: { 'Content-Type': 'application/json' } })
-        : new Response('{"error":"invalid_token"}', { status: 401 });
+        : refused();
     }
     if (url.includes('/forms')) {
-      return new Response('{"total":0,"count":0,"data":[],"next":null}', {
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return accepted
+        ? new Response('{"total":0,"count":0,"data":[],"next":null}', {
+            headers: { 'Content-Type': 'application/json' }
+          })
+        : refused();
     }
     return new Response('not found', { status: 404 });
   };
@@ -35,6 +39,16 @@ function app(meCalls: { count: number }, token = 'good', tokenCache?: SharedToke
     authServerMetadata: AS,
     tokenCache
   });
+}
+
+/** A KV namespace in memory, standing for the one every instance of a deployment shares. */
+function sharedCache(): SharedTokenCache {
+  const values = new Map<string, string>();
+  return {
+    get: async (key) => values.get(key) ?? null,
+    put: async (key, value) => void values.set(key, value),
+    delete: async (key) => void values.delete(key)
+  };
 }
 
 /** An MCP client whose requests go straight to the given app. */
@@ -214,12 +228,7 @@ test('invalid token: 401; valid token: tools/list succeeds and the verification 
 });
 
 test('with a shared token cache, a second instance serves a whole session without verifying again', async () => {
-  const values = new Map<string, string>();
-  const tokenCache: SharedTokenCache = {
-    get: async (key) => values.get(key) ?? null,
-    put: async (key, value) => void values.set(key, value),
-    delete: async (key) => void values.delete(key)
-  };
+  const tokenCache = sharedCache();
   const me = { count: 0 };
   // Two apps over one cache: two isolates of one deployment
   const first = await connect(app(me, 'good', tokenCache));
@@ -233,6 +242,31 @@ test('with a shared token cache, a second instance serves a whole session withou
   assert.equal(result.isError, undefined);
   await second.close();
   assert.equal(me.count, 1, 'the second instance found the verification in the shared cache');
+});
+
+test('the API refuses the token during a tool call: the next request, on any instance, gets the 401 challenge', async () => {
+  const tokenCache = sharedCache();
+  let revoked = false;
+  const first = app({ count: 0 }, 'good', tokenCache, () => revoked);
+  const client = await connect(first);
+  // Revoked after the handshake, while both cache levels still hold its verification
+  revoked = true;
+  const result = await client.callTool({ name: 'list_forms', arguments: { limit: 1 } });
+  assert.equal(result.isError, true, 'the refusal itself reaches the client as a tool result');
+  await client.close();
+  for (const a of [first, app({ count: 0 }, 'good', tokenCache, () => revoked)]) {
+    const res = await a.request('https://mcp.test/mcp', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer good',
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream'
+      },
+      body: '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+    });
+    assert.equal(res.status, 401);
+    assert.match(res.headers.get('www-authenticate') ?? '', /^Bearer .*resource_metadata=/);
+  }
 });
 
 test('legacy (2025 handshake) client: initialize goes through the stateless fallback', async () => {

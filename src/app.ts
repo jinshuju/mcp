@@ -43,7 +43,7 @@ import {
 } from './auth.js';
 import type { Config } from './config.js';
 import { DEFAULTS } from './config.js';
-import { StaticCredential } from './credential.js';
+import type { Credential } from './credential.js';
 import { buildServer, INSTRUCTIONS, META } from './server.js';
 import { TOOLS } from './tools.js';
 import { SERVER_TITLE, VERSION } from './version.js';
@@ -88,11 +88,25 @@ export function createApp(options: AppOptions = {}): Hono {
   // so the user and session follow the request. The analytics handle is stored per request object: the factory installs
   // it, and the route takes it out to flush after the response goes out.
   const trackers = new WeakMap<Request, RequestAnalytics>();
+  /**
+   * The request's Bearer, as the tools' credential. The API refusing it during a tool call (it expired or was revoked
+   * mid-way) reaches the client as an `isError` result inside a 200, which the route cannot tell apart, so the credential
+   * tells the verifier instead: the next request, on any instance, verifies again and gets the 401 challenge that has the
+   * client re-authorize. It cannot renew the token, so `api.call` does not retry.
+   */
+  const requestCredential = (token: string): Credential => ({
+    token: async () => token,
+    invalidate: async () => {
+      await verifier.forget(token);
+      return false;
+    },
+    describe: () => 'access token (bearer)'
+  });
   const factory = async (ctx: McpRequestContext) => {
     const token = ctx.authInfo?.token;
     if (!token) throw new Error('unauthenticated request reached the MCP handler');
     const server = buildServer({
-      credential: new StaticCredential(token),
+      credential: requestCredential(token),
       config: cfg,
       fetch: fetchImpl,
       instructions,
@@ -233,8 +247,6 @@ export function createApp(options: AppOptions = {}): Hono {
     const response = (await isLegacyRequest(request))
       ? await serveLegacy(request, authInfo)
       : await handler.fetch(request, { authInfo });
-    // The API answered 401 during a tool call (the token expired mid-way): make the next request verify again.
-    if (response.status === 401) await verifier.forget(token);
     const tracker = trackers.get(request);
     if (tracker) flushInBackground(c, tracker);
     return response;
