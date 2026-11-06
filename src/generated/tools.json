@@ -5696,7 +5696,8 @@
       "opensearch_header",
       "description",
       "goods_item",
-      "contact_widget"
+      "contact_widget",
+      "reservation_item"
      ],
      "description": "What the image is for"
     }
@@ -5937,7 +5938,8 @@
       "opensearch_header",
       "description",
       "goods_item",
-      "contact_widget"
+      "contact_widget",
+      "reservation_item"
      ],
      "description": "What the image is for"
     },
