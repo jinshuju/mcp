@@ -103,8 +103,10 @@ jobs:
           fi
 
   # Keeps the version moving, as release-please did on GitHub (scripts/release.mjs): every push to main refreshes the
-  # release pull request `chore(main): release X.Y.Z` from the conventional commits since the last tag, and once it is
-  # merged, tags the version and writes the Gitea release.
+  # release pull request `chore(main): release X.Y.0` from the conventional commits since the last tag, and once it is
+  # merged, tags the version and writes the Gitea release. It also refreshes the deploy pull request
+  # `chore(main): deploy X.Y.Z` from the commits since src/version.ts last changed; that one moves only the patch in
+  # src/version.ts, so merging it deploys main (deploy.yml) and tags or publishes nothing.
   #
   # Commit subjects must be plain conventional commits: `#T17067 feat: ...` does not parse and never releases. Put the
   # ticket in a footer; a `Release-As: X.Y.Z` footer sets the version.

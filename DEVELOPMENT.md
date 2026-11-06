@@ -52,7 +52,9 @@ After changing `mcp.overlay.yaml` or updating `spec/openapi.yaml`, run `npm run 
 
   to report to PostHog add the secret `POSTHOG_API_KEY`; to report to Sentry add `SENTRY_DSN`.
 
-  `.gitea/workflows/deploy.yml` does the same from Gitea Actions: on its own when a release lands on `main`, and on demand (Actions → Deploy → Run workflow). It checks, tests and deploys; rerunning an older run rolls back to its commit.
+  `.gitea/workflows/deploy.yml` does the same from Gitea Actions: on its own when a release or a deploy pull request lands on `main`, and on demand (Actions → Deploy → Run workflow, which deploys `main` again under the version it already has). It checks, tests and deploys; rerunning an older run rolls back to its commit.
+
+  To deploy what is on `main` without releasing, merge the deploy pull request `chore(main): deploy X.Y.Z` that CI keeps open: it only moves the patch in `src/version.ts`, so the deploy gets a version of its own in the logs, and nothing is tagged or published.
 
 Requests are stateless and the service needs no database or Durable Objects. On Workers-style platforms one KV
 namespace, bound as `TOKEN_CACHE` in `wrangler.jsonc`, shares token verifications across isolates; WDL creates it on

@@ -39,7 +39,7 @@ src/
   worker.ts       Cloudflare Workers entry (optional)
   stdio.ts        Local stdio entry (npm bin: jinshuju-mcp)
   config.ts       Environment variables -> Config
-  version.ts      Version number (kept in step with package.json by scripts/release.mjs)
+  version.ts      Version number (scripts/release.mjs writes it: a release sets it with package.json, a deploy moves its patch alone)
   *.test.ts       node:test; no network, every fetch is injected
 ```
 
@@ -163,6 +163,7 @@ never through an MCP under test. Design, task format and metrics are in [evals/R
 
 - CI checks that `npm run generate` leaves no diff in `src/generated`, so the output never drifts.
 - `spec-sync.yml` fetches the live openapi.yaml daily and, when it changed, regenerates and opens a PR — a person only reviews the tool diff. `scripts/sync-summary.mjs` titles it from that diff (added / removed tools, new fields, updated tools), since the squash-merged title is the CHANGELOG line.
-- CI's `pre-release` job runs `scripts/release.mjs` once the tests pass on a push to main: the conventional commits since the last tag keep the release PR (`chore(main): release X.Y.Z`) current, and merging it tags the version and writes the Gitea release.
+- CI's `pre-release` job runs `scripts/release.mjs` once the tests pass on a push to main: the conventional commits since the last tag keep the release PR (`chore(main): release X.Y.0`; a release moves the minor, or the major past 1.0.0) current, and merging it tags the version and writes the Gitea release.
+- The same job keeps the deploy PR (`chore(main): deploy X.Y.Z`) current from the commits since `src/version.ts` last changed: it moves only the patch in that file, so merging it deploys main under a version of its own and tags or publishes nothing. `package.json` keeps the version on npm. The two PRs change the same line; merging one leaves the other in conflict until that push rebuilds it.
 - `.github/workflows/release.yml`, the one workflow left on GitHub, publishes the mirrored tag to npm through OIDC trusted publishing, which only GitHub Actions can do.
-- `deploy.yml` deploys the release commit to WDL (and any commit of main on demand): it triggers on `src/version.ts` changing on main, because the tag and the release are made by the actions user, whose events start no workflow.
+- `deploy.yml` deploys the release or deploy commit to WDL (and main again on demand, under the version it has): it triggers on `src/version.ts` changing on main, because the tag and the release are made by the actions user, whose events start no workflow. Every deploy so has a version of its own in Sentry's release and PostHog's `$mcp_server_version`.

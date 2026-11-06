@@ -1,6 +1,6 @@
 // What the workflow scripts share about Gitea: the job's token, server and repository, its API, pushing with the
-// token, and rebuilding a branch from the checkout to open or refresh its pull request (the spec-sync and release
-// pull requests).
+// token, and rebuilding a branch from the checkout to open or refresh its pull request (the spec-sync, release and
+// deploy pull requests), or closing it.
 import { execFileSync } from 'node:child_process';
 
 /** Runs git and returns its output; stderr goes to the job log. */
@@ -84,5 +84,13 @@ export function gitea() {
     return `Opened ${pr.html_url}`;
   }
 
-  return { repo, api, push, fetchRef, upsertPullRequest };
+  /** Closes the pull request open from `branch` into `base`, when there is one. */
+  async function closePullRequest({ branch, base }) {
+    const open = await openPullRequest(base, branch);
+    if (!open) return undefined;
+    await api('PATCH', `/repos/${repo}/pulls/${open.number}`, { state: 'closed' });
+    return `Closed ${open.html_url}`;
+  }
+
+  return { repo, api, push, fetchRef, upsertPullRequest, closePullRequest };
 }
