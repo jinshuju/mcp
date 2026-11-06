@@ -2,11 +2,11 @@
   "generatedFrom": {
     "title": "Jinshuju API v1",
     "version": "1.0",
-    "sha256": "7765caa7d29a4f02"
+    "sha256": "ee8d3a645c669ead"
   },
   "baseUrl": "https://jinshuju.net/api/v1",
   "toolCount": 65,
-  "operationCount": 177,
+  "operationCount": 189,
   "tools": {
     "list_forms": "listForms",
     "get_form": "getForm",
@@ -116,7 +116,9 @@
     "Account": "Current user and account: members, e-invoices, payment history, SMS signatures and templates, SMTP accounts.",
     "Trade": "小金商户: merchant and onboarding progress, payment orders, transaction statistics, refunds and payouts.",
     "Uploads": "Uploading attachments, form images, license images and import files.",
+    "Messages": "Messages sent through registered channels: email, SMS, DingTalk and WeCom robots, and webhooks, with one record per recipient. OAuth tokens need the `messages` scope, which self-registered clients cannot get.",
     "Utilities": "Utility endpoints.",
-    "Routines": "Routines (`自动任务`): instructions Jiri carries out as you, on a schedule or when data changes, and their runs. The rules and messages are those of the routines page; times are in Beijing time (+08:00). OAuth tokens need the `routines` scope. As routines run unattended and spend AI points, self-registered clients cannot get it; only a registered application with `routines` among its scopes (such as the Jinshuju CLI) can ask for it."
+    "Routines": "Routines (`自动任务`): instructions Jiri carries out as you, on a schedule or when data changes, and their runs. The rules and messages are those of the routines page; times are in Beijing time (+08:00). OAuth tokens need the `routines` scope. As routines run unattended and spend AI points, self-registered clients cannot get it; only a registered application with `routines` among its scopes (such as the Jinshuju CLI) can ask for it.",
+    "Memory": "Memory (`记忆`): what Jiri remembers about you across conversations, your background and how you want things done; Jiri reads it at the start of every turn. OAuth tokens need the `memory` scope, which self-registered clients cannot get."
   }
 }

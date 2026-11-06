@@ -1879,6 +1879,10 @@
    "calculable": {
     "type": "boolean",
     "description": "Give each choice a numeric value; when on, every (leaf) choice must carry operand_value"
+   },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
    }
   }
  },
@@ -1999,6 +2003,10 @@
     "type": "integer",
     "minimum": 0,
     "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+   },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
    }
   },
   "allOf": [
@@ -3418,6 +3426,10 @@
    "random_choices": {
     "type": "boolean",
     "description": "Shuffle the choices each time the form opens"
+   },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
    }
   },
   "allOf": [
@@ -3537,6 +3549,37 @@
      }
     },
     "description": "Choices of a choice column"
+   }
+  }
+ },
+ "DingTalkMessageChannelInput": {
+  "type": "object",
+  "description": "A DingTalk group robot",
+  "additionalProperties": false,
+  "required": [
+   "type",
+   "name",
+   "url"
+  ],
+  "properties": {
+   "type": {
+    "type": "string",
+    "enum": [
+     "ding_talk"
+    ]
+   },
+   "name": {
+    "type": "string",
+    "maxLength": 50,
+    "description": "Name to tell the channel apart"
+   },
+   "url": {
+    "type": "string",
+    "description": "`https://oapi.dingtalk.com/robot/send?access_token=...`"
+   },
+   "secret": {
+    "type": "string",
+    "description": "Signing secret, when the robot has signing turned on"
    }
   }
  },
@@ -3816,6 +3859,10 @@
    "random_choices": {
     "type": "boolean",
     "description": "Shuffle the choices each time the form opens"
+   },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
    }
   },
   "allOf": [
@@ -3950,6 +3997,10 @@
    "random_choices": {
     "type": "boolean",
     "description": "Shuffle the choices each time the form opens"
+   },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
    },
    "answers": {
     "type": "array",
@@ -4127,6 +4178,79 @@
    "placeholder": {
     "type": "string",
     "description": "Placeholder text"
+   }
+  }
+ },
+ "EmailMessageChannelInput": {
+  "type": "object",
+  "description": "Sends through a verified SMTP account of the account",
+  "additionalProperties": false,
+  "required": [
+   "type",
+   "name",
+   "smtp_account_id"
+  ],
+  "properties": {
+   "type": {
+    "type": "string",
+    "enum": [
+     "email"
+    ]
+   },
+   "name": {
+    "type": "string",
+    "maxLength": 50,
+    "description": "Name to tell the channel apart"
+   },
+   "smtp_account_id": {
+    "type": "string",
+    "description": "See `GET /smtp_accounts`"
+   }
+  }
+ },
+ "EmailMessageInput": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "type",
+   "to",
+   "content"
+  ],
+  "properties": {
+   "type": {
+    "type": "string",
+    "enum": [
+     "email"
+    ]
+   },
+   "channel_id": {
+    "type": "string",
+    "description": "Email channel to send through; without it the email goes from Jinshuju's address"
+   },
+   "to": {
+    "type": "array",
+    "minItems": 1,
+    "maxItems": 50,
+    "uniqueItems": true,
+    "items": {
+     "type": "string"
+    },
+    "description": "Email addresses or mobile numbers, one record each"
+   },
+   "title": {
+    "type": "string",
+    "maxLength": 200,
+    "description": "Subject"
+   },
+   "content": {
+    "type": "string",
+    "maxLength": 20000,
+    "description": "Markdown body"
+   },
+   "idempotency_key": {
+    "type": "string",
+    "maxLength": 255,
+    "description": "Sends once for the same key within 24 hours; retry a timed-out request with the same key"
    }
   }
  },
@@ -7184,6 +7308,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -7330,6 +7458,10 @@
       "type": "integer",
       "minimum": 0,
       "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -7462,6 +7594,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -8493,6 +8629,10 @@
      "calculable": {
       "type": "boolean",
       "description": "Give each choice a numeric value; when on, every (leaf) choice must carry operand_value"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     }
    },
@@ -9377,15 +9517,32 @@
         },
         "start_date": {
          "type": "string",
-         "format": "date"
+         "anyOf": [
+          {
+           "format": "date"
+          },
+          {
+           "format": "date-time"
+          }
+         ],
+         "description": "Bookable from this moment on. Reads give an ISO 8601 date-time; a YYYY-MM-DD date means the start of that day"
         },
         "end_date": {
          "type": "string",
-         "format": "date"
+         "anyOf": [
+          {
+           "format": "date"
+          },
+          {
+           "format": "date-time"
+          }
+         ],
+         "description": "Bookable until the end of this day. Reads give an ISO 8601 date-time; a YYYY-MM-DD date is taken as that day"
         },
         "quota_setting": {
          "type": "object",
-         "description": "Quota settings, branched on type",
+         "title": "ReservationQuotaSettingInput",
+         "description": "Bookable days, time slots and places per slot, branched on type",
          "required": [
           "type"
          ],
@@ -9413,7 +9570,6 @@
             },
             "available_days_of_week": {
              "type": "array",
-             "minItems": 1,
              "items": {
               "type": "string",
               "enum": [
@@ -9523,6 +9679,39 @@
               }
              },
              "description": "Time ranges that cannot be booked"
+            },
+            "special_time_range_quotas": {
+             "type": "array",
+             "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+               "special_dates",
+               "quota"
+              ],
+              "properties": {
+               "special_dates": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                 "type": "string",
+                 "format": "date"
+                },
+                "description": "Dates this entry applies to, as YYYY-MM-DD"
+               },
+               "quota": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Places"
+               },
+               "price": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Price when payable"
+               }
+              }
+             },
+             "description": "Special dates: they can be booked even when their day of the week is not in available_days_of_week, and their quota and price replace the day-of-week ones. Left out on a write, the current special dates are kept; [] clears them"
             }
            }
           },
@@ -9540,7 +9729,6 @@
             },
             "available_days_of_week": {
              "type": "array",
-             "minItems": 1,
              "items": {
               "type": "string",
               "enum": [
@@ -9553,7 +9741,8 @@
                "saturday"
               ]
              },
-             "description": "Days of the week that can be booked, as lowercase English day names"
+             "description": "Days of the week that can be booked, as lowercase English day names",
+             "minItems": 1
             },
             "show_left_quota": {
              "type": "boolean",
@@ -9956,6 +10145,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -10125,6 +10318,10 @@
       "type": "integer",
       "minimum": 0,
       "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -10682,6 +10879,10 @@
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
      },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
+     },
      "answers": {
       "type": "array",
       "minItems": 1,
@@ -10892,6 +11093,10 @@
       "type": "integer",
       "minimum": 0,
       "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      },
      "answers": {
       "type": "array",
@@ -11156,6 +11361,10 @@
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
      },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
+     },
      "answers": {
       "type": "array",
       "minItems": 1,
@@ -11389,6 +11598,10 @@
       "type": "integer",
       "minimum": 0,
       "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      },
      "answers": {
       "type": "array",
@@ -11625,6 +11838,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      },
      "answers": {
       "type": "array",
@@ -12903,6 +13120,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -13049,6 +13270,10 @@
       "type": "integer",
       "minimum": 0,
       "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -13181,6 +13406,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -14212,6 +14441,10 @@
      "calculable": {
       "type": "boolean",
       "description": "Give each choice a numeric value; when on, every (leaf) choice must carry operand_value"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     }
    },
@@ -15096,15 +15329,32 @@
         },
         "start_date": {
          "type": "string",
-         "format": "date"
+         "anyOf": [
+          {
+           "format": "date"
+          },
+          {
+           "format": "date-time"
+          }
+         ],
+         "description": "Bookable from this moment on. Reads give an ISO 8601 date-time; a YYYY-MM-DD date means the start of that day"
         },
         "end_date": {
          "type": "string",
-         "format": "date"
+         "anyOf": [
+          {
+           "format": "date"
+          },
+          {
+           "format": "date-time"
+          }
+         ],
+         "description": "Bookable until the end of this day. Reads give an ISO 8601 date-time; a YYYY-MM-DD date is taken as that day"
         },
         "quota_setting": {
          "type": "object",
-         "description": "Quota settings, branched on type",
+         "title": "ReservationQuotaSettingInput",
+         "description": "Bookable days, time slots and places per slot, branched on type",
          "required": [
           "type"
          ],
@@ -15132,7 +15382,6 @@
             },
             "available_days_of_week": {
              "type": "array",
-             "minItems": 1,
              "items": {
               "type": "string",
               "enum": [
@@ -15242,6 +15491,39 @@
               }
              },
              "description": "Time ranges that cannot be booked"
+            },
+            "special_time_range_quotas": {
+             "type": "array",
+             "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+               "special_dates",
+               "quota"
+              ],
+              "properties": {
+               "special_dates": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                 "type": "string",
+                 "format": "date"
+                },
+                "description": "Dates this entry applies to, as YYYY-MM-DD"
+               },
+               "quota": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Places"
+               },
+               "price": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Price when payable"
+               }
+              }
+             },
+             "description": "Special dates: they can be booked even when their day of the week is not in available_days_of_week, and their quota and price replace the day-of-week ones. Left out on a write, the current special dates are kept; [] clears them"
             }
            }
           },
@@ -15259,7 +15541,6 @@
             },
             "available_days_of_week": {
              "type": "array",
-             "minItems": 1,
              "items": {
               "type": "string",
               "enum": [
@@ -15272,7 +15553,8 @@
                "saturday"
               ]
              },
-             "description": "Days of the week that can be booked, as lowercase English day names"
+             "description": "Days of the week that can be booked, as lowercase English day names",
+             "minItems": 1
             },
             "show_left_quota": {
              "type": "boolean",
@@ -15675,6 +15957,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -15844,6 +16130,10 @@
       "type": "integer",
       "minimum": 0,
       "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -16401,6 +16691,10 @@
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
      },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
+     },
      "answers": {
       "type": "array",
       "minItems": 1,
@@ -16611,6 +16905,10 @@
       "type": "integer",
       "minimum": 0,
       "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      },
      "answers": {
       "type": "array",
@@ -16875,6 +17173,10 @@
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
      },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
+     },
      "answers": {
       "type": "array",
       "minItems": 1,
@@ -17108,6 +17410,10 @@
       "type": "integer",
       "minimum": 0,
       "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      },
      "answers": {
       "type": "array",
@@ -17349,6 +17655,10 @@
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
      },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
+     },
      "answers": {
       "type": "array",
       "minItems": 1,
@@ -17545,6 +17855,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      },
      "answers": {
       "type": "array",
@@ -18167,6 +18481,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -18303,6 +18621,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -18439,6 +18761,74 @@
       }
      }
     }
+   },
+   "random_questions": {
+    "type": "object",
+    "description": "Random questions, drawn for each examinee",
+    "required": [
+     "enabled",
+     "mode",
+     "total",
+     "shuffle",
+     "question_types"
+    ],
+    "properties": {
+     "enabled": {
+      "type": "boolean"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "by_type",
+       "from_all"
+      ],
+      "description": "by_type draws `count` of each question type; from_all draws `count` from all exam questions"
+     },
+     "count": {
+      "type": "integer",
+      "description": "Questions drawn in from_all mode"
+     },
+     "total": {
+      "type": "integer",
+      "description": "Exam questions on the form"
+     },
+     "shuffle": {
+      "type": "boolean",
+      "description": "Whether the question order is shuffled"
+     },
+     "question_types": {
+      "type": "array",
+      "description": "Every question type, with what by_type draws of it",
+      "items": {
+       "type": "object",
+       "required": [
+        "question_type",
+        "count",
+        "total"
+       ],
+       "properties": {
+        "question_type": {
+         "type": "string",
+         "enum": [
+          "single_select_only_fields",
+          "multi_select_fields",
+          "true_or_false_fields",
+          "simple_text_fields",
+          "multi_text_fields"
+         ]
+        },
+        "count": {
+         "type": "integer",
+         "description": "Questions of this type drawn in by_type mode"
+        },
+        "total": {
+         "type": "integer",
+         "description": "Questions of this type on the form"
+        }
+       }
+      }
+     }
+    }
    }
   }
  },
@@ -18495,6 +18885,118 @@
       }
      }
     }
+   },
+   "random_questions": {
+    "type": "object",
+    "description": "Random questions; only the keys present are written. Turning it on takes `mode`, `by_type` takes `question_types` and `from_all` takes `count`",
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "description": "Draw questions at random for each examinee; false turns it off and keeps the rest"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "by_type",
+       "from_all"
+      ],
+      "description": "by_type draws a count of each question type; from_all draws `count` from all exam questions"
+     },
+     "count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Questions to draw in from_all mode; at most `random_questions.total` in GET"
+     },
+     "question_types": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Replaces the by_type counts as a whole; list each type once, a type left out draws none, and the counts must add up to more than 0",
+      "items": {
+       "type": "object",
+       "required": [
+        "question_type",
+        "count"
+       ],
+       "properties": {
+        "question_type": {
+         "type": "string",
+         "enum": [
+          "single_select_only_fields",
+          "multi_select_fields",
+          "true_or_false_fields",
+          "simple_text_fields",
+          "multi_text_fields"
+         ],
+         "description": "GET lists every type with the questions it has"
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 0,
+         "description": "Questions to draw of this type; at most the type's `total` in GET"
+        }
+       },
+       "additionalProperties": false
+      }
+     },
+     "shuffle": {
+      "type": "boolean",
+      "description": "Shuffle the question order"
+     }
+    },
+    "additionalProperties": false,
+    "allOf": [
+     {
+      "if": {
+       "properties": {
+        "enabled": {
+         "const": true
+        }
+       },
+       "required": [
+        "enabled"
+       ]
+      },
+      "then": {
+       "required": [
+        "mode"
+       ]
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "mode": {
+         "const": "by_type"
+        }
+       },
+       "required": [
+        "mode"
+       ]
+      },
+      "then": {
+       "required": [
+        "question_types"
+       ]
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "mode": {
+         "const": "from_all"
+        }
+       },
+       "required": [
+        "mode"
+       ]
+      },
+      "then": {
+       "required": [
+        "count"
+       ]
+      }
+     }
+    ]
    }
   },
   "additionalProperties": false
@@ -18944,6 +19446,10 @@
     "type": "boolean",
     "description": "Whether there is an \"Other\" choice (choice fields)"
    },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Whether fillers stop seeing a choice once its places run out, instead of seeing it as full. Only on form and table reads of a choice field with a limit on some choice"
+   },
    "statements": {
     "type": "array",
     "description": "Statements (matrix single choice / matrix fill-in / matrix scale)",
@@ -19154,6 +19660,7 @@
     "description": "Reservation field: reservation items",
     "items": {
      "type": "object",
+     "description": "Form and table reads also give the item's settings, in the shape `ReservationItemInput` takes. A write replaces the whole list; an item matched to a current one (by `api_code`, else by name) keeps what a read does not give, its images and whether deleted entries give their places back. Time slot tables set up in the editor are not kept",
      "required": [
       "name",
       "value",
@@ -19165,10 +19672,440 @@
       },
       "value": {
        "type": "string",
-       "description": "Reservation item api_code"
+       "description": "Reservation item api_code, written back as `api_code`"
       },
       "hidden": {
        "type": "boolean"
+      },
+      "description": {
+       "type": "string"
+      },
+      "selected": {
+       "type": "boolean"
+      },
+      "payable": {
+       "type": "boolean"
+      },
+      "start_date": {
+       "type": "string",
+       "format": "date-time"
+      },
+      "end_date": {
+       "type": "string",
+       "format": "date-time"
+      },
+      "quota_setting": {
+       "type": "object",
+       "title": "ReservationQuotaSettingInput",
+       "description": "Bookable days, time slots and places per slot, branched on type",
+       "required": [
+        "type"
+       ],
+       "properties": {
+        "type": {
+         "type": "string",
+         "enum": [
+          "by_day_repeat_weekly",
+          "by_time_range_repeat_daily"
+         ]
+        }
+       },
+       "oneOf": [
+        {
+         "type": "object",
+         "title": "ReservationByDayQuotaInput",
+         "additionalProperties": false,
+         "required": [
+          "type",
+          "available_days_of_week"
+         ],
+         "properties": {
+          "type": {
+           "const": "by_day_repeat_weekly"
+          },
+          "available_days_of_week": {
+           "type": "array",
+           "items": {
+            "type": "string",
+            "enum": [
+             "sunday",
+             "monday",
+             "tuesday",
+             "wednesday",
+             "thursday",
+             "friday",
+             "saturday"
+            ]
+           },
+           "description": "Days of the week that can be booked, as lowercase English day names"
+          },
+          "show_left_quota": {
+           "type": "boolean",
+           "description": "Show the places left"
+          },
+          "start_time_offset": {
+           "type": "object",
+           "additionalProperties": false,
+           "properties": {
+            "offset_number": {
+             "type": "integer",
+             "minimum": 0
+            },
+            "unit": {
+             "type": "string",
+             "enum": [
+              "day",
+              "hour"
+             ]
+            }
+           },
+           "description": "How far in advance booking opens"
+          },
+          "end_time_offset": {
+           "type": "object",
+           "additionalProperties": false,
+           "properties": {
+            "offset_number": {
+             "type": "integer",
+             "minimum": 0
+            },
+            "unit": {
+             "type": "string",
+             "enum": [
+              "day",
+              "hour"
+             ]
+            }
+           },
+           "description": "How far in advance booking closes"
+          },
+          "daily_time_range_quotas": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+             "for_wday": {
+              "type": "string",
+              "enum": [
+               "sunday",
+               "monday",
+               "tuesday",
+               "wednesday",
+               "thursday",
+               "friday",
+               "saturday"
+              ],
+              "description": "Day of the week, as a lowercase English day name"
+             },
+             "quota": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Places"
+             },
+             "price": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Price when payable"
+             },
+             "position": {
+              "type": "integer",
+              "minimum": 0
+             },
+             "daily_time_range_token": {
+              "type": "string"
+             }
+            }
+           },
+           "description": "Places per day of the week"
+          },
+          "non_reservable_rules": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+             "start_time": {
+              "type": "string"
+             },
+             "end_time": {
+              "type": "string"
+             }
+            }
+           },
+           "description": "Time ranges that cannot be booked"
+          },
+          "special_time_range_quotas": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+             "special_dates",
+             "quota"
+            ],
+            "properties": {
+             "special_dates": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+               "type": "string",
+               "format": "date"
+              },
+              "description": "Dates this entry applies to, as YYYY-MM-DD"
+             },
+             "quota": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Places"
+             },
+             "price": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Price when payable"
+             }
+            }
+           },
+           "description": "Special dates: they can be booked even when their day of the week is not in available_days_of_week, and their quota and price replace the day-of-week ones. Left out on a write, the current special dates are kept; [] clears them"
+          }
+         }
+        },
+        {
+         "type": "object",
+         "title": "ReservationByTimeRangeQuotaInput",
+         "additionalProperties": false,
+         "required": [
+          "type",
+          "available_days_of_week"
+         ],
+         "properties": {
+          "type": {
+           "const": "by_time_range_repeat_daily"
+          },
+          "available_days_of_week": {
+           "type": "array",
+           "items": {
+            "type": "string",
+            "enum": [
+             "sunday",
+             "monday",
+             "tuesday",
+             "wednesday",
+             "thursday",
+             "friday",
+             "saturday"
+            ]
+           },
+           "description": "Days of the week that can be booked, as lowercase English day names",
+           "minItems": 1
+          },
+          "show_left_quota": {
+           "type": "boolean",
+           "description": "Show the places left"
+          },
+          "start_time_offset": {
+           "type": "object",
+           "additionalProperties": false,
+           "properties": {
+            "offset_number": {
+             "type": "integer",
+             "minimum": 0
+            },
+            "unit": {
+             "type": "string",
+             "enum": [
+              "day",
+              "hour"
+             ]
+            }
+           },
+           "description": "How far in advance booking opens"
+          },
+          "end_time_offset": {
+           "type": "object",
+           "additionalProperties": false,
+           "properties": {
+            "offset_number": {
+             "type": "integer",
+             "minimum": 0
+            },
+            "unit": {
+             "type": "string",
+             "enum": [
+              "day",
+              "hour"
+             ]
+            }
+           },
+           "description": "How far in advance booking closes"
+          },
+          "daily_time_range_quotas": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+             "start_time",
+             "end_time"
+            ],
+            "properties": {
+             "for_wday": {
+              "type": "string",
+              "enum": [
+               "sunday",
+               "monday",
+               "tuesday",
+               "wednesday",
+               "thursday",
+               "friday",
+               "saturday"
+              ],
+              "description": "Day of the week, as a lowercase English day name"
+             },
+             "quota": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Places"
+             },
+             "price": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Price when payable"
+             },
+             "position": {
+              "type": "integer",
+              "minimum": 0
+             },
+             "daily_time_range_token": {
+              "type": "string"
+             },
+             "start_time": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+               "hour": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 23
+               },
+               "minute": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 59
+               }
+              },
+              "description": "Start time"
+             },
+             "end_time": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+               "hour": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 23
+               },
+               "minute": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 59
+               }
+              },
+              "description": "End time"
+             }
+            }
+           },
+           "description": "Places per time slot"
+          },
+          "non_reservable_rules": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+             "start_time": {
+              "type": "string"
+             },
+             "end_time": {
+              "type": "string"
+             }
+            }
+           },
+           "description": "Time ranges that cannot be booked"
+          },
+          "time_range_mode": {
+           "type": "string",
+           "enum": [
+            "same_by_wday",
+            "different_by_wday"
+           ],
+           "description": "same_by_wday: the same time slots every day; different_by_wday: every slot must carry for_wday"
+          }
+         },
+         "if": {
+          "properties": {
+           "time_range_mode": {
+            "const": "different_by_wday"
+           }
+          },
+          "required": [
+           "time_range_mode"
+          ]
+         },
+         "then": {
+          "properties": {
+           "daily_time_range_quotas": {
+            "items": {
+             "required": [
+              "for_wday"
+             ]
+            }
+           }
+          }
+         }
+        }
+       ]
+      }
+     }
+    }
+   },
+   "buttons": {
+    "type": "array",
+    "description": "Button bar: the buttons, in the shape fields.update takes back",
+    "items": {
+     "type": "object",
+     "title": "WidgetButtonItemInput",
+     "additionalProperties": false,
+     "required": [
+      "text"
+     ],
+     "properties": {
+      "text": {
+       "type": "string",
+       "description": "Button text"
+      },
+      "position": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "link_type": {
+       "type": "string",
+       "enum": [
+        "normal",
+        "miniapp",
+        "phone",
+        "qrcode"
+       ],
+       "description": "Link type; normal by default"
+      },
+      "link_attrs": {
+       "type": "object",
+       "description": "Link attributes, such as {\"url\": \"https://...\"}"
+      },
+      "url": {
+       "type": "string",
+       "format": "uri",
+       "description": "Link URL, used when link_attrs is left out"
       }
      }
     }
@@ -19904,6 +20841,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -20050,6 +20991,10 @@
       "type": "integer",
       "minimum": 0,
       "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -20182,6 +21127,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -21213,6 +22162,10 @@
      "calculable": {
       "type": "boolean",
       "description": "Give each choice a numeric value; when on, every (leaf) choice must carry operand_value"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     }
    },
@@ -22097,15 +23050,32 @@
         },
         "start_date": {
          "type": "string",
-         "format": "date"
+         "anyOf": [
+          {
+           "format": "date"
+          },
+          {
+           "format": "date-time"
+          }
+         ],
+         "description": "Bookable from this moment on. Reads give an ISO 8601 date-time; a YYYY-MM-DD date means the start of that day"
         },
         "end_date": {
          "type": "string",
-         "format": "date"
+         "anyOf": [
+          {
+           "format": "date"
+          },
+          {
+           "format": "date-time"
+          }
+         ],
+         "description": "Bookable until the end of this day. Reads give an ISO 8601 date-time; a YYYY-MM-DD date is taken as that day"
         },
         "quota_setting": {
          "type": "object",
-         "description": "Quota settings, branched on type",
+         "title": "ReservationQuotaSettingInput",
+         "description": "Bookable days, time slots and places per slot, branched on type",
          "required": [
           "type"
          ],
@@ -22133,7 +23103,6 @@
             },
             "available_days_of_week": {
              "type": "array",
-             "minItems": 1,
              "items": {
               "type": "string",
               "enum": [
@@ -22243,6 +23212,39 @@
               }
              },
              "description": "Time ranges that cannot be booked"
+            },
+            "special_time_range_quotas": {
+             "type": "array",
+             "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+               "special_dates",
+               "quota"
+              ],
+              "properties": {
+               "special_dates": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                 "type": "string",
+                 "format": "date"
+                },
+                "description": "Dates this entry applies to, as YYYY-MM-DD"
+               },
+               "quota": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Places"
+               },
+               "price": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Price when payable"
+               }
+              }
+             },
+             "description": "Special dates: they can be booked even when their day of the week is not in available_days_of_week, and their quota and price replace the day-of-week ones. Left out on a write, the current special dates are kept; [] clears them"
             }
            }
           },
@@ -22260,7 +23262,6 @@
             },
             "available_days_of_week": {
              "type": "array",
-             "minItems": 1,
              "items": {
               "type": "string",
               "enum": [
@@ -22273,7 +23274,8 @@
                "saturday"
               ]
              },
-             "description": "Days of the week that can be booked, as lowercase English day names"
+             "description": "Days of the week that can be booked, as lowercase English day names",
+             "minItems": 1
             },
             "show_left_quota": {
              "type": "boolean",
@@ -22676,6 +23678,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -22845,6 +23851,10 @@
       "type": "integer",
       "minimum": 0,
       "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -24605,15 +25615,32 @@
       },
       "start_date": {
        "type": "string",
-       "format": "date"
+       "anyOf": [
+        {
+         "format": "date"
+        },
+        {
+         "format": "date-time"
+        }
+       ],
+       "description": "Bookable from this moment on. Reads give an ISO 8601 date-time; a YYYY-MM-DD date means the start of that day"
       },
       "end_date": {
        "type": "string",
-       "format": "date"
+       "anyOf": [
+        {
+         "format": "date"
+        },
+        {
+         "format": "date-time"
+        }
+       ],
+       "description": "Bookable until the end of this day. Reads give an ISO 8601 date-time; a YYYY-MM-DD date is taken as that day"
       },
       "quota_setting": {
        "type": "object",
-       "description": "Quota settings, branched on type",
+       "title": "ReservationQuotaSettingInput",
+       "description": "Bookable days, time slots and places per slot, branched on type",
        "required": [
         "type"
        ],
@@ -24641,7 +25668,6 @@
           },
           "available_days_of_week": {
            "type": "array",
-           "minItems": 1,
            "items": {
             "type": "string",
             "enum": [
@@ -24751,6 +25777,39 @@
             }
            },
            "description": "Time ranges that cannot be booked"
+          },
+          "special_time_range_quotas": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+             "special_dates",
+             "quota"
+            ],
+            "properties": {
+             "special_dates": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+               "type": "string",
+               "format": "date"
+              },
+              "description": "Dates this entry applies to, as YYYY-MM-DD"
+             },
+             "quota": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Places"
+             },
+             "price": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Price when payable"
+             }
+            }
+           },
+           "description": "Special dates: they can be booked even when their day of the week is not in available_days_of_week, and their quota and price replace the day-of-week ones. Left out on a write, the current special dates are kept; [] clears them"
           }
          }
         },
@@ -24768,7 +25827,6 @@
           },
           "available_days_of_week": {
            "type": "array",
-           "minItems": 1,
            "items": {
             "type": "string",
             "enum": [
@@ -24781,7 +25839,8 @@
              "saturday"
             ]
            },
-           "description": "Days of the week that can be booked, as lowercase English day names"
+           "description": "Days of the week that can be booked, as lowercase English day names",
+           "minItems": 1
           },
           "show_left_quota": {
            "type": "boolean",
@@ -24954,6 +26013,48 @@
     },
     "description": "Replaces the whole list; carry api_code to keep the identity of an item"
    },
+   "buttons": {
+    "type": "array",
+    "minItems": 1,
+    "items": {
+     "type": "object",
+     "title": "WidgetButtonItemInput",
+     "additionalProperties": false,
+     "required": [
+      "text"
+     ],
+     "properties": {
+      "text": {
+       "type": "string",
+       "description": "Button text"
+      },
+      "position": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "link_type": {
+       "type": "string",
+       "enum": [
+        "normal",
+        "miniapp",
+        "phone",
+        "qrcode"
+       ],
+       "description": "Link type; normal by default"
+      },
+      "link_attrs": {
+       "type": "object",
+       "description": "Link attributes, such as {\"url\": \"https://...\"}"
+      },
+      "url": {
+       "type": "string",
+       "format": "uri",
+       "description": "Link URL, used when link_attrs is left out"
+      }
+     }
+    },
+    "description": "Replaces the whole list; a button at the position of an existing one keeps its style and qrcode images"
+   },
    "display_field_api_codes": {
     "type": "array",
     "maxItems": 20,
@@ -25006,6 +26107,10 @@
    "random_choices": {
     "type": "boolean",
     "description": "Shuffle the choices each time the form opens"
+   },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
    },
    "minimum_length": {
     "type": "integer",
@@ -26185,7 +27290,7 @@
    },
    "fields": {
     "type": "array",
-    "description": "Fields on the fill page, in fill order; for a form view, labels, descriptions and required flags follow the view",
+    "description": "Fields on the fill page, in fill order; for a form view, labels, descriptions and required flags follow the view; an exam that draws questions at random lists one draw per call, as each opening of the page does",
     "items": {
      "type": "object",
      "description": "Single-key object: the key is the field's api_code, the value is the field definition",
@@ -26872,6 +27977,129 @@
        }
       }
      },
+     "exam_setting": {
+      "type": "object",
+      "description": "Exam settings (present on an exam form when `include_exam_setting=true`), same as `GET /forms/{form_token}/exam_setting`",
+      "properties": {
+       "notice_after_filling_mode": {
+        "type": "string",
+        "enum": [
+         "appreciation",
+         "grade",
+         "explaination",
+         "none",
+         "answer"
+        ],
+        "description": "What to show after the exam is handed in"
+       },
+       "show_timeout": {
+        "type": "boolean",
+        "description": "Whether the exam is timed"
+       },
+       "limited_time": {
+        "type": "integer",
+        "description": "Time limit in minutes"
+       },
+       "need_attention": {
+        "type": "string",
+        "description": "Instructions shown before the exam"
+       },
+       "interval_comments": {
+        "type": "array",
+        "description": "Score-range comments; returned only when score-range comments are on",
+        "items": {
+         "type": "object",
+         "description": "One score-range comment; keys whose value is null are omitted",
+         "properties": {
+          "start_point": {
+           "type": "number",
+           "description": "Range start, inclusive"
+          },
+          "end_point": {
+           "type": "number",
+           "description": "Range end, inclusive; not less than start_point"
+          },
+          "comment": {
+           "type": "string",
+           "description": "Comment text (rich text)"
+          },
+          "retry": {
+           "type": "boolean",
+           "description": "Whether retaking is allowed"
+          }
+         }
+        }
+       },
+       "random_questions": {
+        "type": "object",
+        "description": "Random questions, drawn for each examinee",
+        "required": [
+         "enabled",
+         "mode",
+         "total",
+         "shuffle",
+         "question_types"
+        ],
+        "properties": {
+         "enabled": {
+          "type": "boolean"
+         },
+         "mode": {
+          "type": "string",
+          "enum": [
+           "by_type",
+           "from_all"
+          ],
+          "description": "by_type draws `count` of each question type; from_all draws `count` from all exam questions"
+         },
+         "count": {
+          "type": "integer",
+          "description": "Questions drawn in from_all mode"
+         },
+         "total": {
+          "type": "integer",
+          "description": "Exam questions on the form"
+         },
+         "shuffle": {
+          "type": "boolean",
+          "description": "Whether the question order is shuffled"
+         },
+         "question_types": {
+          "type": "array",
+          "description": "Every question type, with what by_type draws of it",
+          "items": {
+           "type": "object",
+           "required": [
+            "question_type",
+            "count",
+            "total"
+           ],
+           "properties": {
+            "question_type": {
+             "type": "string",
+             "enum": [
+              "single_select_only_fields",
+              "multi_select_fields",
+              "true_or_false_fields",
+              "simple_text_fields",
+              "multi_text_fields"
+             ]
+            },
+            "count": {
+             "type": "integer",
+             "description": "Questions of this type drawn in by_type mode"
+            },
+            "total": {
+             "type": "integer",
+             "description": "Questions of this type on the form"
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     },
      "transactions": {
       "type": "object",
       "description": "Payment statistics, grouped by transaction status (present when `include_transactions=true` and the form is bound to a payment account). Only the `paid` group exists for now:\nentries whose transaction status is paid or refunding, summed by order total (refunds not deducted); refunded and partially refunded entries are not counted. This is not a net income report.\nAn amount of 0 does not mean the form is not a payment form.\n",
@@ -27323,6 +28551,9 @@
    "hide_login_and_signup",
    "show_close_count_down",
    "show_form_before_open",
+   "open_entry_action",
+   "open_entry_message",
+   "open_entry_cancel_reservation",
    "manually_close_rule",
    "by_time_range_close_rule",
    "by_entries_close_rule",
@@ -27334,6 +28565,7 @@
    "weixin_collect_way",
    "submission_region_limited",
    "submission_regions",
+   "locale",
    "entry_post_url",
    "post_new_entry",
    "post_updated_entry",
@@ -27443,6 +28675,29 @@
      "null"
     ],
     "description": "Whether to show the form before it opens"
+   },
+   "open_entry_action": {
+    "type": "string",
+    "enum": [
+     "hide",
+     "view",
+     "edit"
+    ],
+    "description": "What a submitter sees on revisiting the form (edit lets them modify the submitted entry)"
+   },
+   "open_entry_message": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "description": "Message shown to a submitter revisiting the form"
+   },
+   "open_entry_cancel_reservation": {
+    "type": [
+     "boolean",
+     "null"
+    ],
+    "description": "Whether a revisiting submitter can cancel their reservation"
    },
    "manually_close_rule": {
     "type": [
@@ -27626,6 +28881,15 @@
     "items": {
      "type": "string"
     }
+   },
+   "locale": {
+    "type": "string",
+    "enum": [
+     "zh-CN",
+     "zh-TW",
+     "en"
+    ],
+    "description": "Language of the fill page's built-in text"
    },
    "entry_post_url": {
     "type": [
@@ -27832,6 +29096,15 @@
    "weixin_limited": {
     "type": "boolean"
    },
+   "locale": {
+    "type": "string",
+    "enum": [
+     "zh-CN",
+     "zh-TW",
+     "en"
+    ],
+    "description": "Language of the fill page's built-in text (buttons, validation messages, the default success message); the form's own name, description and fields are not translated"
+   },
    "entry_post_url": {
     "type": "string",
     "description": "Webhook push URL; must be a valid URL"
@@ -27979,7 +29252,7 @@
  },
  "FormSettingWriteInput": {
   "type": "object",
-  "description": "The `setting` used when creating / editing a form. Only the keys below are accepted; other keys are ignored. A write describes the resulting state: omitted keys keep their current values, and `null` clears a key.\n- Passing only `success_message` automatically sets `success_message_style` to `text`; passing only `success_message_rich_text` sets it to `rich_text`.\n- `submission_region_limited=true` requires a plan that includes \"Submission region limit\" and at least one item in `submission_regions`.\n- `merchant_account_id` (小金商户) cannot be bound together with `wxpay_account_id` / `alipay_account_id`; a newly passed payment account must belong to the current account, and once bound, `payment_way` becomes `third_party` automatically and `payment_expirable` turns on unless passed or already `false`.\n- `notification_rules` replaces all notification rules created through the API as a whole (`[]` clears them); rules created in the desktop UI are not affected.\n",
+  "description": "The `setting` used when creating / editing a form. Only the keys below are accepted; other keys are ignored. A write describes the resulting state: omitted keys keep their current values, and `null` clears a key.\n- Passing only `success_message` automatically sets `success_message_style` to `text`; passing only `success_message_rich_text` sets it to `rich_text`.\n- Changing `success_message_rich_text` requires a plan that includes \"Success page rich text\". Writing `success_message_style` as `rich_text` (passed, written back as read, or implied by passing only `success_message_rich_text`) also needs \"Distribution poster\" and \"Certificate\"; on other plans with \"Success page rich text\" pass `text`. Otherwise the request is refused with 400. A plan without \"Success page rich text\" may still write back the `rich_text` style it read; it is saved as `text`.\n- `submission_region_limited=true` requires a plan that includes \"Submission region limit\" and at least one item in `submission_regions`.\n- `merchant_account_id` (小金商户) cannot be bound together with `wxpay_account_id` / `alipay_account_id`; a newly passed payment account must belong to the current account, and once bound, `payment_way` becomes `third_party` automatically and `payment_expirable` turns on unless passed or already `false`.\n- `notification_rules` replaces all notification rules created through the API as a whole (`[]` clears them); rules created in the desktop UI are not affected.\n",
   "properties": {
    "success_message": {
     "type": "string"
@@ -28176,6 +29449,15 @@
     "items": {
      "type": "string"
     }
+   },
+   "locale": {
+    "type": "string",
+    "enum": [
+     "zh-CN",
+     "zh-TW",
+     "en"
+    ],
+    "description": "Language of the fill page's built-in text (buttons, validation messages, the default success message); the form's own name, description and fields are not translated"
    },
    "merchant_account_id": {
     "type": [
@@ -28943,6 +30225,10 @@
             "random_choices": {
              "type": "boolean",
              "description": "Shuffle the choices each time the form opens"
+            },
+            "hide_choice_when_quota_empty": {
+             "type": "boolean",
+             "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
             }
            },
            "allOf": [
@@ -29089,6 +30375,10 @@
              "type": "integer",
              "minimum": 0,
              "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+            },
+            "hide_choice_when_quota_empty": {
+             "type": "boolean",
+             "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
             }
            },
            "allOf": [
@@ -32405,6 +33695,10 @@
    "random_choices": {
     "type": "boolean",
     "description": "Shuffle the choices each time the form opens"
+   },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
    }
   },
   "allOf": [
@@ -32618,6 +33912,10 @@
     "type": "integer",
     "minimum": 0,
     "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+   },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
    }
   },
   "allOf": [
@@ -32865,6 +34163,10 @@
     "type": "integer",
     "minimum": 0,
     "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+   },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
    },
    "answers": {
     "type": "array",
@@ -33126,6 +34428,10 @@
    "random_choices": {
     "type": "boolean",
     "description": "Shuffle the choices each time the form opens"
+   },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
    }
   },
   "allOf": [
@@ -33287,6 +34593,10 @@
    "random_choices": {
     "type": "boolean",
     "description": "Shuffle the choices each time the form opens"
+   },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
    },
    "answers": {
     "type": "array",
@@ -33909,6 +35219,1814 @@
    }
   }
  },
+ "MemoryCallId": {
+  "type": "string",
+  "minLength": 1,
+  "maxLength": 100,
+  "description": "Idempotency key: a write sent again with the same `call_id` returns its first `outcome` and is not applied again (the last 50 writes are kept); `note`, `notes` and the numbers are as they are now. A write refused with `memory_full` or `note_not_found` is not kept, so sending it again tries again. Retry a write with the `call_id` it was first sent with."
+ },
+ "MemoryDeleteResponse": {
+  "type": "object",
+  "required": [
+   "outcome",
+   "numbers",
+   "notes"
+  ],
+  "properties": {
+   "outcome": {
+    "type": "string",
+    "const": "removed"
+   },
+   "numbers": {
+    "type": "array",
+    "items": {
+     "type": "integer"
+    },
+    "description": "The numbers the request named"
+   },
+   "notes": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "number",
+      "kind",
+      "text",
+      "scope",
+      "quote",
+      "source",
+      "conversation_id",
+      "created_at",
+      "updated_at"
+     ],
+     "properties": {
+      "number": {
+       "type": "integer",
+       "description": "Where the note stands in the list now, from 1"
+      },
+      "kind": {
+       "type": "string",
+       "enum": [
+        "background",
+        "preference"
+       ],
+       "description": "`background`: a fact about you that always holds; `preference`: how to do something, with a `scope` saying when"
+      },
+      "text": {
+       "type": "string"
+      },
+      "scope": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "When a preference applies; null for background"
+      },
+      "quote": {
+       "type": "string",
+       "description": "Your own words the note was taken from"
+      },
+      "source": {
+       "type": "string",
+       "enum": [
+        "asked",
+        "inferred"
+       ],
+       "description": "`asked`: you asked for it to be kept; `inferred`: Jiri judged it worth keeping"
+      },
+      "conversation_id": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "The Jiri conversation it was last written in"
+      },
+      "created_at": {
+       "type": "string",
+       "format": "date-time"
+      },
+      "updated_at": {
+       "type": "string",
+       "format": "date-time"
+      }
+     }
+    }
+   }
+  }
+ },
+ "MemoryKind": {
+  "type": "string",
+  "enum": [
+   "background",
+   "preference"
+  ],
+  "description": "`background`: a fact about you that always holds; `preference`: how to do something, with a `scope` saying when"
+ },
+ "MemoryListedScope": {
+  "type": [
+   "string",
+   "null"
+  ],
+  "description": "The note's scope, as the list you read shows it; null for background"
+ },
+ "MemoryListedText": {
+  "type": "string",
+  "pattern": "\\S",
+  "description": "The note's text, as the list you read shows it"
+ },
+ "MemoryNote": {
+  "type": "object",
+  "required": [
+   "number",
+   "kind",
+   "text",
+   "scope",
+   "quote",
+   "source",
+   "conversation_id",
+   "created_at",
+   "updated_at"
+  ],
+  "properties": {
+   "number": {
+    "type": "integer",
+    "description": "Where the note stands in the list now, from 1"
+   },
+   "kind": {
+    "type": "string",
+    "enum": [
+     "background",
+     "preference"
+    ],
+    "description": "`background`: a fact about you that always holds; `preference`: how to do something, with a `scope` saying when"
+   },
+   "text": {
+    "type": "string"
+   },
+   "scope": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "description": "When a preference applies; null for background"
+   },
+   "quote": {
+    "type": "string",
+    "description": "Your own words the note was taken from"
+   },
+   "source": {
+    "type": "string",
+    "enum": [
+     "asked",
+     "inferred"
+    ],
+    "description": "`asked`: you asked for it to be kept; `inferred`: Jiri judged it worth keeping"
+   },
+   "conversation_id": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "description": "The Jiri conversation it was last written in"
+   },
+   "created_at": {
+    "type": "string",
+    "format": "date-time"
+   },
+   "updated_at": {
+    "type": "string",
+    "format": "date-time"
+   }
+  }
+ },
+ "MemoryNoteContent": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "text"
+  ],
+  "properties": {
+   "text": {
+    "type": "string",
+    "pattern": "\\S",
+    "description": "The note's text, as the list you read shows it"
+   },
+   "scope": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "description": "The note's scope, as the list you read shows it; null for background"
+   }
+  }
+ },
+ "MemoryNoteInput": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "call_id",
+   "kind",
+   "text",
+   "quote",
+   "source"
+  ],
+  "properties": {
+   "call_id": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 100,
+    "description": "Idempotency key: a write sent again with the same `call_id` returns its first `outcome` and is not applied again (the last 50 writes are kept); `note`, `notes` and the numbers are as they are now. A write refused with `memory_full` or `note_not_found` is not kept, so sending it again tries again. Retry a write with the `call_id` it was first sent with."
+   },
+   "kind": {
+    "type": "string",
+    "enum": [
+     "background",
+     "preference"
+    ],
+    "description": "`background`: a fact about you that always holds; `preference`: how to do something, with a `scope` saying when"
+   },
+   "text": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 40,
+    "description": "What to remember, in a sentence"
+   },
+   "scope": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "maxLength": 20,
+    "description": "When a preference applies; required for a preference, ignored for background"
+   },
+   "quote": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120,
+    "description": "Your own words the note is taken from"
+   },
+   "source": {
+    "type": "string",
+    "enum": [
+     "asked",
+     "inferred"
+    ],
+    "description": "`asked`: you asked for it to be kept; `inferred`: Jiri judged it worth keeping"
+   }
+  }
+ },
+ "MemoryNoteQuote": {
+  "type": "string",
+  "minLength": 1,
+  "maxLength": 120,
+  "description": "Your own words the note is taken from"
+ },
+ "MemoryNoteScope": {
+  "type": [
+   "string",
+   "null"
+  ],
+  "maxLength": 20,
+  "description": "When a preference applies; required for a preference, ignored for background"
+ },
+ "MemoryNoteText": {
+  "type": "string",
+  "minLength": 1,
+  "maxLength": 40,
+  "description": "What to remember, in a sentence"
+ },
+ "MemoryNoteUpdateInput": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "call_id",
+   "current",
+   "kind",
+   "text",
+   "quote"
+  ],
+  "properties": {
+   "call_id": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 100,
+    "description": "Idempotency key: a write sent again with the same `call_id` returns its first `outcome` and is not applied again (the last 50 writes are kept); `note`, `notes` and the numbers are as they are now. A write refused with `memory_full` or `note_not_found` is not kept, so sending it again tries again. Retry a write with the `call_id` it was first sent with."
+   },
+   "current": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "text"
+    ],
+    "properties": {
+     "text": {
+      "type": "string",
+      "pattern": "\\S",
+      "description": "The note's text, as the list you read shows it"
+     },
+     "scope": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "The note's scope, as the list you read shows it; null for background"
+     }
+    }
+   },
+   "kind": {
+    "type": "string",
+    "enum": [
+     "background",
+     "preference"
+    ],
+    "description": "`background`: a fact about you that always holds; `preference`: how to do something, with a `scope` saying when"
+   },
+   "text": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 40,
+    "description": "What to remember, in a sentence"
+   },
+   "scope": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "maxLength": 20,
+    "description": "When a preference applies; required for a preference, ignored for background"
+   },
+   "quote": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 120,
+    "description": "Your own words the note is taken from"
+   }
+  }
+ },
+ "MemoryNotesDeleteInput": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "call_id",
+   "notes"
+  ],
+  "properties": {
+   "call_id": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 100,
+    "description": "Idempotency key: a write sent again with the same `call_id` returns its first `outcome` and is not applied again (the last 50 writes are kept); `note`, `notes` and the numbers are as they are now. A write refused with `memory_full` or `note_not_found` is not kept, so sending it again tries again. Retry a write with the `call_id` it was first sent with."
+   },
+   "notes": {
+    "type": "array",
+    "minItems": 1,
+    "maxItems": 20,
+    "description": "Each number in `id`, once, with what it says in the list you read",
+    "items": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "number",
+      "text"
+     ],
+     "properties": {
+      "number": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "text": {
+       "type": "string",
+       "pattern": "\\S",
+       "description": "The note's text, as the list you read shows it"
+      },
+      "scope": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "The note's scope, as the list you read shows it; null for background"
+      }
+     }
+    }
+   }
+  }
+ },
+ "MemoryRefusal": {
+  "type": "object",
+  "required": [
+   "error_description",
+   "code"
+  ],
+  "properties": {
+   "error_description": {
+    "type": "string"
+   },
+   "code": {
+    "type": "string",
+    "enum": [
+     "invalid_numbers",
+     "note_not_found",
+     "conflict",
+     "call_id_reused",
+     "memory_full",
+     "field_blank",
+     "text_too_long",
+     "scope_too_long",
+     "quote_too_long",
+     "invalid_kind",
+     "invalid_source"
+    ]
+   },
+   "field": {
+    "type": "string",
+    "description": "`field_blank`: the field"
+   },
+   "max": {
+    "type": "integer",
+    "description": "`memory_full`: how many notes at most; `*_too_long`: the most characters"
+   },
+   "missing_numbers": {
+    "type": "array",
+    "items": {
+     "type": "integer"
+    },
+    "description": "`note_not_found`: the numbers no note answered to"
+   },
+   "notes": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "number",
+      "kind",
+      "text",
+      "scope",
+      "quote",
+      "source",
+      "conversation_id",
+      "created_at",
+      "updated_at"
+     ],
+     "properties": {
+      "number": {
+       "type": "integer",
+       "description": "Where the note stands in the list now, from 1"
+      },
+      "kind": {
+       "type": "string",
+       "enum": [
+        "background",
+        "preference"
+       ],
+       "description": "`background`: a fact about you that always holds; `preference`: how to do something, with a `scope` saying when"
+      },
+      "text": {
+       "type": "string"
+      },
+      "scope": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "When a preference applies; null for background"
+      },
+      "quote": {
+       "type": "string",
+       "description": "Your own words the note was taken from"
+      },
+      "source": {
+       "type": "string",
+       "enum": [
+        "asked",
+        "inferred"
+       ],
+       "description": "`asked`: you asked for it to be kept; `inferred`: Jiri judged it worth keeping"
+      },
+      "conversation_id": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "The Jiri conversation it was last written in"
+      },
+      "created_at": {
+       "type": "string",
+       "format": "date-time"
+      },
+      "updated_at": {
+       "type": "string",
+       "format": "date-time"
+      }
+     }
+    },
+    "description": "`note_not_found`, `memory_full`: the notes as they are now"
+   }
+  }
+ },
+ "MemoryResponse": {
+  "type": "object",
+  "required": [
+   "max",
+   "notes"
+  ],
+  "properties": {
+   "max": {
+    "type": "integer",
+    "description": "How many notes the memory holds at most"
+   },
+   "notes": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "number",
+      "kind",
+      "text",
+      "scope",
+      "quote",
+      "source",
+      "conversation_id",
+      "created_at",
+      "updated_at"
+     ],
+     "properties": {
+      "number": {
+       "type": "integer",
+       "description": "Where the note stands in the list now, from 1"
+      },
+      "kind": {
+       "type": "string",
+       "enum": [
+        "background",
+        "preference"
+       ],
+       "description": "`background`: a fact about you that always holds; `preference`: how to do something, with a `scope` saying when"
+      },
+      "text": {
+       "type": "string"
+      },
+      "scope": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "When a preference applies; null for background"
+      },
+      "quote": {
+       "type": "string",
+       "description": "Your own words the note was taken from"
+      },
+      "source": {
+       "type": "string",
+       "enum": [
+        "asked",
+        "inferred"
+       ],
+       "description": "`asked`: you asked for it to be kept; `inferred`: Jiri judged it worth keeping"
+      },
+      "conversation_id": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "The Jiri conversation it was last written in"
+      },
+      "created_at": {
+       "type": "string",
+       "format": "date-time"
+      },
+      "updated_at": {
+       "type": "string",
+       "format": "date-time"
+      }
+     }
+    }
+   }
+  }
+ },
+ "MemorySource": {
+  "type": "string",
+  "enum": [
+   "asked",
+   "inferred"
+  ],
+  "description": "`asked`: you asked for it to be kept; `inferred`: Jiri judged it worth keeping"
+ },
+ "MemoryWriteResponse": {
+  "type": "object",
+  "required": [
+   "outcome",
+   "note",
+   "notes"
+  ],
+  "properties": {
+   "outcome": {
+    "type": "string",
+    "enum": [
+     "created",
+     "duplicate",
+     "updated",
+     "unchanged"
+    ]
+   },
+   "note": {
+    "description": "The note the write was about: the one added, replaced, or already kept. Null when a repeated `call_id` names a note deleted since.",
+    "oneOf": [
+     {
+      "type": "object",
+      "required": [
+       "number",
+       "kind",
+       "text",
+       "scope",
+       "quote",
+       "source",
+       "conversation_id",
+       "created_at",
+       "updated_at"
+      ],
+      "properties": {
+       "number": {
+        "type": "integer",
+        "description": "Where the note stands in the list now, from 1"
+       },
+       "kind": {
+        "type": "string",
+        "enum": [
+         "background",
+         "preference"
+        ],
+        "description": "`background`: a fact about you that always holds; `preference`: how to do something, with a `scope` saying when"
+       },
+       "text": {
+        "type": "string"
+       },
+       "scope": {
+        "type": [
+         "string",
+         "null"
+        ],
+        "description": "When a preference applies; null for background"
+       },
+       "quote": {
+        "type": "string",
+        "description": "Your own words the note was taken from"
+       },
+       "source": {
+        "type": "string",
+        "enum": [
+         "asked",
+         "inferred"
+        ],
+        "description": "`asked`: you asked for it to be kept; `inferred`: Jiri judged it worth keeping"
+       },
+       "conversation_id": {
+        "type": [
+         "string",
+         "null"
+        ],
+        "description": "The Jiri conversation it was last written in"
+       },
+       "created_at": {
+        "type": "string",
+        "format": "date-time"
+       },
+       "updated_at": {
+        "type": "string",
+        "format": "date-time"
+       }
+      }
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "notes": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "number",
+      "kind",
+      "text",
+      "scope",
+      "quote",
+      "source",
+      "conversation_id",
+      "created_at",
+      "updated_at"
+     ],
+     "properties": {
+      "number": {
+       "type": "integer",
+       "description": "Where the note stands in the list now, from 1"
+      },
+      "kind": {
+       "type": "string",
+       "enum": [
+        "background",
+        "preference"
+       ],
+       "description": "`background`: a fact about you that always holds; `preference`: how to do something, with a `scope` saying when"
+      },
+      "text": {
+       "type": "string"
+      },
+      "scope": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "When a preference applies; null for background"
+      },
+      "quote": {
+       "type": "string",
+       "description": "Your own words the note was taken from"
+      },
+      "source": {
+       "type": "string",
+       "enum": [
+        "asked",
+        "inferred"
+       ],
+       "description": "`asked`: you asked for it to be kept; `inferred`: Jiri judged it worth keeping"
+      },
+      "conversation_id": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "The Jiri conversation it was last written in"
+      },
+      "created_at": {
+       "type": "string",
+       "format": "date-time"
+      },
+      "updated_at": {
+       "type": "string",
+       "format": "date-time"
+      }
+     }
+    }
+   }
+  }
+ },
+ "Message": {
+  "type": "object",
+  "required": [
+   "id",
+   "request_id",
+   "type",
+   "channel_id",
+   "recipient",
+   "title",
+   "content",
+   "variables",
+   "mentioned_mobile_list",
+   "status",
+   "attempts",
+   "next_retry_at",
+   "error",
+   "response_code",
+   "billed_count",
+   "source",
+   "created_at",
+   "sent_at"
+  ],
+  "properties": {
+   "id": {
+    "type": "string"
+   },
+   "request_id": {
+    "type": "string",
+    "description": "Shared by the records one send request created"
+   },
+   "type": {
+    "type": "string",
+    "enum": [
+     "email",
+     "sms",
+     "ding_talk",
+     "wxwork",
+     "webhook"
+    ]
+   },
+   "channel_id": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "description": "Null for email from Jinshuju's address"
+   },
+   "recipient": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "description": "Email address or mobile number; null for robots and webhooks"
+   },
+   "title": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "content": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "variables": {
+    "type": [
+     "object",
+     "null"
+    ],
+    "additionalProperties": {
+     "type": "string"
+    }
+   },
+   "mentioned_mobile_list": {
+    "type": [
+     "array",
+     "null"
+    ],
+    "items": {
+     "type": "string"
+    },
+    "description": "Mobile numbers or `@all` a robot message mentions"
+   },
+   "status": {
+    "type": "string",
+    "description": "`queued` also covers waiting for a retry (`next_retry_at`); `succeeded` means the receiving server, robot, SMTP server or SMS provider accepted it, not that it was read",
+    "enum": [
+     "queued",
+     "sending",
+     "succeeded",
+     "failed"
+    ]
+   },
+   "attempts": {
+    "type": "integer"
+   },
+   "next_retry_at": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "format": "date-time"
+   },
+   "error": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "description": "Why the last attempt failed"
+   },
+   "response_code": {
+    "type": [
+     "integer",
+     "null"
+    ],
+    "description": "HTTP status the robot or webhook answered with. A webhook's reply body is never returned; for a robot, `error` carries the platform's `errcode` and `errmsg`"
+   },
+   "billed_count": {
+    "type": "integer",
+    "description": "SMS billed, or emails taken from the email quota"
+   },
+   "source": {
+    "type": "string",
+    "enum": [
+     "api",
+     "jiri",
+     "routine"
+    ]
+   },
+   "created_at": {
+    "type": "string",
+    "format": "date-time"
+   },
+   "sent_at": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "format": "date-time"
+   }
+  }
+ },
+ "MessageChannel": {
+  "type": "object",
+  "required": [
+   "id",
+   "type",
+   "name",
+   "address",
+   "created_at"
+  ],
+  "properties": {
+   "id": {
+    "type": "string"
+   },
+   "type": {
+    "type": "string",
+    "enum": [
+     "email",
+     "sms",
+     "ding_talk",
+     "wxwork",
+     "webhook"
+    ]
+   },
+   "name": {
+    "type": "string"
+   },
+   "address": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "description": "Robot or webhook address with its key hidden; null for email and SMS"
+   },
+   "smtp_account_id": {
+    "type": "string",
+    "description": "Only for `email`"
+   },
+   "sms_template_id": {
+    "type": "string",
+    "description": "Only for `sms`"
+   },
+   "created_at": {
+    "type": "string",
+    "format": "date-time"
+   }
+  }
+ },
+ "MessageChannelCreateInput": {
+  "oneOf": [
+   {
+    "type": "object",
+    "description": "Sends through a verified SMTP account of the account",
+    "additionalProperties": false,
+    "required": [
+     "type",
+     "name",
+     "smtp_account_id"
+    ],
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "email"
+      ]
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 50,
+      "description": "Name to tell the channel apart"
+     },
+     "smtp_account_id": {
+      "type": "string",
+      "description": "See `GET /smtp_accounts`"
+     }
+    }
+   },
+   {
+    "type": "object",
+    "description": "Sends with an SMS template whose variables are declared, once the template is approved",
+    "additionalProperties": false,
+    "required": [
+     "type",
+     "name",
+     "sms_template_id"
+    ],
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "sms"
+      ]
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 50,
+      "description": "Name to tell the channel apart"
+     },
+     "sms_template_id": {
+      "type": "string",
+      "description": "See `GET /sms/templates`"
+     }
+    }
+   },
+   {
+    "type": "object",
+    "description": "A DingTalk group robot",
+    "additionalProperties": false,
+    "required": [
+     "type",
+     "name",
+     "url"
+    ],
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "ding_talk"
+      ]
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 50,
+      "description": "Name to tell the channel apart"
+     },
+     "url": {
+      "type": "string",
+      "description": "`https://oapi.dingtalk.com/robot/send?access_token=...`"
+     },
+     "secret": {
+      "type": "string",
+      "description": "Signing secret, when the robot has signing turned on"
+     }
+    }
+   },
+   {
+    "type": "object",
+    "description": "A WeCom group robot",
+    "additionalProperties": false,
+    "required": [
+     "type",
+     "name",
+     "url"
+    ],
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "wxwork"
+      ]
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 50,
+      "description": "Name to tell the channel apart"
+     },
+     "url": {
+      "type": "string",
+      "description": "`https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...`"
+     }
+    }
+   },
+   {
+    "type": "object",
+    "description": "An https address of your own server, which must resolve to a public address. Each message is a POST of JSON `{id, request_id, title, content, created_at}`; on 5xx or 429 the same `id` is posted again, up to 6 attempts in all, so deduplicate by `id`.",
+    "additionalProperties": false,
+    "required": [
+     "type",
+     "name",
+     "url"
+    ],
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "webhook"
+      ]
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 50,
+      "description": "Name to tell the channel apart"
+     },
+     "url": {
+      "type": "string",
+      "maxLength": 2000
+     }
+    }
+   }
+  ],
+  "x-variants": {
+   "email": "EmailMessageChannelInput",
+   "sms": "SMSMessageChannelInput",
+   "ding_talk": "DingTalkMessageChannelInput",
+   "wxwork": "WxworkMessageChannelInput",
+   "webhook": "WebhookMessageChannelInput"
+  },
+  "description": "Branches on type: x-variants maps each type to its branch schema; get_schema shows a branch (e.g. \"TextFieldInput\")."
+ },
+ "MessageChannelCreated": {
+  "allOf": [
+   {
+    "type": "object",
+    "required": [
+     "id",
+     "type",
+     "name",
+     "address",
+     "created_at"
+    ],
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "type": {
+      "type": "string",
+      "enum": [
+       "email",
+       "sms",
+       "ding_talk",
+       "wxwork",
+       "webhook"
+      ]
+     },
+     "name": {
+      "type": "string"
+     },
+     "address": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "Robot or webhook address with its key hidden; null for email and SMS"
+     },
+     "smtp_account_id": {
+      "type": "string",
+      "description": "Only for `email`"
+     },
+     "sms_template_id": {
+      "type": "string",
+      "description": "Only for `sms`"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time"
+     }
+    }
+   },
+   {
+    "type": "object",
+    "properties": {
+     "signing_secret": {
+      "type": "string",
+      "description": "Only for `webhook`, and only in this response; each request carries `X-Jinshuju-Timestamp` and `X-Jinshuju-Signature` = `sha256=` + hex HMAC-SHA256 of `<timestamp>.<body>` with this secret"
+     }
+    }
+   }
+  ]
+ },
+ "MessageChannelListResponse": {
+  "type": "object",
+  "required": [
+   "total",
+   "count",
+   "data",
+   "next"
+  ],
+  "properties": {
+   "total": {
+    "type": "integer",
+    "description": "Number of channels matching the conditions"
+   },
+   "count": {
+    "type": "integer",
+    "description": "Number of items on this page"
+   },
+   "data": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "id",
+      "type",
+      "name",
+      "address",
+      "created_at"
+     ],
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "type": {
+       "type": "string",
+       "enum": [
+        "email",
+        "sms",
+        "ding_talk",
+        "wxwork",
+        "webhook"
+       ]
+      },
+      "name": {
+       "type": "string"
+      },
+      "address": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "Robot or webhook address with its key hidden; null for email and SMS"
+      },
+      "smtp_account_id": {
+       "type": "string",
+       "description": "Only for `email`"
+      },
+      "sms_template_id": {
+       "type": "string",
+       "description": "Only for `sms`"
+      },
+      "created_at": {
+       "type": "string",
+       "format": "date-time"
+      }
+     }
+    }
+   },
+   "next": {
+    "type": [
+     "integer",
+     "null"
+    ],
+    "description": "Row offset of the next page; null on the last page"
+   }
+  }
+ },
+ "MessageChannelName": {
+  "type": "string",
+  "maxLength": 50,
+  "description": "Name to tell the channel apart"
+ },
+ "MessageEstimate": {
+  "type": "object",
+  "required": [
+   "message_count",
+   "billed_count"
+  ],
+  "properties": {
+   "message_count": {
+    "type": "integer",
+    "description": "Records the request would create, one per recipient"
+   },
+   "billed_count": {
+    "type": "integer",
+    "description": "SMS it would bill, or emails it would take from the email quota; 0 for the rest"
+   }
+  }
+ },
+ "MessageInput": {
+  "oneOf": [
+   {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "type",
+     "to",
+     "content"
+    ],
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "email"
+      ]
+     },
+     "channel_id": {
+      "type": "string",
+      "description": "Email channel to send through; without it the email goes from Jinshuju's address"
+     },
+     "to": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "uniqueItems": true,
+      "items": {
+       "type": "string"
+      },
+      "description": "Email addresses or mobile numbers, one record each"
+     },
+     "title": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Subject"
+     },
+     "content": {
+      "type": "string",
+      "maxLength": 20000,
+      "description": "Markdown body"
+     },
+     "idempotency_key": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Sends once for the same key within 24 hours; retry a timed-out request with the same key"
+     }
+    }
+   },
+   {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "type",
+     "channel_id",
+     "to"
+    ],
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "sms"
+      ]
+     },
+     "channel_id": {
+      "type": "string"
+     },
+     "to": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "uniqueItems": true,
+      "items": {
+       "type": "string"
+      },
+      "description": "Email addresses or mobile numbers, one record each"
+     },
+     "variables": {
+      "type": "object",
+      "additionalProperties": {
+       "type": "string",
+       "maxLength": 100
+      },
+      "description": "Value of every variable the channel's template declares, keyed as in the template (`var_1`...)"
+     },
+     "idempotency_key": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Sends once for the same key within 24 hours; retry a timed-out request with the same key"
+     }
+    }
+   },
+   {
+    "type": "object",
+    "description": "A DingTalk or WeCom robot message; the channel is the recipient",
+    "additionalProperties": false,
+    "required": [
+     "type",
+     "channel_id",
+     "content"
+    ],
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "ding_talk",
+       "wxwork"
+      ]
+     },
+     "channel_id": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Heading shown above `content`; do not repeat it in `content`"
+     },
+     "content": {
+      "type": "string",
+      "description": "Markdown text. The title becomes a `### ` heading line above it, and that whole text takes at most 4096 bytes for WeCom and 20000 for DingTalk"
+     },
+     "mentioned_mobile_list": {
+      "type": "array",
+      "maxItems": 50,
+      "uniqueItems": true,
+      "items": {
+       "type": "string"
+      },
+      "description": "Group members to mention by mobile number, or `@all` for everyone. WeCom can only mention in plain text, so a WeCom message with mentions is sent as text (no markdown) of at most 2048 bytes"
+     },
+     "idempotency_key": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Sends once for the same key within 24 hours; retry a timed-out request with the same key"
+     }
+    }
+   },
+   {
+    "type": "object",
+    "description": "A webhook message; the channel is the recipient",
+    "additionalProperties": false,
+    "required": [
+     "type",
+     "channel_id",
+     "content"
+    ],
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "webhook"
+      ]
+     },
+     "channel_id": {
+      "type": "string"
+     },
+     "title": {
+      "type": "string",
+      "maxLength": 200
+     },
+     "content": {
+      "type": "string",
+      "description": "Title and content take at most 65536 bytes"
+     },
+     "idempotency_key": {
+      "type": "string",
+      "maxLength": 255,
+      "description": "Sends once for the same key within 24 hours; retry a timed-out request with the same key"
+     }
+    }
+   }
+  ],
+  "x-variants": {
+   "email": "EmailMessageInput",
+   "sms": "SMSMessageInput",
+   "ding_talk": "RobotMessageInput",
+   "wxwork": "RobotMessageInput",
+   "webhook": "WebhookMessageInput"
+  },
+  "description": "Branches on type: x-variants maps each type to its branch schema; get_schema shows a branch (e.g. \"TextFieldInput\")."
+ },
+ "MessageListResponse": {
+  "type": "object",
+  "required": [
+   "total",
+   "count",
+   "data",
+   "next"
+  ],
+  "properties": {
+   "total": {
+    "type": "integer",
+    "description": "Number of messages matching the conditions"
+   },
+   "count": {
+    "type": "integer",
+    "description": "Number of items on this page"
+   },
+   "data": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "id",
+      "request_id",
+      "type",
+      "channel_id",
+      "recipient",
+      "title",
+      "content",
+      "variables",
+      "mentioned_mobile_list",
+      "status",
+      "attempts",
+      "next_retry_at",
+      "error",
+      "response_code",
+      "billed_count",
+      "source",
+      "created_at",
+      "sent_at"
+     ],
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "request_id": {
+       "type": "string",
+       "description": "Shared by the records one send request created"
+      },
+      "type": {
+       "type": "string",
+       "enum": [
+        "email",
+        "sms",
+        "ding_talk",
+        "wxwork",
+        "webhook"
+       ]
+      },
+      "channel_id": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "Null for email from Jinshuju's address"
+      },
+      "recipient": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "Email address or mobile number; null for robots and webhooks"
+      },
+      "title": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "content": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "variables": {
+       "type": [
+        "object",
+        "null"
+       ],
+       "additionalProperties": {
+        "type": "string"
+       }
+      },
+      "mentioned_mobile_list": {
+       "type": [
+        "array",
+        "null"
+       ],
+       "items": {
+        "type": "string"
+       },
+       "description": "Mobile numbers or `@all` a robot message mentions"
+      },
+      "status": {
+       "type": "string",
+       "description": "`queued` also covers waiting for a retry (`next_retry_at`); `succeeded` means the receiving server, robot, SMTP server or SMS provider accepted it, not that it was read",
+       "enum": [
+        "queued",
+        "sending",
+        "succeeded",
+        "failed"
+       ]
+      },
+      "attempts": {
+       "type": "integer"
+      },
+      "next_retry_at": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "format": "date-time"
+      },
+      "error": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "Why the last attempt failed"
+      },
+      "response_code": {
+       "type": [
+        "integer",
+        "null"
+       ],
+       "description": "HTTP status the robot or webhook answered with. A webhook's reply body is never returned; for a robot, `error` carries the platform's `errcode` and `errmsg`"
+      },
+      "billed_count": {
+       "type": "integer",
+       "description": "SMS billed, or emails taken from the email quota"
+      },
+      "source": {
+       "type": "string",
+       "enum": [
+        "api",
+        "jiri",
+        "routine"
+       ]
+      },
+      "created_at": {
+       "type": "string",
+       "format": "date-time"
+      },
+      "sent_at": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "format": "date-time"
+      }
+     }
+    }
+   },
+   "next": {
+    "type": [
+     "integer",
+     "null"
+    ],
+    "description": "Row offset of the next page; null on the last page"
+   }
+  }
+ },
+ "MessageRecipients": {
+  "type": "array",
+  "minItems": 1,
+  "maxItems": 50,
+  "uniqueItems": true,
+  "items": {
+   "type": "string"
+  },
+  "description": "Email addresses or mobile numbers, one record each"
+ },
+ "MessageSendResponse": {
+  "type": "object",
+  "required": [
+   "request_id",
+   "replayed",
+   "data"
+  ],
+  "properties": {
+   "request_id": {
+    "type": "string"
+   },
+   "replayed": {
+    "type": "boolean",
+    "description": "True when the records come from an earlier request with the same `idempotency_key`"
+   },
+   "data": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "id",
+      "request_id",
+      "type",
+      "channel_id",
+      "recipient",
+      "title",
+      "content",
+      "variables",
+      "mentioned_mobile_list",
+      "status",
+      "attempts",
+      "next_retry_at",
+      "error",
+      "response_code",
+      "billed_count",
+      "source",
+      "created_at",
+      "sent_at"
+     ],
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "request_id": {
+       "type": "string",
+       "description": "Shared by the records one send request created"
+      },
+      "type": {
+       "type": "string",
+       "enum": [
+        "email",
+        "sms",
+        "ding_talk",
+        "wxwork",
+        "webhook"
+       ]
+      },
+      "channel_id": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "Null for email from Jinshuju's address"
+      },
+      "recipient": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "Email address or mobile number; null for robots and webhooks"
+      },
+      "title": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "content": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "variables": {
+       "type": [
+        "object",
+        "null"
+       ],
+       "additionalProperties": {
+        "type": "string"
+       }
+      },
+      "mentioned_mobile_list": {
+       "type": [
+        "array",
+        "null"
+       ],
+       "items": {
+        "type": "string"
+       },
+       "description": "Mobile numbers or `@all` a robot message mentions"
+      },
+      "status": {
+       "type": "string",
+       "description": "`queued` also covers waiting for a retry (`next_retry_at`); `succeeded` means the receiving server, robot, SMTP server or SMS provider accepted it, not that it was read",
+       "enum": [
+        "queued",
+        "sending",
+        "succeeded",
+        "failed"
+       ]
+      },
+      "attempts": {
+       "type": "integer"
+      },
+      "next_retry_at": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "format": "date-time"
+      },
+      "error": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "Why the last attempt failed"
+      },
+      "response_code": {
+       "type": [
+        "integer",
+        "null"
+       ],
+       "description": "HTTP status the robot or webhook answered with. A webhook's reply body is never returned; for a robot, `error` carries the platform's `errcode` and `errmsg`"
+      },
+      "billed_count": {
+       "type": "integer",
+       "description": "SMS billed, or emails taken from the email quota"
+      },
+      "source": {
+       "type": "string",
+       "enum": [
+        "api",
+        "jiri",
+        "routine"
+       ]
+      },
+      "created_at": {
+       "type": "string",
+       "format": "date-time"
+      },
+      "sent_at": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "format": "date-time"
+      }
+     }
+    }
+   }
+  }
+ },
+ "MessageSource": {
+  "type": "string",
+  "enum": [
+   "api",
+   "jiri",
+   "routine"
+  ]
+ },
+ "MessageStatus": {
+  "type": "string",
+  "description": "`queued` also covers waiting for a retry (`next_retry_at`); `succeeded` means the receiving server, robot, SMTP server or SMS provider accepted it, not that it was read",
+  "enum": [
+   "queued",
+   "sending",
+   "succeeded",
+   "failed"
+  ]
+ },
+ "MessageType": {
+  "type": "string",
+  "enum": [
+   "email",
+   "sms",
+   "ding_talk",
+   "wxwork",
+   "webhook"
+  ]
+ },
  "MobileFieldInput": {
   "type": "object",
   "title": "MobileFieldInput",
@@ -34084,6 +37202,10 @@
     "type": "integer",
     "minimum": 0,
     "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+   },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
    },
    "answers": {
     "type": "array",
@@ -36547,6 +39669,10 @@
    "random_choices": {
     "type": "boolean",
     "description": "Shuffle the choices each time the form opens"
+   },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
    }
   },
   "allOf": [
@@ -36834,7 +39960,6 @@
    },
    "available_days_of_week": {
     "type": "array",
-    "minItems": 1,
     "items": {
      "type": "string",
      "enum": [
@@ -36944,6 +40069,39 @@
      }
     },
     "description": "Time ranges that cannot be booked"
+   },
+   "special_time_range_quotas": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "special_dates",
+      "quota"
+     ],
+     "properties": {
+      "special_dates": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "type": "string",
+        "format": "date"
+       },
+       "description": "Dates this entry applies to, as YYYY-MM-DD"
+      },
+      "quota": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "Places"
+      },
+      "price": {
+       "type": "number",
+       "minimum": 0,
+       "description": "Price when payable"
+      }
+     }
+    },
+    "description": "Special dates: they can be booked even when their day of the week is not in available_days_of_week, and their quota and price replace the day-of-week ones. Left out on a write, the current special dates are kept; [] clears them"
    }
   }
  },
@@ -36961,7 +40119,6 @@
    },
    "available_days_of_week": {
     "type": "array",
-    "minItems": 1,
     "items": {
      "type": "string",
      "enum": [
@@ -36974,7 +40131,8 @@
       "saturday"
      ]
     },
-    "description": "Days of the week that can be booked, as lowercase English day names"
+    "description": "Days of the week that can be booked, as lowercase English day names",
+    "minItems": 1
    },
    "show_left_quota": {
     "type": "boolean",
@@ -37217,15 +40375,32 @@
       },
       "start_date": {
        "type": "string",
-       "format": "date"
+       "anyOf": [
+        {
+         "format": "date"
+        },
+        {
+         "format": "date-time"
+        }
+       ],
+       "description": "Bookable from this moment on. Reads give an ISO 8601 date-time; a YYYY-MM-DD date means the start of that day"
       },
       "end_date": {
        "type": "string",
-       "format": "date"
+       "anyOf": [
+        {
+         "format": "date"
+        },
+        {
+         "format": "date-time"
+        }
+       ],
+       "description": "Bookable until the end of this day. Reads give an ISO 8601 date-time; a YYYY-MM-DD date is taken as that day"
       },
       "quota_setting": {
        "type": "object",
-       "description": "Quota settings, branched on type",
+       "title": "ReservationQuotaSettingInput",
+       "description": "Bookable days, time slots and places per slot, branched on type",
        "required": [
         "type"
        ],
@@ -37253,7 +40428,6 @@
           },
           "available_days_of_week": {
            "type": "array",
-           "minItems": 1,
            "items": {
             "type": "string",
             "enum": [
@@ -37363,6 +40537,39 @@
             }
            },
            "description": "Time ranges that cannot be booked"
+          },
+          "special_time_range_quotas": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+             "special_dates",
+             "quota"
+            ],
+            "properties": {
+             "special_dates": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+               "type": "string",
+               "format": "date"
+              },
+              "description": "Dates this entry applies to, as YYYY-MM-DD"
+             },
+             "quota": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Places"
+             },
+             "price": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Price when payable"
+             }
+            }
+           },
+           "description": "Special dates: they can be booked even when their day of the week is not in available_days_of_week, and their quota and price replace the day-of-week ones. Left out on a write, the current special dates are kept; [] clears them"
           }
          }
         },
@@ -37380,7 +40587,6 @@
           },
           "available_days_of_week": {
            "type": "array",
-           "minItems": 1,
            "items": {
             "type": "string",
             "enum": [
@@ -37393,7 +40599,8 @@
              "saturday"
             ]
            },
-           "description": "Days of the week that can be booked, as lowercase English day names"
+           "description": "Days of the week that can be booked, as lowercase English day names",
+           "minItems": 1
           },
           "show_left_quota": {
            "type": "boolean",
@@ -37586,6 +40793,7 @@
  },
  "ReservationItem": {
   "type": "object",
+  "description": "Form and table reads also give the item's settings, in the shape `ReservationItemInput` takes. A write replaces the whole list; an item matched to a current one (by `api_code`, else by name) keeps what a read does not give, its images and whether deleted entries give their places back. Time slot tables set up in the editor are not kept",
   "required": [
    "name",
    "value",
@@ -37597,57 +40805,32 @@
    },
    "value": {
     "type": "string",
-    "description": "Reservation item api_code"
+    "description": "Reservation item api_code, written back as `api_code`"
    },
    "hidden": {
     "type": "boolean"
-   }
-  }
- },
- "ReservationItemInput": {
-  "type": "object",
-  "title": "ReservationItemInput",
-  "additionalProperties": false,
-  "description": "A reservation item",
-  "required": [
-   "name"
-  ],
-  "properties": {
-   "name": {
-    "type": "string"
-   },
-   "api_code": {
-    "type": "string",
-    "description": "Keeps the identity of the item on edit; when left out, an existing item is matched by name"
    },
    "description": {
     "type": "string"
-   },
-   "position": {
-    "type": "integer",
-    "minimum": 0
-   },
-   "hidden": {
-    "type": "boolean"
    },
    "selected": {
     "type": "boolean"
    },
    "payable": {
-    "type": "boolean",
-    "description": "Requires payment (depends on the plan and the price of each time slot)"
+    "type": "boolean"
    },
    "start_date": {
     "type": "string",
-    "format": "date"
+    "format": "date-time"
    },
    "end_date": {
     "type": "string",
-    "format": "date"
+    "format": "date-time"
    },
    "quota_setting": {
     "type": "object",
-    "description": "Quota settings, branched on type",
+    "title": "ReservationQuotaSettingInput",
+    "description": "Bookable days, time slots and places per slot, branched on type",
     "required": [
      "type"
     ],
@@ -37675,7 +40858,6 @@
        },
        "available_days_of_week": {
         "type": "array",
-        "minItems": 1,
         "items": {
          "type": "string",
          "enum": [
@@ -37785,6 +40967,39 @@
          }
         },
         "description": "Time ranges that cannot be booked"
+       },
+       "special_time_range_quotas": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "special_dates",
+          "quota"
+         ],
+         "properties": {
+          "special_dates": {
+           "type": "array",
+           "minItems": 1,
+           "items": {
+            "type": "string",
+            "format": "date"
+           },
+           "description": "Dates this entry applies to, as YYYY-MM-DD"
+          },
+          "quota": {
+           "type": "integer",
+           "minimum": 0,
+           "description": "Places"
+          },
+          "price": {
+           "type": "number",
+           "minimum": 0,
+           "description": "Price when payable"
+          }
+         }
+        },
+        "description": "Special dates: they can be booked even when their day of the week is not in available_days_of_week, and their quota and price replace the day-of-week ones. Left out on a write, the current special dates are kept; [] clears them"
        }
       }
      },
@@ -37802,7 +41017,6 @@
        },
        "available_days_of_week": {
         "type": "array",
-        "minItems": 1,
         "items": {
          "type": "string",
          "enum": [
@@ -37815,7 +41029,8 @@
           "saturday"
          ]
         },
-        "description": "Days of the week that can be booked, as lowercase English day names"
+        "description": "Days of the week that can be booked, as lowercase English day names",
+        "minItems": 1
        },
        "show_left_quota": {
         "type": "boolean",
@@ -37986,6 +41201,858 @@
    }
   }
  },
+ "ReservationItemInput": {
+  "type": "object",
+  "title": "ReservationItemInput",
+  "additionalProperties": false,
+  "description": "A reservation item",
+  "required": [
+   "name"
+  ],
+  "properties": {
+   "name": {
+    "type": "string"
+   },
+   "api_code": {
+    "type": "string",
+    "description": "Keeps the identity of the item on edit; when left out, an existing item is matched by name"
+   },
+   "description": {
+    "type": "string"
+   },
+   "position": {
+    "type": "integer",
+    "minimum": 0
+   },
+   "hidden": {
+    "type": "boolean"
+   },
+   "selected": {
+    "type": "boolean"
+   },
+   "payable": {
+    "type": "boolean",
+    "description": "Requires payment (depends on the plan and the price of each time slot)"
+   },
+   "start_date": {
+    "type": "string",
+    "anyOf": [
+     {
+      "format": "date"
+     },
+     {
+      "format": "date-time"
+     }
+    ],
+    "description": "Bookable from this moment on. Reads give an ISO 8601 date-time; a YYYY-MM-DD date means the start of that day"
+   },
+   "end_date": {
+    "type": "string",
+    "anyOf": [
+     {
+      "format": "date"
+     },
+     {
+      "format": "date-time"
+     }
+    ],
+    "description": "Bookable until the end of this day. Reads give an ISO 8601 date-time; a YYYY-MM-DD date is taken as that day"
+   },
+   "quota_setting": {
+    "type": "object",
+    "title": "ReservationQuotaSettingInput",
+    "description": "Bookable days, time slots and places per slot, branched on type",
+    "required": [
+     "type"
+    ],
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "by_day_repeat_weekly",
+       "by_time_range_repeat_daily"
+      ]
+     }
+    },
+    "oneOf": [
+     {
+      "type": "object",
+      "title": "ReservationByDayQuotaInput",
+      "additionalProperties": false,
+      "required": [
+       "type",
+       "available_days_of_week"
+      ],
+      "properties": {
+       "type": {
+        "const": "by_day_repeat_weekly"
+       },
+       "available_days_of_week": {
+        "type": "array",
+        "items": {
+         "type": "string",
+         "enum": [
+          "sunday",
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday"
+         ]
+        },
+        "description": "Days of the week that can be booked, as lowercase English day names"
+       },
+       "show_left_quota": {
+        "type": "boolean",
+        "description": "Show the places left"
+       },
+       "start_time_offset": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+         "offset_number": {
+          "type": "integer",
+          "minimum": 0
+         },
+         "unit": {
+          "type": "string",
+          "enum": [
+           "day",
+           "hour"
+          ]
+         }
+        },
+        "description": "How far in advance booking opens"
+       },
+       "end_time_offset": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+         "offset_number": {
+          "type": "integer",
+          "minimum": 0
+         },
+         "unit": {
+          "type": "string",
+          "enum": [
+           "day",
+           "hour"
+          ]
+         }
+        },
+        "description": "How far in advance booking closes"
+       },
+       "daily_time_range_quotas": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "for_wday": {
+           "type": "string",
+           "enum": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+           ],
+           "description": "Day of the week, as a lowercase English day name"
+          },
+          "quota": {
+           "type": "integer",
+           "minimum": 0,
+           "description": "Places"
+          },
+          "price": {
+           "type": "number",
+           "minimum": 0,
+           "description": "Price when payable"
+          },
+          "position": {
+           "type": "integer",
+           "minimum": 0
+          },
+          "daily_time_range_token": {
+           "type": "string"
+          }
+         }
+        },
+        "description": "Places per day of the week"
+       },
+       "non_reservable_rules": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "start_time": {
+           "type": "string"
+          },
+          "end_time": {
+           "type": "string"
+          }
+         }
+        },
+        "description": "Time ranges that cannot be booked"
+       },
+       "special_time_range_quotas": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "special_dates",
+          "quota"
+         ],
+         "properties": {
+          "special_dates": {
+           "type": "array",
+           "minItems": 1,
+           "items": {
+            "type": "string",
+            "format": "date"
+           },
+           "description": "Dates this entry applies to, as YYYY-MM-DD"
+          },
+          "quota": {
+           "type": "integer",
+           "minimum": 0,
+           "description": "Places"
+          },
+          "price": {
+           "type": "number",
+           "minimum": 0,
+           "description": "Price when payable"
+          }
+         }
+        },
+        "description": "Special dates: they can be booked even when their day of the week is not in available_days_of_week, and their quota and price replace the day-of-week ones. Left out on a write, the current special dates are kept; [] clears them"
+       }
+      }
+     },
+     {
+      "type": "object",
+      "title": "ReservationByTimeRangeQuotaInput",
+      "additionalProperties": false,
+      "required": [
+       "type",
+       "available_days_of_week"
+      ],
+      "properties": {
+       "type": {
+        "const": "by_time_range_repeat_daily"
+       },
+       "available_days_of_week": {
+        "type": "array",
+        "items": {
+         "type": "string",
+         "enum": [
+          "sunday",
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday"
+         ]
+        },
+        "description": "Days of the week that can be booked, as lowercase English day names",
+        "minItems": 1
+       },
+       "show_left_quota": {
+        "type": "boolean",
+        "description": "Show the places left"
+       },
+       "start_time_offset": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+         "offset_number": {
+          "type": "integer",
+          "minimum": 0
+         },
+         "unit": {
+          "type": "string",
+          "enum": [
+           "day",
+           "hour"
+          ]
+         }
+        },
+        "description": "How far in advance booking opens"
+       },
+       "end_time_offset": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+         "offset_number": {
+          "type": "integer",
+          "minimum": 0
+         },
+         "unit": {
+          "type": "string",
+          "enum": [
+           "day",
+           "hour"
+          ]
+         }
+        },
+        "description": "How far in advance booking closes"
+       },
+       "daily_time_range_quotas": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "start_time",
+          "end_time"
+         ],
+         "properties": {
+          "for_wday": {
+           "type": "string",
+           "enum": [
+            "sunday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday"
+           ],
+           "description": "Day of the week, as a lowercase English day name"
+          },
+          "quota": {
+           "type": "integer",
+           "minimum": 0,
+           "description": "Places"
+          },
+          "price": {
+           "type": "number",
+           "minimum": 0,
+           "description": "Price when payable"
+          },
+          "position": {
+           "type": "integer",
+           "minimum": 0
+          },
+          "daily_time_range_token": {
+           "type": "string"
+          },
+          "start_time": {
+           "type": "object",
+           "additionalProperties": false,
+           "properties": {
+            "hour": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 23
+            },
+            "minute": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 59
+            }
+           },
+           "description": "Start time"
+          },
+          "end_time": {
+           "type": "object",
+           "additionalProperties": false,
+           "properties": {
+            "hour": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 23
+            },
+            "minute": {
+             "type": "integer",
+             "minimum": 0,
+             "maximum": 59
+            }
+           },
+           "description": "End time"
+          }
+         }
+        },
+        "description": "Places per time slot"
+       },
+       "non_reservable_rules": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "start_time": {
+           "type": "string"
+          },
+          "end_time": {
+           "type": "string"
+          }
+         }
+        },
+        "description": "Time ranges that cannot be booked"
+       },
+       "time_range_mode": {
+        "type": "string",
+        "enum": [
+         "same_by_wday",
+         "different_by_wday"
+        ],
+        "description": "same_by_wday: the same time slots every day; different_by_wday: every slot must carry for_wday"
+       }
+      },
+      "if": {
+       "properties": {
+        "time_range_mode": {
+         "const": "different_by_wday"
+        }
+       },
+       "required": [
+        "time_range_mode"
+       ]
+      },
+      "then": {
+       "properties": {
+        "daily_time_range_quotas": {
+         "items": {
+          "required": [
+           "for_wday"
+          ]
+         }
+        }
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "ReservationQuotaSettingInput": {
+  "type": "object",
+  "title": "ReservationQuotaSettingInput",
+  "description": "Bookable days, time slots and places per slot, branched on type\nBranches on type: x-variants maps each type to its branch schema; get_schema shows a branch (e.g. \"TextFieldInput\").",
+  "required": [
+   "type"
+  ],
+  "properties": {
+   "type": {
+    "type": "string",
+    "enum": [
+     "by_day_repeat_weekly",
+     "by_time_range_repeat_daily"
+    ]
+   }
+  },
+  "oneOf": [
+   {
+    "type": "object",
+    "title": "ReservationByDayQuotaInput",
+    "additionalProperties": false,
+    "required": [
+     "type",
+     "available_days_of_week"
+    ],
+    "properties": {
+     "type": {
+      "const": "by_day_repeat_weekly"
+     },
+     "available_days_of_week": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+       ]
+      },
+      "description": "Days of the week that can be booked, as lowercase English day names"
+     },
+     "show_left_quota": {
+      "type": "boolean",
+      "description": "Show the places left"
+     },
+     "start_time_offset": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "offset_number": {
+        "type": "integer",
+        "minimum": 0
+       },
+       "unit": {
+        "type": "string",
+        "enum": [
+         "day",
+         "hour"
+        ]
+       }
+      },
+      "description": "How far in advance booking opens"
+     },
+     "end_time_offset": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "offset_number": {
+        "type": "integer",
+        "minimum": 0
+       },
+       "unit": {
+        "type": "string",
+        "enum": [
+         "day",
+         "hour"
+        ]
+       }
+      },
+      "description": "How far in advance booking closes"
+     },
+     "daily_time_range_quotas": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "for_wday": {
+         "type": "string",
+         "enum": [
+          "sunday",
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday"
+         ],
+         "description": "Day of the week, as a lowercase English day name"
+        },
+        "quota": {
+         "type": "integer",
+         "minimum": 0,
+         "description": "Places"
+        },
+        "price": {
+         "type": "number",
+         "minimum": 0,
+         "description": "Price when payable"
+        },
+        "position": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "daily_time_range_token": {
+         "type": "string"
+        }
+       }
+      },
+      "description": "Places per day of the week"
+     },
+     "non_reservable_rules": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "start_time": {
+         "type": "string"
+        },
+        "end_time": {
+         "type": "string"
+        }
+       }
+      },
+      "description": "Time ranges that cannot be booked"
+     },
+     "special_time_range_quotas": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "special_dates",
+        "quota"
+       ],
+       "properties": {
+        "special_dates": {
+         "type": "array",
+         "minItems": 1,
+         "items": {
+          "type": "string",
+          "format": "date"
+         },
+         "description": "Dates this entry applies to, as YYYY-MM-DD"
+        },
+        "quota": {
+         "type": "integer",
+         "minimum": 0,
+         "description": "Places"
+        },
+        "price": {
+         "type": "number",
+         "minimum": 0,
+         "description": "Price when payable"
+        }
+       }
+      },
+      "description": "Special dates: they can be booked even when their day of the week is not in available_days_of_week, and their quota and price replace the day-of-week ones. Left out on a write, the current special dates are kept; [] clears them"
+     }
+    }
+   },
+   {
+    "type": "object",
+    "title": "ReservationByTimeRangeQuotaInput",
+    "additionalProperties": false,
+    "required": [
+     "type",
+     "available_days_of_week"
+    ],
+    "properties": {
+     "type": {
+      "const": "by_time_range_repeat_daily"
+     },
+     "available_days_of_week": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday"
+       ]
+      },
+      "description": "Days of the week that can be booked, as lowercase English day names",
+      "minItems": 1
+     },
+     "show_left_quota": {
+      "type": "boolean",
+      "description": "Show the places left"
+     },
+     "start_time_offset": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "offset_number": {
+        "type": "integer",
+        "minimum": 0
+       },
+       "unit": {
+        "type": "string",
+        "enum": [
+         "day",
+         "hour"
+        ]
+       }
+      },
+      "description": "How far in advance booking opens"
+     },
+     "end_time_offset": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "offset_number": {
+        "type": "integer",
+        "minimum": 0
+       },
+       "unit": {
+        "type": "string",
+        "enum": [
+         "day",
+         "hour"
+        ]
+       }
+      },
+      "description": "How far in advance booking closes"
+     },
+     "daily_time_range_quotas": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "start_time",
+        "end_time"
+       ],
+       "properties": {
+        "for_wday": {
+         "type": "string",
+         "enum": [
+          "sunday",
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday"
+         ],
+         "description": "Day of the week, as a lowercase English day name"
+        },
+        "quota": {
+         "type": "integer",
+         "minimum": 0,
+         "description": "Places"
+        },
+        "price": {
+         "type": "number",
+         "minimum": 0,
+         "description": "Price when payable"
+        },
+        "position": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "daily_time_range_token": {
+         "type": "string"
+        },
+        "start_time": {
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "hour": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 23
+          },
+          "minute": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 59
+          }
+         },
+         "description": "Start time"
+        },
+        "end_time": {
+         "type": "object",
+         "additionalProperties": false,
+         "properties": {
+          "hour": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 23
+          },
+          "minute": {
+           "type": "integer",
+           "minimum": 0,
+           "maximum": 59
+          }
+         },
+         "description": "End time"
+        }
+       }
+      },
+      "description": "Places per time slot"
+     },
+     "non_reservable_rules": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "start_time": {
+         "type": "string"
+        },
+        "end_time": {
+         "type": "string"
+        }
+       }
+      },
+      "description": "Time ranges that cannot be booked"
+     },
+     "time_range_mode": {
+      "type": "string",
+      "enum": [
+       "same_by_wday",
+       "different_by_wday"
+      ],
+      "description": "same_by_wday: the same time slots every day; different_by_wday: every slot must carry for_wday"
+     }
+    },
+    "if": {
+     "properties": {
+      "time_range_mode": {
+       "const": "different_by_wday"
+      }
+     },
+     "required": [
+      "time_range_mode"
+     ]
+    },
+    "then": {
+     "properties": {
+      "daily_time_range_quotas": {
+       "items": {
+        "required": [
+         "for_wday"
+        ]
+       }
+      }
+     }
+    }
+   }
+  ],
+  "x-variants": {
+   "by_day_repeat_weekly": "ReservationByDayQuotaInput",
+   "by_time_range_repeat_daily": "ReservationByTimeRangeQuotaInput"
+  }
+ },
+ "RobotMessageInput": {
+  "type": "object",
+  "description": "A DingTalk or WeCom robot message; the channel is the recipient",
+  "additionalProperties": false,
+  "required": [
+   "type",
+   "channel_id",
+   "content"
+  ],
+  "properties": {
+   "type": {
+    "type": "string",
+    "enum": [
+     "ding_talk",
+     "wxwork"
+    ]
+   },
+   "channel_id": {
+    "type": "string"
+   },
+   "title": {
+    "type": "string",
+    "maxLength": 200,
+    "description": "Heading shown above `content`; do not repeat it in `content`"
+   },
+   "content": {
+    "type": "string",
+    "description": "Markdown text. The title becomes a `### ` heading line above it, and that whole text takes at most 4096 bytes for WeCom and 20000 for DingTalk"
+   },
+   "mentioned_mobile_list": {
+    "type": "array",
+    "maxItems": 50,
+    "uniqueItems": true,
+    "items": {
+     "type": "string"
+    },
+    "description": "Group members to mention by mobile number, or `@all` for everyone. WeCom can only mention in plain text, so a WeCom message with mentions is sent as text (no markdown) of at most 2048 bytes"
+   },
+   "idempotency_key": {
+    "type": "string",
+    "maxLength": 255,
+    "description": "Sends once for the same key within 24 hours; retry a timed-out request with the same key"
+   }
+  }
+ },
  "Routine": {
   "type": "object",
   "required": [
@@ -38002,6 +42069,7 @@
    "next_run_at",
    "next_runs",
    "event",
+   "data_condition",
    "objects",
    "delete_authorized",
    "runs_count",
@@ -38169,6 +42237,49 @@
      },
      "include_bulk": {
       "type": "boolean"
+     }
+    }
+   },
+   "data_condition": {
+    "type": [
+     "object",
+     "null"
+    ],
+    "description": "A schedule's data condition (see `RoutineDataConditionInput`); null without one, for a data trigger, or when its form is gone",
+    "required": [
+     "source_kind",
+     "source_token",
+     "source_name",
+     "scope_conditions",
+     "conditions"
+    ],
+    "properties": {
+     "source_kind": {
+      "type": "string",
+      "enum": [
+       "form",
+       "table"
+      ]
+     },
+     "source_token": {
+      "type": "string"
+     },
+     "source_name": {
+      "type": "string"
+     },
+     "scope_conditions": {
+      "type": "array",
+      "description": "The conditions as stored, in the shape `RoutineDataConditionInput.scope_conditions` takes; empty when you can no longer read the form",
+      "items": {
+       "type": "object"
+      }
+     },
+     "conditions": {
+      "type": "array",
+      "description": "The conditions in words, one sentence per group",
+      "items": {
+       "type": "string"
+      }
      }
     }
    },
@@ -38349,6 +42460,52 @@
    }
   }
  },
+ "RoutineDataConditionInput": {
+  "type": "object",
+  "description": "A schedule's data condition: when the clock fires the routine, it runs only if the form or table has data meeting the conditions now; otherwise the run is completed at once, titled `没有满足条件的数据`, without Jiri and without AI points. A run started by hand is not held to it. Only with `trigger_kind` `schedule`.\nSent, it replaces the routine's condition whole, so `scope_conditions` is required; an empty `scope_conditions` removes the condition. Left out, or null, the condition stays as it is.\n",
+  "required": [
+   "scope_conditions"
+  ],
+  "properties": {
+   "source_kind": {
+    "type": "string",
+    "description": "form or table"
+   },
+   "source_token": {
+    "type": "string",
+    "description": "The form or table, one you created or whose data you can read; it is added to the objects on save"
+   },
+   "scope_conditions": {
+    "type": "array",
+    "description": "As in `RoutineEventInput.scope_conditions`. Values standing for whoever submits (`$(current_submitter_id)`) are refused.",
+    "items": {
+     "type": "object",
+     "description": "One data condition. Each item reads only the keys below.",
+     "properties": {
+      "trigger": {
+       "type": "string",
+       "description": "The field's api_code (a table column as `<field>.<column>`)"
+      },
+      "operator": {
+       "type": "string",
+       "description": "The comparison, one the field type offers on the routines page, such as any_in on a choice field or between on a date, or one the entry query handles beyond them, such as eq on text, gte on a date, eq / ne with one code on a radio button or with the exact set on a checkbox"
+      },
+      "value": {
+       "description": "The value compared with"
+      },
+      "group_index": {
+       "type": "integer",
+       "description": "The condition's group"
+      },
+      "scope_attr": {
+       "type": "string",
+       "description": "`date_time` for the date of a reservation field; left out otherwise"
+      }
+     }
+    }
+   }
+  }
+ },
  "RoutineDetail": {
   "allOf": [
    {
@@ -38367,6 +42524,7 @@
      "next_run_at",
      "next_runs",
      "event",
+     "data_condition",
      "objects",
      "delete_authorized",
      "runs_count",
@@ -38534,6 +42692,49 @@
        },
        "include_bulk": {
         "type": "boolean"
+       }
+      }
+     },
+     "data_condition": {
+      "type": [
+       "object",
+       "null"
+      ],
+      "description": "A schedule's data condition (see `RoutineDataConditionInput`); null without one, for a data trigger, or when its form is gone",
+      "required": [
+       "source_kind",
+       "source_token",
+       "source_name",
+       "scope_conditions",
+       "conditions"
+      ],
+      "properties": {
+       "source_kind": {
+        "type": "string",
+        "enum": [
+         "form",
+         "table"
+        ]
+       },
+       "source_token": {
+        "type": "string"
+       },
+       "source_name": {
+        "type": "string"
+       },
+       "scope_conditions": {
+        "type": "array",
+        "description": "The conditions as stored, in the shape `RoutineDataConditionInput.scope_conditions` takes; empty when you can no longer read the form",
+        "items": {
+         "type": "object"
+        }
+       },
+       "conditions": {
+        "type": "array",
+        "description": "The conditions in words, one sentence per group",
+        "items": {
+         "type": "string"
+        }
        }
       }
      },
@@ -38792,6 +42993,40 @@
        }
       ],
       "description": "How the data trigger's conditions meet your latest entries of its source; null for a schedule, a data trigger without conditions, or one whose fields no longer work"
+     },
+     "data_condition_match": {
+      "type": [
+       "object",
+       "null"
+      ],
+      "description": "Whether any entry meets a schedule's data condition now, checked over all the entries you can see, as a firing would; null without a data condition",
+      "required": [
+       "status",
+       "serial_numbers",
+       "more"
+      ],
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "matched",
+         "empty",
+         "unknown"
+        ],
+        "description": "`matched` some entries meet it, `empty` none do (a firing now would end without Jiri), `unknown` it could not be checked (a firing runs as without a condition, or fails as `invalid_trigger` when the condition's fields no longer work)"
+       },
+       "serial_numbers": {
+        "type": "array",
+        "items": {
+         "type": "integer"
+        },
+        "description": "Up to 20 of the entries that meet it, a sample, in no set order"
+       },
+       "more": {
+        "type": "boolean",
+        "description": "Whether more entries meet it than are listed"
+       }
+      }
      }
     }
    }
@@ -38822,9 +43057,10 @@
    },
    "scope_conditions": {
     "type": "array",
-    "description": "Data conditions, written as the routines page saves them. Conditions with the same `group_index` are joined by AND or OR by its sign; groups are joined by OR. Each item reads only the keys below. A condition on an operator or value its field type does not take returns `422` saying what the field takes.",
+    "description": "Data conditions, written as the routines page saves them. Conditions with the same `group_index` are joined by AND or OR by its sign; groups are joined by OR. A condition on an operator or value its field type does not take returns `422` saying what the field takes.",
     "items": {
      "type": "object",
+     "description": "One data condition. Each item reads only the keys below.",
      "properties": {
       "trigger": {
        "type": "string",
@@ -38983,9 +43219,10 @@
        },
        "scope_conditions": {
         "type": "array",
-        "description": "Data conditions, written as the routines page saves them. Conditions with the same `group_index` are joined by AND or OR by its sign; groups are joined by OR. Each item reads only the keys below. A condition on an operator or value its field type does not take returns `422` saying what the field takes.",
+        "description": "Data conditions, written as the routines page saves them. Conditions with the same `group_index` are joined by AND or OR by its sign; groups are joined by OR. A condition on an operator or value its field type does not take returns `422` saying what the field takes.",
         "items": {
          "type": "object",
+         "description": "One data condition. Each item reads only the keys below.",
          "properties": {
           "trigger": {
            "type": "string",
@@ -39013,6 +43250,59 @@
         "type": "boolean",
         "default": false,
         "description": "Imports and bulk edits trigger it too (one import or bulk edit is one run)"
+       }
+      }
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "data_condition": {
+    "oneOf": [
+     {
+      "type": "object",
+      "description": "A schedule's data condition: when the clock fires the routine, it runs only if the form or table has data meeting the conditions now; otherwise the run is completed at once, titled `没有满足条件的数据`, without Jiri and without AI points. A run started by hand is not held to it. Only with `trigger_kind` `schedule`.\nSent, it replaces the routine's condition whole, so `scope_conditions` is required; an empty `scope_conditions` removes the condition. Left out, or null, the condition stays as it is.\n",
+      "required": [
+       "scope_conditions"
+      ],
+      "properties": {
+       "source_kind": {
+        "type": "string",
+        "description": "form or table"
+       },
+       "source_token": {
+        "type": "string",
+        "description": "The form or table, one you created or whose data you can read; it is added to the objects on save"
+       },
+       "scope_conditions": {
+        "type": "array",
+        "description": "As in `RoutineEventInput.scope_conditions`. Values standing for whoever submits (`$(current_submitter_id)`) are refused.",
+        "items": {
+         "type": "object",
+         "description": "One data condition. Each item reads only the keys below.",
+         "properties": {
+          "trigger": {
+           "type": "string",
+           "description": "The field's api_code (a table column as `<field>.<column>`)"
+          },
+          "operator": {
+           "type": "string",
+           "description": "The comparison, one the field type offers on the routines page, such as any_in on a choice field or between on a date, or one the entry query handles beyond them, such as eq on text, gte on a date, eq / ne with one code on a radio button or with the exact set on a checkbox"
+          },
+          "value": {
+           "description": "The value compared with"
+          },
+          "group_index": {
+           "type": "integer",
+           "description": "The condition's group"
+          },
+          "scope_attr": {
+           "type": "string",
+           "description": "`date_time` for the date of a reservation field; left out otherwise"
+          }
+         }
+        }
        }
       }
      },
@@ -39061,6 +43351,7 @@
       "next_run_at",
       "next_runs",
       "event",
+      "data_condition",
       "objects",
       "delete_authorized",
       "runs_count",
@@ -39228,6 +43519,49 @@
         },
         "include_bulk": {
          "type": "boolean"
+        }
+       }
+      },
+      "data_condition": {
+       "type": [
+        "object",
+        "null"
+       ],
+       "description": "A schedule's data condition (see `RoutineDataConditionInput`); null without one, for a data trigger, or when its form is gone",
+       "required": [
+        "source_kind",
+        "source_token",
+        "source_name",
+        "scope_conditions",
+        "conditions"
+       ],
+       "properties": {
+        "source_kind": {
+         "type": "string",
+         "enum": [
+          "form",
+          "table"
+         ]
+        },
+        "source_token": {
+         "type": "string"
+        },
+        "source_name": {
+         "type": "string"
+        },
+        "scope_conditions": {
+         "type": "array",
+         "description": "The conditions as stored, in the shape `RoutineDataConditionInput.scope_conditions` takes; empty when you can no longer read the form",
+         "items": {
+          "type": "object"
+         }
+        },
+        "conditions": {
+         "type": "array",
+         "description": "The conditions in words, one sentence per group",
+         "items": {
+          "type": "string"
+         }
         }
        }
       },
@@ -39809,6 +44143,31 @@
    }
   }
  },
+ "RoutineScopeCondition": {
+  "type": "object",
+  "description": "One data condition. Each item reads only the keys below.",
+  "properties": {
+   "trigger": {
+    "type": "string",
+    "description": "The field's api_code (a table column as `<field>.<column>`)"
+   },
+   "operator": {
+    "type": "string",
+    "description": "The comparison, one the field type offers on the routines page, such as any_in on a choice field or between on a date, or one the entry query handles beyond them, such as eq on text, gte on a date, eq / ne with one code on a radio button or with the exact set on a checkbox"
+   },
+   "value": {
+    "description": "The value compared with"
+   },
+   "group_index": {
+    "type": "integer",
+    "description": "The condition's group"
+   },
+   "scope_attr": {
+    "type": "string",
+    "description": "`date_time` for the date of a reservation field; left out otherwise"
+   }
+  }
+ },
  "SMSAuditStatusResponse": {
   "type": "object",
   "required": [
@@ -39981,6 +44340,76 @@
     ]
    }
   ]
+ },
+ "SMSMessageChannelInput": {
+  "type": "object",
+  "description": "Sends with an SMS template whose variables are declared, once the template is approved",
+  "additionalProperties": false,
+  "required": [
+   "type",
+   "name",
+   "sms_template_id"
+  ],
+  "properties": {
+   "type": {
+    "type": "string",
+    "enum": [
+     "sms"
+    ]
+   },
+   "name": {
+    "type": "string",
+    "maxLength": 50,
+    "description": "Name to tell the channel apart"
+   },
+   "sms_template_id": {
+    "type": "string",
+    "description": "See `GET /sms/templates`"
+   }
+  }
+ },
+ "SMSMessageInput": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+   "type",
+   "channel_id",
+   "to"
+  ],
+  "properties": {
+   "type": {
+    "type": "string",
+    "enum": [
+     "sms"
+    ]
+   },
+   "channel_id": {
+    "type": "string"
+   },
+   "to": {
+    "type": "array",
+    "minItems": 1,
+    "maxItems": 50,
+    "uniqueItems": true,
+    "items": {
+     "type": "string"
+    },
+    "description": "Email addresses or mobile numbers, one record each"
+   },
+   "variables": {
+    "type": "object",
+    "additionalProperties": {
+     "type": "string",
+     "maxLength": 100
+    },
+    "description": "Value of every variable the channel's template declares, keyed as in the template (`var_1`...)"
+   },
+   "idempotency_key": {
+    "type": "string",
+    "maxLength": 255,
+    "description": "Sends once for the same key within 24 hours; retry a timed-out request with the same key"
+   }
+  }
  },
  "SMSNotificationRuleInput": {
   "type": "object",
@@ -42195,6 +46624,10 @@
     "type": "boolean",
     "description": "Shuffle the choices each time the form opens"
    },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
+   },
    "answers": {
     "type": "array",
     "minItems": 1,
@@ -42751,6 +47184,10 @@
      "random_choices": {
       "type": "boolean",
       "description": "Shuffle the choices each time the form opens"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -42897,6 +47334,10 @@
       "type": "integer",
       "minimum": 0,
       "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+     },
+     "hide_choice_when_quota_empty": {
+      "type": "boolean",
+      "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
      }
     },
     "allOf": [
@@ -44174,6 +48615,10 @@
         "random_choices": {
          "type": "boolean",
          "description": "Shuffle the choices each time the form opens"
+        },
+        "hide_choice_when_quota_empty": {
+         "type": "boolean",
+         "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
         }
        },
        "allOf": [
@@ -44320,6 +48765,10 @@
          "type": "integer",
          "minimum": 0,
          "description": "Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement"
+        },
+        "hide_choice_when_quota_empty": {
+         "type": "boolean",
+         "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
         }
        },
        "allOf": [
@@ -48706,6 +53155,10 @@
     "type": "boolean",
     "description": "Shuffle the choices each time the form opens"
    },
+   "hide_choice_when_quota_empty": {
+    "type": "boolean",
+    "description": "Hide a choice from fillers once its places run out, instead of showing it as full"
+   },
    "answers": {
     "type": "array",
     "minItems": 1,
@@ -48912,6 +53365,67 @@
    }
   },
   "additionalProperties": false
+ },
+ "WebhookMessageChannelInput": {
+  "type": "object",
+  "description": "An https address of your own server, which must resolve to a public address. Each message is a POST of JSON `{id, request_id, title, content, created_at}`; on 5xx or 429 the same `id` is posted again, up to 6 attempts in all, so deduplicate by `id`.",
+  "additionalProperties": false,
+  "required": [
+   "type",
+   "name",
+   "url"
+  ],
+  "properties": {
+   "type": {
+    "type": "string",
+    "enum": [
+     "webhook"
+    ]
+   },
+   "name": {
+    "type": "string",
+    "maxLength": 50,
+    "description": "Name to tell the channel apart"
+   },
+   "url": {
+    "type": "string",
+    "maxLength": 2000
+   }
+  }
+ },
+ "WebhookMessageInput": {
+  "type": "object",
+  "description": "A webhook message; the channel is the recipient",
+  "additionalProperties": false,
+  "required": [
+   "type",
+   "channel_id",
+   "content"
+  ],
+  "properties": {
+   "type": {
+    "type": "string",
+    "enum": [
+     "webhook"
+    ]
+   },
+   "channel_id": {
+    "type": "string"
+   },
+   "title": {
+    "type": "string",
+    "maxLength": 200
+   },
+   "content": {
+    "type": "string",
+    "description": "Title and content take at most 65536 bytes"
+   },
+   "idempotency_key": {
+    "type": "string",
+    "maxLength": 255,
+    "description": "Sends once for the same key within 24 hours; retry a timed-out request with the same key"
+   }
+  }
  },
  "WebhookNotificationRuleInput": {
   "type": "object",
@@ -49597,6 +54111,33 @@
      "real"
     ],
     "description": "Data source: fake for generated data, real for real entries"
+   }
+  }
+ },
+ "WxworkMessageChannelInput": {
+  "type": "object",
+  "description": "A WeCom group robot",
+  "additionalProperties": false,
+  "required": [
+   "type",
+   "name",
+   "url"
+  ],
+  "properties": {
+   "type": {
+    "type": "string",
+    "enum": [
+     "wxwork"
+    ]
+   },
+   "name": {
+    "type": "string",
+    "maxLength": 50,
+    "description": "Name to tell the channel apart"
+   },
+   "url": {
+    "type": "string",
+    "description": "`https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...`"
    }
   }
  },

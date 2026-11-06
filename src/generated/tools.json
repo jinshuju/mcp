@@ -258,6 +258,11 @@
     "required": false
    },
    {
+    "name": "include_exam_setting",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "include_transactions",
     "in": "query",
     "required": false
@@ -269,6 +274,7 @@
    "include_theme",
    "include_field_rules",
    "include_extended_attributes",
+   "include_exam_setting",
    "include_transactions"
   ],
   "successStatus": 200,
@@ -304,6 +310,11 @@
      "type": "boolean",
      "default": false,
      "description": "When `true`, includes `extended_attributes` (source-tracking links, the same as the `data` of `GET /forms/{form_token}/extended_attributes`)."
+    },
+    "include_exam_setting": {
+     "type": "boolean",
+     "default": false,
+     "description": "When `true`, an exam form includes `exam_setting` (exam settings, the same as `GET /forms/{form_token}/exam_setting`); an OAuth token needs the `form_setting` scope for it."
     },
     "include_transactions": {
      "type": "boolean",
@@ -910,7 +921,7 @@
  {
   "operationId": "moveFormToFolder",
   "summary": "Move a form into a folder",
-  "description": "Move a form into a folder\nMoves the form into a folder, or out of one (pass null as `folder_token`); PUT is accepted too. The move affects only the calling user's folder placement.\n- The request body must contain the `folder_token` key (its value may be null); otherwise 400.\n- `folder_token` takes only a folder token (not an id); returns 404 when the folder does not exist or the current user lacks manage permission on it.\n- The folder type (form / table) must match the form's type; otherwise 400.\n- To move a table, use `PATCH /tables/{table_token}/folder`.",
+  "description": "Move a form into a folder\nMoves the form into a folder, or out of one (pass null as `folder_token`), the same as moving it on the product page; PUT is accepted too.\n- The request body must contain the `folder_token` key (its value may be null); otherwise 400.\n- `folder_token` takes only a folder token (not an id); returns 404 when the folder does not exist or the current user lacks manage permission on it.\n- Takes a role given on the form itself, not only one inherited from a shared folder, and manage permission on the folder the caller placed it in; otherwise 403. An account access token needs no role.\n- The folder type (form / table) must match the form's type; otherwise 400.\n- To move a table, use `PATCH /tables/{table_token}/folder`.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}/folder",
@@ -4381,7 +4392,7 @@
  {
   "operationId": "getTable",
   "summary": "Show a table's structure",
-  "description": "Show a table's structure\nReturns the table's basic information, field definitions and the views visible to the current caller. Returns 404 `table cannot be found` when the token is not a table (for example, a regular form).\nReturns schema \"Table\" (see get_schema).",
+  "description": "Show a table's structure\nReturns the table's basic information, field definitions and the views visible to the current caller. Returns 404 `Table not found` when the token is not a table (for example, a regular form).\nReturns schema \"Table\" (see get_schema).",
   "tag": "Tables",
   "method": "get",
   "path": "/tables/{table_token}",
@@ -4932,7 +4943,7 @@
  {
   "operationId": "moveTableToFolder",
   "summary": "Move a table into a folder",
-  "description": "Move a table into a folder\nMoves a table into a folder, or out of its folder (`folder_token` set to null); PUT is also accepted. The move affects only the calling user's folder placement.\n- The request body must include the `folder_token` key (its value may be null); otherwise 400.\n- `folder_token` accepts only a folder token (not an id); returns 404 when the folder does not exist or the current user lacks manage permission on it.\n- The target folder's kind must be table; otherwise 400.\n- Returns 404 `table cannot be found` when the token is not a table's.",
+  "description": "Move a table into a folder\nMoves a table into a folder, or out of its folder (`folder_token` set to null), the same as moving it on the product page; PUT is also accepted.\n- The request body must include the `folder_token` key (its value may be null); otherwise 400.\n- `folder_token` accepts only a folder token (not an id); returns 404 when the folder does not exist or the current user lacks manage permission on it.\n- Takes a role given on the table itself, not only one inherited from a shared folder, and manage permission on the folder the caller placed it in; otherwise 403. An account access token needs no role.\n- The target folder's kind must be table; otherwise 400.\n- Returns 404 `Table not found` when the token is not a table's.",
   "tag": "Tables",
   "method": "patch",
   "path": "/tables/{table_token}/folder",
@@ -6355,6 +6366,118 @@
          }
         }
        }
+      },
+      "random_questions": {
+       "type": "object",
+       "description": "Random questions; only the keys present are written. Turning it on takes `mode`, `by_type` takes `question_types` and `from_all` takes `count`",
+       "properties": {
+        "enabled": {
+         "type": "boolean",
+         "description": "Draw questions at random for each examinee; false turns it off and keeps the rest"
+        },
+        "mode": {
+         "type": "string",
+         "enum": [
+          "by_type",
+          "from_all"
+         ],
+         "description": "by_type draws a count of each question type; from_all draws `count` from all exam questions"
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "description": "Questions to draw in from_all mode; at most `random_questions.total` in GET"
+        },
+        "question_types": {
+         "type": "array",
+         "minItems": 1,
+         "description": "Replaces the by_type counts as a whole; list each type once, a type left out draws none, and the counts must add up to more than 0",
+         "items": {
+          "type": "object",
+          "required": [
+           "question_type",
+           "count"
+          ],
+          "properties": {
+           "question_type": {
+            "type": "string",
+            "enum": [
+             "single_select_only_fields",
+             "multi_select_fields",
+             "true_or_false_fields",
+             "simple_text_fields",
+             "multi_text_fields"
+            ],
+            "description": "GET lists every type with the questions it has"
+           },
+           "count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Questions to draw of this type; at most the type's `total` in GET"
+           }
+          },
+          "additionalProperties": false
+         }
+        },
+        "shuffle": {
+         "type": "boolean",
+         "description": "Shuffle the question order"
+        }
+       },
+       "additionalProperties": false,
+       "allOf": [
+        {
+         "if": {
+          "properties": {
+           "enabled": {
+            "const": true
+           }
+          },
+          "required": [
+           "enabled"
+          ]
+         },
+         "then": {
+          "required": [
+           "mode"
+          ]
+         }
+        },
+        {
+         "if": {
+          "properties": {
+           "mode": {
+            "const": "by_type"
+           }
+          },
+          "required": [
+           "mode"
+          ]
+         },
+         "then": {
+          "required": [
+           "question_types"
+          ]
+         }
+        },
+        {
+         "if": {
+          "properties": {
+           "mode": {
+            "const": "from_all"
+           }
+          },
+          "required": [
+           "mode"
+          ]
+         },
+         "then": {
+          "required": [
+           "count"
+          ]
+         }
+        }
+       ]
       }
      },
      "description": "Exam settings (updateExamSetting): Partially updates an exam form's settings."
@@ -6802,6 +6925,118 @@
          }
         }
        }
+      },
+      "random_questions": {
+       "type": "object",
+       "description": "Random questions; only the keys present are written. Turning it on takes `mode`, `by_type` takes `question_types` and `from_all` takes `count`",
+       "properties": {
+        "enabled": {
+         "type": "boolean",
+         "description": "Draw questions at random for each examinee; false turns it off and keeps the rest"
+        },
+        "mode": {
+         "type": "string",
+         "enum": [
+          "by_type",
+          "from_all"
+         ],
+         "description": "by_type draws a count of each question type; from_all draws `count` from all exam questions"
+        },
+        "count": {
+         "type": "integer",
+         "minimum": 1,
+         "description": "Questions to draw in from_all mode; at most `random_questions.total` in GET"
+        },
+        "question_types": {
+         "type": "array",
+         "minItems": 1,
+         "description": "Replaces the by_type counts as a whole; list each type once, a type left out draws none, and the counts must add up to more than 0",
+         "items": {
+          "type": "object",
+          "required": [
+           "question_type",
+           "count"
+          ],
+          "properties": {
+           "question_type": {
+            "type": "string",
+            "enum": [
+             "single_select_only_fields",
+             "multi_select_fields",
+             "true_or_false_fields",
+             "simple_text_fields",
+             "multi_text_fields"
+            ],
+            "description": "GET lists every type with the questions it has"
+           },
+           "count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Questions to draw of this type; at most the type's `total` in GET"
+           }
+          },
+          "additionalProperties": false
+         }
+        },
+        "shuffle": {
+         "type": "boolean",
+         "description": "Shuffle the question order"
+        }
+       },
+       "additionalProperties": false,
+       "allOf": [
+        {
+         "if": {
+          "properties": {
+           "enabled": {
+            "const": true
+           }
+          },
+          "required": [
+           "enabled"
+          ]
+         },
+         "then": {
+          "required": [
+           "mode"
+          ]
+         }
+        },
+        {
+         "if": {
+          "properties": {
+           "mode": {
+            "const": "by_type"
+           }
+          },
+          "required": [
+           "mode"
+          ]
+         },
+         "then": {
+          "required": [
+           "question_types"
+          ]
+         }
+        },
+        {
+         "if": {
+          "properties": {
+           "mode": {
+            "const": "from_all"
+           }
+          },
+          "required": [
+           "mode"
+          ]
+         },
+         "then": {
+          "required": [
+           "count"
+          ]
+         }
+        }
+       ]
       }
      },
      "description": "Exam settings (updateExamSetting): Partially updates an exam form's settings."
