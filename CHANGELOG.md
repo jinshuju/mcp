@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/jinshuju/mcp/compare/v0.6.0...v0.7.0) (2026-11-06)
+
+
+### Features
+
+* add fields hide_choice_when_quota_empty and 50 more; update tools move_form and 1 more ([e7ec2ca](https://github.com/jinshuju/mcp/commit/e7ec2ca47054741539661bbfc4d44ac17f0cc999))
+* add fields random_choices and 5 more; update tools prepare_form_image_upload and 1 more ([c15d06e](https://github.com/jinshuju/mcp/commit/c15d06eb3a36fa4f6507770e17474837267354ce))
+
 ## [0.6.0](https://github.com/jinshuju/mcp/compare/v0.5.0...v0.6.0) (2026-11-03)
 
 
