@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/jinshuju/mcp/compare/v0.8.0...v0.9.0) (2026-11-07)
+
+
+### Features
+
+* add field edit_entry_on_success ([79b2933](https://github.com/jinshuju/mcp/commit/79b2933adec224e5af6adb039e951b0a44334407))
+
 ## [0.8.0](https://github.com/jinshuju/mcp/compare/v0.7.0...v0.8.0) (2026-11-07)
 
 
