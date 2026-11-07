@@ -66,7 +66,7 @@ info:
 
     ## Input validation
     The server validates the path parameters, query parameters and JSON request body of every request against this document (except the multipart body of upload endpoints).
-    - An invalid request returns `400` directly, with the response body `{ error_description, errors: [{ pointer, message, code }] }`; a request body that is not `application/json` returns `415`.
+    - An invalid request returns `400` directly, with the response body `{ error_description, errors: [{ pointers, message, code }] }`, one entry per reason naming every place it occurs; a request body that is not `application/json` returns `415`.
     - Keys not listed in a request body schema are errors, except where the schema says they are ignored (the routines body) and the field values of entry writes, which the form's field definitions decide.
 servers:
 - url: https://jinshuju.net/api/v1
@@ -10434,6 +10434,12 @@ components:
           type: string
         open_entry_cancel_reservation:
           type: boolean
+        show_entry_on_success:
+          type: boolean
+          description: Show the success page button that opens the entry just submitted; a new form turns it on unless you pass false
+        show_entry_on_success_button_text:
+          type: string
+          description: Text of that button; blank shows the scene's default text
         show_serial_number_on_success:
           type: boolean
         show_submit_again:
@@ -21957,7 +21963,7 @@ components:
           description: See `GET /smtp_accounts`
     SMSMessageChannelInput:
       type: object
-      description: Sends with an SMS template whose variables are declared, once the template is approved
+      description: Sends with an SMS template once the template is approved
       additionalProperties: false
       required:
       - type
@@ -22158,7 +22164,7 @@ components:
           additionalProperties:
             type: string
             maxLength: 100
-          description: Value of every variable the channel's template declares, keyed as in the template (`var_1`...)
+          description: Value of every `$(...)` variable in the channel's template, keyed by its name (`key` in `GET /sms/templates`)
         idempotency_key:
           type: string
           maxLength: 255
