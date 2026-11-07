@@ -10440,6 +10440,9 @@ components:
         show_entry_on_success_button_text:
           type: string
           description: Text of that button; blank shows the scene's default text
+        edit_entry_on_success:
+          type: boolean
+          description: Let the submitter edit that entry from the button; applies while show_entry_on_success is on. Turning it on needs a plan that includes `填写者修改已填数据`, otherwise 400
         show_serial_number_on_success:
           type: boolean
         show_submit_again:
