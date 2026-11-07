@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/jinshuju/mcp/compare/v0.7.0...v0.8.0) (2026-11-07)
+
+
+### Features
+
+* add fields show_entry_on_success, show_entry_on_success_button_text ([1d161ab](https://github.com/jinshuju/mcp/commit/1d161ab4abfc5ae49c2989d72430598a614b386f))
+
 ## [0.7.0](https://github.com/jinshuju/mcp/compare/v0.6.0...v0.7.0) (2026-11-06)
 
 
