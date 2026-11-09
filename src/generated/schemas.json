@@ -188,6 +188,79 @@
    }
   }
  },
+ "AntiCheatingSetting": {
+  "type": "object",
+  "description": "Anti-cheating while the form is being filled in",
+  "required": [
+   "enabled",
+   "copying_disabled",
+   "paste_disabled",
+   "switching_screen_disabled",
+   "switching_screen_limit_time",
+   "switching_screen_limit"
+  ],
+  "properties": {
+   "enabled": {
+    "type": "boolean",
+    "description": "Whether anti-cheating is in effect; false once the plan no longer includes it, even if it was turned on"
+   },
+   "copying_disabled": {
+    "type": "boolean",
+    "description": "Questions cannot be copied"
+   },
+   "paste_disabled": {
+    "type": "boolean",
+    "description": "Answers cannot be pasted in"
+   },
+   "switching_screen_disabled": {
+    "type": "boolean",
+    "description": "Leaving the page is counted, and too many switches submit the answers automatically"
+   },
+   "switching_screen_limit_time": {
+    "type": "integer",
+    "description": "Seconds away from the page that count as one switch"
+   },
+   "switching_screen_limit": {
+    "type": "integer",
+    "description": "Switches allowed; one more submits the answers automatically"
+   }
+  }
+ },
+ "AntiCheatingSettingInput": {
+  "type": "object",
+  "description": "Anti-cheating while the form is being filled in; only the keys present are written",
+  "properties": {
+   "enabled": {
+    "type": "boolean",
+    "description": "Turns anti-cheating on; true needs a plan that includes `防作弊`"
+   },
+   "copying_disabled": {
+    "type": "boolean",
+    "description": "Questions cannot be copied"
+   },
+   "paste_disabled": {
+    "type": "boolean",
+    "description": "Answers cannot be pasted in"
+   },
+   "switching_screen_disabled": {
+    "type": "boolean",
+    "description": "Count leaving the page, and submit the answers automatically after too many switches"
+   },
+   "switching_screen_limit_time": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 10000,
+    "description": "Seconds away from the page that count as one switch"
+   },
+   "switching_screen_limit": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 10000,
+    "description": "Switches allowed; one more submits the answers automatically"
+   }
+  },
+  "additionalProperties": false
+ },
  "Artifact": {
   "type": "object",
   "required": [
@@ -12420,6 +12493,44 @@
       }
      }
     }
+   },
+   "anti_cheating": {
+    "type": "object",
+    "description": "Anti-cheating while the form is being filled in",
+    "required": [
+     "enabled",
+     "copying_disabled",
+     "paste_disabled",
+     "switching_screen_disabled",
+     "switching_screen_limit_time",
+     "switching_screen_limit"
+    ],
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "description": "Whether anti-cheating is in effect; false once the plan no longer includes it, even if it was turned on"
+     },
+     "copying_disabled": {
+      "type": "boolean",
+      "description": "Questions cannot be copied"
+     },
+     "paste_disabled": {
+      "type": "boolean",
+      "description": "Answers cannot be pasted in"
+     },
+     "switching_screen_disabled": {
+      "type": "boolean",
+      "description": "Leaving the page is counted, and too many switches submit the answers automatically"
+     },
+     "switching_screen_limit_time": {
+      "type": "integer",
+      "description": "Seconds away from the page that count as one switch"
+     },
+     "switching_screen_limit": {
+      "type": "integer",
+      "description": "Switches allowed; one more submits the answers automatically"
+     }
+    }
    }
   }
  },
@@ -12582,6 +12693,41 @@
        },
        "additionalProperties": false
       }
+     }
+    },
+    "additionalProperties": false
+   },
+   "anti_cheating": {
+    "type": "object",
+    "description": "Anti-cheating while the form is being filled in; only the keys present are written",
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "description": "Turns anti-cheating on; true needs a plan that includes `防作弊`"
+     },
+     "copying_disabled": {
+      "type": "boolean",
+      "description": "Questions cannot be copied"
+     },
+     "paste_disabled": {
+      "type": "boolean",
+      "description": "Answers cannot be pasted in"
+     },
+     "switching_screen_disabled": {
+      "type": "boolean",
+      "description": "Count leaving the page, and submit the answers automatically after too many switches"
+     },
+     "switching_screen_limit_time": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000,
+      "description": "Seconds away from the page that count as one switch"
+     },
+     "switching_screen_limit": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000,
+      "description": "Switches allowed; one more submits the answers automatically"
      }
     },
     "additionalProperties": false
@@ -18953,6 +19099,44 @@
       }
      }
     }
+   },
+   "anti_cheating": {
+    "type": "object",
+    "description": "Anti-cheating while the form is being filled in",
+    "required": [
+     "enabled",
+     "copying_disabled",
+     "paste_disabled",
+     "switching_screen_disabled",
+     "switching_screen_limit_time",
+     "switching_screen_limit"
+    ],
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "description": "Whether anti-cheating is in effect; false once the plan no longer includes it, even if it was turned on"
+     },
+     "copying_disabled": {
+      "type": "boolean",
+      "description": "Questions cannot be copied"
+     },
+     "paste_disabled": {
+      "type": "boolean",
+      "description": "Answers cannot be pasted in"
+     },
+     "switching_screen_disabled": {
+      "type": "boolean",
+      "description": "Leaving the page is counted, and too many switches submit the answers automatically"
+     },
+     "switching_screen_limit_time": {
+      "type": "integer",
+      "description": "Seconds away from the page that count as one switch"
+     },
+     "switching_screen_limit": {
+      "type": "integer",
+      "description": "Switches allowed; one more submits the answers automatically"
+     }
+    }
    }
   }
  },
@@ -19121,6 +19305,41 @@
       }
      }
     ]
+   },
+   "anti_cheating": {
+    "type": "object",
+    "description": "Anti-cheating while the form is being filled in; only the keys present are written",
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "description": "Turns anti-cheating on; true needs a plan that includes `防作弊`"
+     },
+     "copying_disabled": {
+      "type": "boolean",
+      "description": "Questions cannot be copied"
+     },
+     "paste_disabled": {
+      "type": "boolean",
+      "description": "Answers cannot be pasted in"
+     },
+     "switching_screen_disabled": {
+      "type": "boolean",
+      "description": "Count leaving the page, and submit the answers automatically after too many switches"
+     },
+     "switching_screen_limit_time": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000,
+      "description": "Seconds away from the page that count as one switch"
+     },
+     "switching_screen_limit": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000,
+      "description": "Switches allowed; one more submits the answers automatically"
+     }
+    },
+    "additionalProperties": false
    }
   },
   "additionalProperties": false
@@ -25286,7 +25505,7 @@
      "WidgetMap",
      "WidgetMarquee"
     ],
-    "description": "Change the field to this type, keeping its api_code and entries and converting the values; a change that would clear data needs confirm_data_loss"
+    "description": "Change the field to this type, keeping its api_code and entries and converting the values; a change that would clear data needs confirm_data_loss. Exam questions and customized fields (Department / Grade) cannot change type in place; remove the field and add a new one instead"
    },
    "confirm_data_loss": {
     "type": "boolean",
@@ -28334,6 +28553,44 @@
           }
          }
         }
+       },
+       "anti_cheating": {
+        "type": "object",
+        "description": "Anti-cheating while the form is being filled in",
+        "required": [
+         "enabled",
+         "copying_disabled",
+         "paste_disabled",
+         "switching_screen_disabled",
+         "switching_screen_limit_time",
+         "switching_screen_limit"
+        ],
+        "properties": {
+         "enabled": {
+          "type": "boolean",
+          "description": "Whether anti-cheating is in effect; false once the plan no longer includes it, even if it was turned on"
+         },
+         "copying_disabled": {
+          "type": "boolean",
+          "description": "Questions cannot be copied"
+         },
+         "paste_disabled": {
+          "type": "boolean",
+          "description": "Answers cannot be pasted in"
+         },
+         "switching_screen_disabled": {
+          "type": "boolean",
+          "description": "Leaving the page is counted, and too many switches submit the answers automatically"
+         },
+         "switching_screen_limit_time": {
+          "type": "integer",
+          "description": "Seconds away from the page that count as one switch"
+         },
+         "switching_screen_limit": {
+          "type": "integer",
+          "description": "Switches allowed; one more submits the answers automatically"
+         }
+        }
        }
       }
      },
@@ -29269,7 +29526,8 @@
      "redirect",
      "reports",
      "exam_score"
-    ]
+    ],
+    "description": "Only show_message while the lucky wheel is on"
    },
    "success_redirect_url": {
     "type": "string",
@@ -29511,7 +29769,8 @@
      "redirect",
      "reports",
      "exam_score"
-    ]
+    ],
+    "description": "Only show_message while the lucky wheel is on"
    },
    "success_redirect_url": {
     "type": "string"
@@ -38302,7 +38561,8 @@
     "type": [
      "string",
      "null"
-    ]
+    ],
+    "description": "Email only, always present on an email rule; the account's SMTP account it is sent through, null when Jinshuju sends it"
    },
    "weixin_onetime_url": {
     "type": "string"
@@ -42740,99 +43000,199 @@
     "type": "array",
     "description": "The messages a run may send",
     "items": {
-     "type": "object",
-     "description": "A message sent to a WeCom or DingTalk group",
-     "required": [
-      "id",
-      "approach",
-      "channel_id",
-      "masked_address",
-      "mentioned_mobile_list",
-      "mentioned_fields",
-      "content",
-      "confirmed_at"
-     ],
-     "properties": {
-      "id": {
-       "type": "string"
-      },
-      "approach": {
-       "type": [
-        "string",
-        "null"
+     "oneOf": [
+      {
+       "type": "object",
+       "description": "A message sent to a WeCom or DingTalk group",
+       "required": [
+        "id",
+        "approach",
+        "channel_id",
+        "masked_address",
+        "mentioned_mobile_list",
+        "mentioned_fields",
+        "content",
+        "confirmed_at"
        ],
-       "enum": [
-        "wxwork",
-        "ding_talk",
-        null
-       ],
-       "description": "null when the group was deleted"
-      },
-      "channel_id": {
-       "type": "string"
-      },
-      "masked_address": {
-       "type": [
-        "string",
-        "null"
-       ],
-       "description": "The robot address with its key hidden; null when the group was deleted"
-      },
-      "mentioned_mobile_list": {
-       "type": "array",
-       "items": {
-        "type": "string"
-       }
-      },
-      "mentioned_fields": {
-       "type": "array",
-       "items": {
-        "type": "object",
-        "required": [
-         "form_token",
-         "field_code",
-         "form_name",
-         "field_label"
-        ],
-        "properties": {
-         "form_token": {
-          "type": [
-           "string",
-           "null"
-          ],
-          "description": "null when the form or table was deleted"
-         },
-         "field_code": {
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "approach": {
+         "type": [
+          "string",
+          "null"
+         ],
+         "enum": [
+          "wxwork",
+          "ding_talk",
+          null
+         ],
+         "description": "null when the group was deleted"
+        },
+        "channel_id": {
+         "type": "string"
+        },
+        "masked_address": {
+         "type": [
+          "string",
+          "null"
+         ],
+         "description": "The robot address with its key hidden; null when the group was deleted"
+        },
+        "mentioned_mobile_list": {
+         "type": "array",
+         "items": {
           "type": "string"
-         },
-         "form_name": {
-          "type": [
-           "string",
-           "null"
-          ]
-         },
-         "field_label": {
-          "type": [
-           "string",
-           "null"
-          ],
-          "description": "null when the field was deleted"
          }
+        },
+        "mentioned_fields": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "required": [
+           "form_token",
+           "field_code",
+           "form_name",
+           "field_label"
+          ],
+          "properties": {
+           "form_token": {
+            "type": [
+             "string",
+             "null"
+            ],
+            "description": "null when the form or table was deleted"
+           },
+           "field_code": {
+            "type": "string"
+           },
+           "form_name": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "field_label": {
+            "type": [
+             "string",
+             "null"
+            ],
+            "description": "null when the field was deleted"
+           }
+          },
+          "description": "A field of a form or table a run may pick people from"
+         }
+        },
+        "content": {
+         "type": "string"
+        },
+        "confirmed_at": {
+         "type": [
+          "string",
+          "null"
+         ],
+         "format": "date-time",
+         "description": "When the user confirmed it (Beijing time)"
         }
        }
       },
-      "content": {
-       "type": "string"
-      },
-      "confirmed_at": {
-       "type": [
-        "string",
-        "null"
+      {
+       "type": "object",
+       "description": "An email",
+       "required": [
+        "id",
+        "approach",
+        "smtp_account_id",
+        "recipients",
+        "recipient_fields",
+        "subject",
+        "content",
+        "confirmed_at"
        ],
-       "format": "date-time",
-       "description": "When the user confirmed it (Beijing time)"
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "approach": {
+         "type": [
+          "string",
+          "null"
+         ],
+         "enum": [
+          "email",
+          null
+         ],
+         "description": "null when its SMTP server was deleted or can no longer be used"
+        },
+        "smtp_account_id": {
+         "type": [
+          "string",
+          "null"
+         ],
+         "description": "null when it is sent from Jinshuju's address"
+        },
+        "recipients": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        "recipient_fields": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "required": [
+           "form_token",
+           "field_code",
+           "form_name",
+           "field_label"
+          ],
+          "properties": {
+           "form_token": {
+            "type": [
+             "string",
+             "null"
+            ],
+            "description": "null when the form or table was deleted"
+           },
+           "field_code": {
+            "type": "string"
+           },
+           "form_name": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "field_label": {
+            "type": [
+             "string",
+             "null"
+            ],
+            "description": "null when the field was deleted"
+           }
+          },
+          "description": "A field of a form or table a run may pick people from"
+         }
+        },
+        "subject": {
+         "type": "string"
+        },
+        "content": {
+         "type": "string"
+        },
+        "confirmed_at": {
+         "type": [
+          "string",
+          "null"
+         ],
+         "format": "date-time",
+         "description": "When the user confirmed it (Beijing time)"
+        }
+       }
       }
-     }
+     ]
     }
    },
    "runs_count": {
@@ -43295,99 +43655,199 @@
       "type": "array",
       "description": "The messages a run may send",
       "items": {
-       "type": "object",
-       "description": "A message sent to a WeCom or DingTalk group",
-       "required": [
-        "id",
-        "approach",
-        "channel_id",
-        "masked_address",
-        "mentioned_mobile_list",
-        "mentioned_fields",
-        "content",
-        "confirmed_at"
-       ],
-       "properties": {
-        "id": {
-         "type": "string"
-        },
-        "approach": {
-         "type": [
-          "string",
-          "null"
+       "oneOf": [
+        {
+         "type": "object",
+         "description": "A message sent to a WeCom or DingTalk group",
+         "required": [
+          "id",
+          "approach",
+          "channel_id",
+          "masked_address",
+          "mentioned_mobile_list",
+          "mentioned_fields",
+          "content",
+          "confirmed_at"
          ],
-         "enum": [
-          "wxwork",
-          "ding_talk",
-          null
-         ],
-         "description": "null when the group was deleted"
-        },
-        "channel_id": {
-         "type": "string"
-        },
-        "masked_address": {
-         "type": [
-          "string",
-          "null"
-         ],
-         "description": "The robot address with its key hidden; null when the group was deleted"
-        },
-        "mentioned_mobile_list": {
-         "type": "array",
-         "items": {
-          "type": "string"
-         }
-        },
-        "mentioned_fields": {
-         "type": "array",
-         "items": {
-          "type": "object",
-          "required": [
-           "form_token",
-           "field_code",
-           "form_name",
-           "field_label"
-          ],
-          "properties": {
-           "form_token": {
-            "type": [
-             "string",
-             "null"
-            ],
-            "description": "null when the form or table was deleted"
-           },
-           "field_code": {
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "approach": {
+           "type": [
+            "string",
+            "null"
+           ],
+           "enum": [
+            "wxwork",
+            "ding_talk",
+            null
+           ],
+           "description": "null when the group was deleted"
+          },
+          "channel_id": {
+           "type": "string"
+          },
+          "masked_address": {
+           "type": [
+            "string",
+            "null"
+           ],
+           "description": "The robot address with its key hidden; null when the group was deleted"
+          },
+          "mentioned_mobile_list": {
+           "type": "array",
+           "items": {
             "type": "string"
-           },
-           "form_name": {
-            "type": [
-             "string",
-             "null"
-            ]
-           },
-           "field_label": {
-            "type": [
-             "string",
-             "null"
-            ],
-            "description": "null when the field was deleted"
            }
+          },
+          "mentioned_fields": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "required": [
+             "form_token",
+             "field_code",
+             "form_name",
+             "field_label"
+            ],
+            "properties": {
+             "form_token": {
+              "type": [
+               "string",
+               "null"
+              ],
+              "description": "null when the form or table was deleted"
+             },
+             "field_code": {
+              "type": "string"
+             },
+             "form_name": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "field_label": {
+              "type": [
+               "string",
+               "null"
+              ],
+              "description": "null when the field was deleted"
+             }
+            },
+            "description": "A field of a form or table a run may pick people from"
+           }
+          },
+          "content": {
+           "type": "string"
+          },
+          "confirmed_at": {
+           "type": [
+            "string",
+            "null"
+           ],
+           "format": "date-time",
+           "description": "When the user confirmed it (Beijing time)"
           }
          }
         },
-        "content": {
-         "type": "string"
-        },
-        "confirmed_at": {
-         "type": [
-          "string",
-          "null"
+        {
+         "type": "object",
+         "description": "An email",
+         "required": [
+          "id",
+          "approach",
+          "smtp_account_id",
+          "recipients",
+          "recipient_fields",
+          "subject",
+          "content",
+          "confirmed_at"
          ],
-         "format": "date-time",
-         "description": "When the user confirmed it (Beijing time)"
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "approach": {
+           "type": [
+            "string",
+            "null"
+           ],
+           "enum": [
+            "email",
+            null
+           ],
+           "description": "null when its SMTP server was deleted or can no longer be used"
+          },
+          "smtp_account_id": {
+           "type": [
+            "string",
+            "null"
+           ],
+           "description": "null when it is sent from Jinshuju's address"
+          },
+          "recipients": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "recipient_fields": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "required": [
+             "form_token",
+             "field_code",
+             "form_name",
+             "field_label"
+            ],
+            "properties": {
+             "form_token": {
+              "type": [
+               "string",
+               "null"
+              ],
+              "description": "null when the form or table was deleted"
+             },
+             "field_code": {
+              "type": "string"
+             },
+             "form_name": {
+              "type": [
+               "string",
+               "null"
+              ]
+             },
+             "field_label": {
+              "type": [
+               "string",
+               "null"
+              ],
+              "description": "null when the field was deleted"
+             }
+            },
+            "description": "A field of a form or table a run may pick people from"
+           }
+          },
+          "subject": {
+           "type": "string"
+          },
+          "content": {
+           "type": "string"
+          },
+          "confirmed_at": {
+           "type": [
+            "string",
+            "null"
+           ],
+           "format": "date-time",
+           "description": "When the user confirmed it (Beijing time)"
+          }
+         }
         }
-       }
+       ]
       }
      },
      "runs_count": {
@@ -43643,6 +44103,175 @@
    }
   ]
  },
+ "RoutineEmailMessageRule": {
+  "type": "object",
+  "description": "An email",
+  "required": [
+   "id",
+   "approach",
+   "smtp_account_id",
+   "recipients",
+   "recipient_fields",
+   "subject",
+   "content",
+   "confirmed_at"
+  ],
+  "properties": {
+   "id": {
+    "type": "string"
+   },
+   "approach": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "enum": [
+     "email",
+     null
+    ],
+    "description": "null when its SMTP server was deleted or can no longer be used"
+   },
+   "smtp_account_id": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "description": "null when it is sent from Jinshuju's address"
+   },
+   "recipients": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "recipient_fields": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "form_token",
+      "field_code",
+      "form_name",
+      "field_label"
+     ],
+     "properties": {
+      "form_token": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "null when the form or table was deleted"
+      },
+      "field_code": {
+       "type": "string"
+      },
+      "form_name": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "field_label": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "null when the field was deleted"
+      }
+     },
+     "description": "A field of a form or table a run may pick people from"
+    }
+   },
+   "subject": {
+    "type": "string"
+   },
+   "content": {
+    "type": "string"
+   },
+   "confirmed_at": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "format": "date-time",
+    "description": "When the user confirmed it (Beijing time)"
+   }
+  }
+ },
+ "RoutineEmailMessageRuleInput": {
+  "type": "object",
+  "description": "An email",
+  "anyOf": [
+   {
+    "required": [
+     "approach"
+    ]
+   },
+   {
+    "required": [
+     "id"
+    ]
+   }
+  ],
+  "properties": {
+   "approach": {
+    "type": "string",
+    "enum": [
+     "email"
+    ]
+   },
+   "id": {
+    "type": "string",
+    "description": "The message rule to change, keeping whatever this item leaves out; left out for a new one"
+   },
+   "smtp_account_id": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "description": "Send through this custom SMTP account (`id` from `GET /smtp_accounts`); null sends from Jinshuju's address, using the email balance"
+   },
+   "recipients": {
+    "type": "array",
+    "description": "Addresses a run may send to",
+    "maxItems": 50,
+    "uniqueItems": true,
+    "items": {
+     "type": "string"
+    }
+   },
+   "recipient_fields": {
+    "type": "array",
+    "description": "Email fields a run may pick recipients from as well, each run the ones the instruction names; each one picked must be in the field",
+    "items": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "form_token",
+      "field_code"
+     ],
+     "properties": {
+      "form_token": {
+       "type": "string",
+       "description": "A form or table you can see"
+      },
+      "field_code": {
+       "type": "string",
+       "description": "An email field of it, such as `field_3`"
+      }
+     }
+    }
+   },
+   "subject": {
+    "type": "string",
+    "description": "The subject; Jiri fills in what changes from run to run"
+   },
+   "content": {
+    "type": "string",
+    "description": "The body in Markdown, at most 20000 characters; Jiri fills in what changes from run to run"
+   }
+  }
+ },
  "RoutineEventInput": {
   "type": "object",
   "description": "When data changes. The source must be a form or table you created, or whose data you can read; it is added to the objects on save.",
@@ -43781,7 +44410,8 @@
        ],
        "description": "null when the field was deleted"
       }
-     }
+     },
+     "description": "A field of a form or table a run may pick people from"
     }
    },
    "content": {
@@ -43801,6 +44431,13 @@
   "type": "object",
   "description": "A message sent to a WeCom or DingTalk group",
   "properties": {
+   "approach": {
+    "type": "string",
+    "enum": [
+     "wxwork",
+     "ding_talk"
+    ]
+   },
    "id": {
     "type": "string",
     "description": "The message rule to change, keeping whatever this item leaves out; left out for a new one"
@@ -44080,57 +44717,142 @@
     ],
     "description": "The messages a run may send; on update they replace the routine's. A new or changed one is saved only as the user confirmed it on a card in this Jiri conversation.",
     "items": {
-     "type": "object",
-     "description": "A message sent to a WeCom or DingTalk group",
-     "properties": {
-      "id": {
-       "type": "string",
-       "description": "The message rule to change, keeping whatever this item leaves out; left out for a new one"
-      },
-      "address_id": {
-       "type": "string",
-       "description": "A robot address the user entered in this Jiri conversation"
-      },
-      "channel_id": {
-       "type": "string",
-       "description": "Keep sending to this group; left out with `id` keeps the rule's group"
-      },
-      "mentioned_mobile_list": {
-       "type": "array",
-       "description": "Mobiles to @ in the group, `@all` for everyone; a WeCom message that mentions anyone is sent as plain text, not Markdown",
-       "maxItems": 50,
-       "uniqueItems": true,
-       "items": {
-        "type": "string"
-       }
-      },
-      "mentioned_fields": {
-       "type": "array",
-       "description": "Mobile fields a run may pick people from to @ as well, each run the ones the instruction names; each one picked must be in the field, at most 50 people are mentioned in all",
-       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-         "form_token",
-         "field_code"
-        ],
-        "properties": {
-         "form_token": {
-          "type": "string",
-          "description": "A form or table you can see"
-         },
-         "field_code": {
-          "type": "string",
-          "description": "A mobile field of it, such as `field_3`"
+     "anyOf": [
+      {
+       "type": "object",
+       "description": "A message sent to a WeCom or DingTalk group",
+       "properties": {
+        "approach": {
+         "type": "string",
+         "enum": [
+          "wxwork",
+          "ding_talk"
+         ]
+        },
+        "id": {
+         "type": "string",
+         "description": "The message rule to change, keeping whatever this item leaves out; left out for a new one"
+        },
+        "address_id": {
+         "type": "string",
+         "description": "A robot address the user entered in this Jiri conversation"
+        },
+        "channel_id": {
+         "type": "string",
+         "description": "Keep sending to this group; left out with `id` keeps the rule's group"
+        },
+        "mentioned_mobile_list": {
+         "type": "array",
+         "description": "Mobiles to @ in the group, `@all` for everyone; a WeCom message that mentions anyone is sent as plain text, not Markdown",
+         "maxItems": 50,
+         "uniqueItems": true,
+         "items": {
+          "type": "string"
          }
+        },
+        "mentioned_fields": {
+         "type": "array",
+         "description": "Mobile fields a run may pick people from to @ as well, each run the ones the instruction names; each one picked must be in the field, at most 50 people are mentioned in all",
+         "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "form_token",
+           "field_code"
+          ],
+          "properties": {
+           "form_token": {
+            "type": "string",
+            "description": "A form or table you can see"
+           },
+           "field_code": {
+            "type": "string",
+            "description": "A mobile field of it, such as `field_3`"
+           }
+          }
+         }
+        },
+        "content": {
+         "type": "string",
+         "description": "The message as the group receives it, at most 2000 characters; Jiri fills in what changes from run to run"
         }
        }
       },
-      "content": {
-       "type": "string",
-       "description": "The message as the group receives it, at most 2000 characters; Jiri fills in what changes from run to run"
+      {
+       "type": "object",
+       "description": "An email",
+       "anyOf": [
+        {
+         "required": [
+          "approach"
+         ]
+        },
+        {
+         "required": [
+          "id"
+         ]
+        }
+       ],
+       "properties": {
+        "approach": {
+         "type": "string",
+         "enum": [
+          "email"
+         ]
+        },
+        "id": {
+         "type": "string",
+         "description": "The message rule to change, keeping whatever this item leaves out; left out for a new one"
+        },
+        "smtp_account_id": {
+         "type": [
+          "string",
+          "null"
+         ],
+         "description": "Send through this custom SMTP account (`id` from `GET /smtp_accounts`); null sends from Jinshuju's address, using the email balance"
+        },
+        "recipients": {
+         "type": "array",
+         "description": "Addresses a run may send to",
+         "maxItems": 50,
+         "uniqueItems": true,
+         "items": {
+          "type": "string"
+         }
+        },
+        "recipient_fields": {
+         "type": "array",
+         "description": "Email fields a run may pick recipients from as well, each run the ones the instruction names; each one picked must be in the field",
+         "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+           "form_token",
+           "field_code"
+          ],
+          "properties": {
+           "form_token": {
+            "type": "string",
+            "description": "A form or table you can see"
+           },
+           "field_code": {
+            "type": "string",
+            "description": "An email field of it, such as `field_3`"
+           }
+          }
+         }
+        },
+        "subject": {
+         "type": "string",
+         "description": "The subject; Jiri fills in what changes from run to run"
+        },
+        "content": {
+         "type": "string",
+         "description": "The body in Markdown, at most 20000 characters; Jiri fills in what changes from run to run"
+        }
+       }
       }
-     }
+     ]
     }
    }
   }
@@ -44430,99 +45152,199 @@
        "type": "array",
        "description": "The messages a run may send",
        "items": {
-        "type": "object",
-        "description": "A message sent to a WeCom or DingTalk group",
-        "required": [
-         "id",
-         "approach",
-         "channel_id",
-         "masked_address",
-         "mentioned_mobile_list",
-         "mentioned_fields",
-         "content",
-         "confirmed_at"
-        ],
-        "properties": {
-         "id": {
-          "type": "string"
-         },
-         "approach": {
-          "type": [
-           "string",
-           "null"
+        "oneOf": [
+         {
+          "type": "object",
+          "description": "A message sent to a WeCom or DingTalk group",
+          "required": [
+           "id",
+           "approach",
+           "channel_id",
+           "masked_address",
+           "mentioned_mobile_list",
+           "mentioned_fields",
+           "content",
+           "confirmed_at"
           ],
-          "enum": [
-           "wxwork",
-           "ding_talk",
-           null
-          ],
-          "description": "null when the group was deleted"
-         },
-         "channel_id": {
-          "type": "string"
-         },
-         "masked_address": {
-          "type": [
-           "string",
-           "null"
-          ],
-          "description": "The robot address with its key hidden; null when the group was deleted"
-         },
-         "mentioned_mobile_list": {
-          "type": "array",
-          "items": {
-           "type": "string"
-          }
-         },
-         "mentioned_fields": {
-          "type": "array",
-          "items": {
-           "type": "object",
-           "required": [
-            "form_token",
-            "field_code",
-            "form_name",
-            "field_label"
-           ],
-           "properties": {
-            "form_token": {
-             "type": [
-              "string",
-              "null"
-             ],
-             "description": "null when the form or table was deleted"
-            },
-            "field_code": {
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "approach": {
+            "type": [
+             "string",
+             "null"
+            ],
+            "enum": [
+             "wxwork",
+             "ding_talk",
+             null
+            ],
+            "description": "null when the group was deleted"
+           },
+           "channel_id": {
+            "type": "string"
+           },
+           "masked_address": {
+            "type": [
+             "string",
+             "null"
+            ],
+            "description": "The robot address with its key hidden; null when the group was deleted"
+           },
+           "mentioned_mobile_list": {
+            "type": "array",
+            "items": {
              "type": "string"
-            },
-            "form_name": {
-             "type": [
-              "string",
-              "null"
-             ]
-            },
-            "field_label": {
-             "type": [
-              "string",
-              "null"
-             ],
-             "description": "null when the field was deleted"
             }
+           },
+           "mentioned_fields": {
+            "type": "array",
+            "items": {
+             "type": "object",
+             "required": [
+              "form_token",
+              "field_code",
+              "form_name",
+              "field_label"
+             ],
+             "properties": {
+              "form_token": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "description": "null when the form or table was deleted"
+              },
+              "field_code": {
+               "type": "string"
+              },
+              "form_name": {
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "field_label": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "description": "null when the field was deleted"
+              }
+             },
+             "description": "A field of a form or table a run may pick people from"
+            }
+           },
+           "content": {
+            "type": "string"
+           },
+           "confirmed_at": {
+            "type": [
+             "string",
+             "null"
+            ],
+            "format": "date-time",
+            "description": "When the user confirmed it (Beijing time)"
            }
           }
          },
-         "content": {
-          "type": "string"
-         },
-         "confirmed_at": {
-          "type": [
-           "string",
-           "null"
+         {
+          "type": "object",
+          "description": "An email",
+          "required": [
+           "id",
+           "approach",
+           "smtp_account_id",
+           "recipients",
+           "recipient_fields",
+           "subject",
+           "content",
+           "confirmed_at"
           ],
-          "format": "date-time",
-          "description": "When the user confirmed it (Beijing time)"
+          "properties": {
+           "id": {
+            "type": "string"
+           },
+           "approach": {
+            "type": [
+             "string",
+             "null"
+            ],
+            "enum": [
+             "email",
+             null
+            ],
+            "description": "null when its SMTP server was deleted or can no longer be used"
+           },
+           "smtp_account_id": {
+            "type": [
+             "string",
+             "null"
+            ],
+            "description": "null when it is sent from Jinshuju's address"
+           },
+           "recipients": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            }
+           },
+           "recipient_fields": {
+            "type": "array",
+            "items": {
+             "type": "object",
+             "required": [
+              "form_token",
+              "field_code",
+              "form_name",
+              "field_label"
+             ],
+             "properties": {
+              "form_token": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "description": "null when the form or table was deleted"
+              },
+              "field_code": {
+               "type": "string"
+              },
+              "form_name": {
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "field_label": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "description": "null when the field was deleted"
+              }
+             },
+             "description": "A field of a form or table a run may pick people from"
+            }
+           },
+           "subject": {
+            "type": "string"
+           },
+           "content": {
+            "type": "string"
+           },
+           "confirmed_at": {
+            "type": [
+             "string",
+             "null"
+            ],
+            "format": "date-time",
+            "description": "When the user confirmed it (Beijing time)"
+           }
+          }
          }
-        }
+        ]
        }
       },
       "runs_count": {
@@ -44670,6 +45492,41 @@
     "description": "The next page's row offset; null on the last page"
    }
   }
+ },
+ "RoutineMessageRuleField": {
+  "type": "object",
+  "required": [
+   "form_token",
+   "field_code",
+   "form_name",
+   "field_label"
+  ],
+  "properties": {
+   "form_token": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "description": "null when the form or table was deleted"
+   },
+   "field_code": {
+    "type": "string"
+   },
+   "form_name": {
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "field_label": {
+    "type": [
+     "string",
+     "null"
+    ],
+    "description": "null when the field was deleted"
+   }
+  },
+  "description": "A field of a form or table a run may pick people from"
  },
  "RoutinePreviewConditionMatches": {
   "type": "object",
@@ -46936,7 +47793,8 @@
  "SMTPAccountListResponse": {
   "type": "object",
   "required": [
-   "data"
+   "data",
+   "page_url"
   ],
   "properties": {
    "data": {
@@ -46964,6 +47822,10 @@
       }
      }
     }
+   },
+   "page_url": {
+    "type": "string",
+    "description": "The settings page where the account's SMTP accounts are added and changed"
    }
   },
   "examples": [
@@ -46974,7 +47836,8 @@
       "name": "Jinshuju Events",
       "email": "events@example.com"
      }
-    ]
+    ],
+    "page_url": "https://jinshuju.net/system/third_parties/smtp"
    }
   ]
  },
@@ -54647,6 +55510,655 @@
    }
   },
   "additionalProperties": false
+ },
+ "WheelFortune": {
+  "type": "object",
+  "description": "Lucky wheel shown after the form is submitted; lottery / cash / text are left out until set",
+  "required": [
+   "enabled",
+   "expired",
+   "setting_finished",
+   "prizes"
+  ],
+  "properties": {
+   "enabled": {
+    "type": "boolean"
+   },
+   "expired": {
+    "type": "boolean",
+    "description": "The trial is over or the plan no longer covers it; respondents do not see the wheel then"
+   },
+   "setting_finished": {
+    "type": "boolean",
+    "description": "Everything the wheel needs is set; respondents see it only then"
+   },
+   "prizes": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "id",
+      "title",
+      "prize_name",
+      "prize_type",
+      "prize_amount",
+      "probability"
+     ],
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "title": {
+       "type": "string",
+       "description": "Prize tier, such as `一等奖`"
+      },
+      "prize_name": {
+       "type": "string"
+      },
+      "prize_type": {
+       "type": "string",
+       "enum": [
+        "gift",
+        "voucher"
+       ],
+       "description": "voucher hands each winner a code from an uploaded list"
+      },
+      "prize_amount": {
+       "type": "integer"
+      },
+      "winner_amount": {
+       "type": [
+        "integer",
+        "null"
+       ],
+       "description": "How many have been won"
+      },
+      "probability": {
+       "type": "number",
+       "description": "Chance of winning it, in percent"
+      },
+      "prize_image_url": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    }
+   },
+   "lottery": {
+    "type": "object",
+    "required": [
+     "limit_times",
+     "show_casher"
+    ],
+    "properties": {
+     "limit_times": {
+      "type": "integer",
+      "description": "Draws per entry"
+     },
+     "show_casher": {
+      "type": "boolean",
+      "description": "Winners see who hands out the prizes"
+     },
+     "casher_name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "casher_phone": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "send_sms": {
+      "type": "boolean",
+      "description": "Winners get a text right after the draw"
+     },
+     "mobile_field_api_code": {
+      "type": "string",
+      "description": "The mobile field winners are texted at; only with send_sms"
+     },
+     "lottery_scope_rule_enabled": {
+      "type": "boolean",
+      "description": "Only respondents whose score fits lottery_scope_rule draw"
+     },
+     "lottery_scope_rule": {
+      "type": "object",
+      "description": "Scores that may draw",
+      "required": [
+       "predicate_type"
+      ],
+      "properties": {
+       "predicate_type": {
+        "type": "string",
+        "enum": [
+         "greater_than_or_equal_to",
+         "less_than_or_equal_to",
+         "equal_to",
+         "range"
+        ],
+        "description": "greater_than_or_equal_to and equal_to compare with left_boundary, less_than_or_equal_to with right_boundary, range takes both"
+       },
+       "left_boundary": {
+        "type": "number"
+       },
+       "right_boundary": {
+        "type": "number"
+       }
+      },
+      "additionalProperties": false,
+      "allOf": [
+       {
+        "if": {
+         "properties": {
+          "predicate_type": {
+           "enum": [
+            "greater_than_or_equal_to",
+            "equal_to",
+            "range"
+           ]
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "left_boundary"
+         ]
+        }
+       },
+       {
+        "if": {
+         "properties": {
+          "predicate_type": {
+           "enum": [
+            "less_than_or_equal_to",
+            "range"
+           ]
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "right_boundary"
+         ]
+        }
+       }
+      ]
+     }
+    }
+   },
+   "cash": {
+    "type": "object",
+    "required": [
+     "cash_style"
+    ],
+    "properties": {
+     "cash_style": {
+      "type": "string",
+      "enum": [
+       "phone",
+       "code"
+      ],
+      "description": "phone redeems by the mobile number filled in; code gives each winner an 8-character code"
+     },
+     "mobile_field_api_code": {
+      "type": "string",
+      "description": "The mobile field winners redeem with; only for phone"
+     }
+    }
+   },
+   "text": {
+    "type": "object",
+    "required": [
+     "win_text",
+     "lose_text",
+     "cash_text"
+    ],
+    "properties": {
+     "win_text": {
+      "type": "string",
+      "description": "Shown on a win; `$(奖品名称)` stands for the prize name"
+     },
+     "lose_text": {
+      "type": "string"
+     },
+     "cash_text": {
+      "type": "string",
+      "description": "How to redeem, shown to winners"
+     }
+    }
+   }
+  }
+ },
+ "WheelFortuneInput": {
+  "type": "object",
+  "title": "WheelFortuneInput",
+  "description": "Request body of PATCH /forms/{form_token}/wheel_fortune; only the keys present are written",
+  "properties": {
+   "confirm_form_app_trial": {
+    "type": "boolean",
+    "description": "When the form's account has neither bought nor tried the lucky wheel, start its free trial before saving; once per account, by its owner or an admin, counting from now, so ask the user first"
+   },
+   "confirm_ending_conflicts": {
+    "type": "boolean",
+    "description": "Turn the wheel on although the form shows something else after submitting (confirmation code, certificate, exam score, evaluation report, rich-text message, redirect or red envelope); respondents then see only the wheel, and the ending switches to a message, the redirect is cleared and the red envelope turned off"
+   },
+   "enabled": {
+    "type": "boolean",
+    "description": "Turning it on takes prizes, lottery, cash and text, passed now or set before"
+   },
+   "prizes": {
+    "type": "array",
+    "minItems": 1,
+    "maxItems": 7,
+    "description": "Replaces the prizes as a whole; pass `id` back to keep a prize and its winners. Probabilities add up to at most 100",
+    "items": {
+     "type": "object",
+     "required": [
+      "title",
+      "prize_name",
+      "probability"
+     ],
+     "properties": {
+      "id": {
+       "type": "string",
+       "description": "id from GET; leave out to add a prize"
+      },
+      "title": {
+       "type": "string",
+       "pattern": "\\S",
+       "maxLength": 10,
+       "description": "Prize tier, such as `一等奖`"
+      },
+      "prize_name": {
+       "type": "string",
+       "pattern": "\\S",
+       "maxLength": 20
+      },
+      "prize_type": {
+       "type": "string",
+       "enum": [
+        "gift",
+        "voucher"
+       ],
+       "description": "gift by default; cannot be changed once the prize is saved"
+      },
+      "prize_amount": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 100000,
+       "description": "For a voucher prize it is the number of vouchers, so leave it out or pass that number"
+      },
+      "probability": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 100,
+       "description": "Chance of winning it, in percent"
+      },
+      "prize_image_id": {
+       "type": "string",
+       "description": "`attachment_id` from an upload with image_type wheel_fortune_prize, or the image this prize already has"
+      },
+      "vouchers": {
+       "type": "array",
+       "minItems": 1,
+       "maxItems": 100000,
+       "description": "Codes handed to winners, one each; taken only when adding a voucher prize",
+       "items": {
+        "type": "object",
+        "required": [
+         "code"
+        ],
+        "properties": {
+         "code": {
+          "type": "string",
+          "pattern": "\\S"
+         },
+         "password": {
+          "type": "string",
+          "pattern": "\\S"
+         }
+        },
+        "additionalProperties": false
+       }
+      }
+     },
+     "additionalProperties": false,
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "prize_type": {
+          "const": "voucher"
+         }
+        },
+        "required": [
+         "prize_type"
+        ]
+       },
+       "else": {
+        "required": [
+         "prize_amount"
+        ]
+       }
+      },
+      {
+       "if": {
+        "required": [
+         "vouchers"
+        ]
+       },
+       "then": {
+        "properties": {
+         "prize_type": {
+          "const": "voucher"
+         }
+        },
+        "required": [
+         "prize_type"
+        ]
+       }
+      }
+     ]
+    }
+   },
+   "lottery": {
+    "type": "object",
+    "required": [
+     "limit_times",
+     "show_casher"
+    ],
+    "properties": {
+     "limit_times": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20,
+      "description": "Draws per entry"
+     },
+     "show_casher": {
+      "type": "boolean",
+      "description": "Show winners who hands out the prizes; true takes casher_name and casher_phone"
+     },
+     "casher_name": {
+      "type": "string",
+      "pattern": "\\S"
+     },
+     "casher_phone": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Digits only"
+     },
+     "send_sms": {
+      "type": "boolean",
+      "description": "Text each winner right after the draw, using the account's SMS balance; true takes mobile_field_api_code"
+     },
+     "mobile_field_api_code": {
+      "type": "string",
+      "description": "The mobile field winners are texted at"
+     },
+     "lottery_scope_rule_enabled": {
+      "type": "boolean",
+      "description": "Only respondents whose score fits lottery_scope_rule draw; exam and evaluation forms only, and true takes lottery_scope_rule. Pass it along with lottery_scope_rule"
+     },
+     "lottery_scope_rule": {
+      "type": "object",
+      "description": "Scores that may draw",
+      "required": [
+       "predicate_type"
+      ],
+      "properties": {
+       "predicate_type": {
+        "type": "string",
+        "enum": [
+         "greater_than_or_equal_to",
+         "less_than_or_equal_to",
+         "equal_to",
+         "range"
+        ],
+        "description": "greater_than_or_equal_to and equal_to compare with left_boundary, less_than_or_equal_to with right_boundary, range takes both"
+       },
+       "left_boundary": {
+        "type": "number"
+       },
+       "right_boundary": {
+        "type": "number"
+       }
+      },
+      "additionalProperties": false,
+      "allOf": [
+       {
+        "if": {
+         "properties": {
+          "predicate_type": {
+           "enum": [
+            "greater_than_or_equal_to",
+            "equal_to",
+            "range"
+           ]
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "left_boundary"
+         ]
+        }
+       },
+       {
+        "if": {
+         "properties": {
+          "predicate_type": {
+           "enum": [
+            "less_than_or_equal_to",
+            "range"
+           ]
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "right_boundary"
+         ]
+        }
+       }
+      ]
+     }
+    },
+    "additionalProperties": false,
+    "allOf": [
+     {
+      "if": {
+       "properties": {
+        "show_casher": {
+         "const": true
+        }
+       }
+      },
+      "then": {
+       "required": [
+        "casher_name",
+        "casher_phone"
+       ]
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "lottery_scope_rule_enabled": {
+         "const": true
+        }
+       },
+       "required": [
+        "lottery_scope_rule_enabled"
+       ]
+      },
+      "then": {
+       "required": [
+        "lottery_scope_rule"
+       ]
+      }
+     },
+     {
+      "if": {
+       "required": [
+        "lottery_scope_rule"
+       ]
+      },
+      "then": {
+       "required": [
+        "lottery_scope_rule_enabled"
+       ]
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "send_sms": {
+         "const": true
+        }
+       },
+       "required": [
+        "send_sms"
+       ]
+      },
+      "then": {
+       "required": [
+        "mobile_field_api_code"
+       ]
+      }
+     }
+    ]
+   },
+   "cash": {
+    "type": "object",
+    "description": "How winners redeem; cannot be changed once saved",
+    "required": [
+     "cash_style"
+    ],
+    "properties": {
+     "cash_style": {
+      "type": "string",
+      "enum": [
+       "phone",
+       "code"
+      ],
+      "description": "phone redeems by the mobile number filled in and takes mobile_field_api_code; code gives each winner an 8-character code"
+     },
+     "mobile_field_api_code": {
+      "type": "string",
+      "description": "api_code of the mobile field to redeem with"
+     }
+    },
+    "additionalProperties": false,
+    "if": {
+     "properties": {
+      "cash_style": {
+       "const": "phone"
+      }
+     }
+    },
+    "then": {
+     "required": [
+      "mobile_field_api_code"
+     ]
+    }
+   },
+   "text": {
+    "type": "object",
+    "required": [
+     "win_text",
+     "lose_text",
+     "cash_text"
+    ],
+    "properties": {
+     "win_text": {
+      "type": "string",
+      "pattern": "\\S",
+      "maxLength": 400,
+      "description": "Shown on a win; `$(奖品名称)` stands for the prize name"
+     },
+     "lose_text": {
+      "type": "string",
+      "pattern": "\\S",
+      "maxLength": 300
+     },
+     "cash_text": {
+      "type": "string",
+      "pattern": "\\S",
+      "maxLength": 300,
+      "description": "How to redeem, shown to winners"
+     }
+    },
+    "additionalProperties": false
+   }
+  },
+  "additionalProperties": false
+ },
+ "WheelFortuneLotteryScopeRule": {
+  "type": "object",
+  "description": "Scores that may draw",
+  "required": [
+   "predicate_type"
+  ],
+  "properties": {
+   "predicate_type": {
+    "type": "string",
+    "enum": [
+     "greater_than_or_equal_to",
+     "less_than_or_equal_to",
+     "equal_to",
+     "range"
+    ],
+    "description": "greater_than_or_equal_to and equal_to compare with left_boundary, less_than_or_equal_to with right_boundary, range takes both"
+   },
+   "left_boundary": {
+    "type": "number"
+   },
+   "right_boundary": {
+    "type": "number"
+   }
+  },
+  "additionalProperties": false,
+  "allOf": [
+   {
+    "if": {
+     "properties": {
+      "predicate_type": {
+       "enum": [
+        "greater_than_or_equal_to",
+        "equal_to",
+        "range"
+       ]
+      }
+     }
+    },
+    "then": {
+     "required": [
+      "left_boundary"
+     ]
+    }
+   },
+   {
+    "if": {
+     "properties": {
+      "predicate_type": {
+       "enum": [
+        "less_than_or_equal_to",
+        "range"
+       ]
+      }
+     }
+    },
+    "then": {
+     "required": [
+      "right_boundary"
+     ]
+    }
+   }
+  ]
  },
  "WidgetButtonInput": {
   "type": "object",

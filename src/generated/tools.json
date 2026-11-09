@@ -421,7 +421,7 @@
  {
   "operationId": "updateForm",
   "summary": "Edit a form",
-  "description": "Edit a form\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.\nReturns schema \"Form\" (see get_schema).\nBefore removing a field or choice, check_field_data tells whether it already has entries; removal cannot be undone. To change only field rules, use edit_field_rules.",
+  "description": "Edit a form\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.\nReturns schema \"Form\" (see get_schema).\nBefore removing a field or choice, check_field_data tells whether it already has entries; removal cannot be undone. To change only field rules, use edit_field_rules.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",
@@ -1235,7 +1235,7 @@
  {
   "operationId": "previewFormFieldTypeChange",
   "summary": "Preview a field type change",
-  "description": "Preview a field type change\nUse before changing a field's type (the field's `type` in PATCH /forms/{form_token}): changes no data, and counts, from the field's current entries, how many would be kept and how many cleared after the conversion; matches the preview the web editor shows before converting.\n- Put every conversion of one edit in the `checks` of a single call.\n- `supported: false`, or `choice_limit_exceeded: true` when multi-line text becomes a choice field, means the edit itself would be refused.\nReturns schema \"FieldTypeChangePreviewResponse\" (see get_schema).",
+  "description": "Preview a field type change\nUse before changing a field's type (the field's `type` in PATCH /forms/{form_token}): changes no data, and counts, from the field's current entries, how many would be kept and how many cleared after the conversion; matches the preview the web editor shows before converting.\n- Put every conversion of one edit in the `checks` of a single call.\n- `supported: false`, or `choice_limit_exceeded: true` when multi-line text becomes a choice field, means the edit itself would be refused.\n- An exam question or customized field (Department / Grade) comes back as `unavailable`: its type cannot change in place, remove the field and add a new one instead.\nReturns schema \"FieldTypeChangePreviewResponse\" (see get_schema).",
   "tag": "Forms",
   "method": "get",
   "path": "/forms/{form_token}/fields/preview_convert",
@@ -5697,7 +5697,8 @@
       "description",
       "goods_item",
       "contact_widget",
-      "reservation_item"
+      "reservation_item",
+      "wheel_fortune_prize"
      ],
      "description": "What the image is for"
     }
@@ -5939,7 +5940,8 @@
       "description",
       "goods_item",
       "contact_widget",
-      "reservation_item"
+      "reservation_item",
+      "wheel_fortune_prize"
      ],
      "description": "What the image is for"
     },
@@ -6480,6 +6482,41 @@
          }
         }
        ]
+      },
+      "anti_cheating": {
+       "type": "object",
+       "description": "Anti-cheating while the form is being filled in; only the keys present are written",
+       "properties": {
+        "enabled": {
+         "type": "boolean",
+         "description": "Turns anti-cheating on; true needs a plan that includes `防作弊`"
+        },
+        "copying_disabled": {
+         "type": "boolean",
+         "description": "Questions cannot be copied"
+        },
+        "paste_disabled": {
+         "type": "boolean",
+         "description": "Answers cannot be pasted in"
+        },
+        "switching_screen_disabled": {
+         "type": "boolean",
+         "description": "Count leaving the page, and submit the answers automatically after too many switches"
+        },
+        "switching_screen_limit_time": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 10000,
+         "description": "Seconds away from the page that count as one switch"
+        },
+        "switching_screen_limit": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 10000,
+         "description": "Switches allowed; one more submits the answers automatically"
+        }
+       },
+       "additionalProperties": false
       }
      },
      "description": "Exam settings (updateExamSetting): Partially updates an exam form's settings."
@@ -6507,7 +6544,7 @@
  {
   "operationId": "updateForm",
   "summary": "Edit a form",
-  "description": "Edits an exam form: name / description / adding, removing and changing questions / general settings, plus the exam settings in exam_setting. Updates the exam settings first (a form that is not an exam is refused, and nothing else changes), then the form itself.\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
+  "description": "Edits an exam form: name / description / adding, removing and changing questions / general settings, plus the exam settings in exam_setting. Updates the exam settings first (a form that is not an exam is refused, and nothing else changes), then the form itself.\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",
@@ -7039,6 +7076,41 @@
          }
         }
        ]
+      },
+      "anti_cheating": {
+       "type": "object",
+       "description": "Anti-cheating while the form is being filled in; only the keys present are written",
+       "properties": {
+        "enabled": {
+         "type": "boolean",
+         "description": "Turns anti-cheating on; true needs a plan that includes `防作弊`"
+        },
+        "copying_disabled": {
+         "type": "boolean",
+         "description": "Questions cannot be copied"
+        },
+        "paste_disabled": {
+         "type": "boolean",
+         "description": "Answers cannot be pasted in"
+        },
+        "switching_screen_disabled": {
+         "type": "boolean",
+         "description": "Count leaving the page, and submit the answers automatically after too many switches"
+        },
+        "switching_screen_limit_time": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 10000,
+         "description": "Seconds away from the page that count as one switch"
+        },
+        "switching_screen_limit": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 10000,
+         "description": "Switches allowed; one more submits the answers automatically"
+        }
+       },
+       "additionalProperties": false
       }
      },
      "description": "Exam settings (updateExamSetting): Partially updates an exam form's settings."
@@ -7150,7 +7222,7 @@
  {
   "operationId": "updateForm",
   "summary": "Edit a form",
-  "description": "Edits an evaluation form: name / description / adding, removing and changing questions / general settings, plus the evaluation settings in evaluation_setting. Updates the evaluation settings first, then the form itself. Scored questions write answers / answer_setting_mode as in create_evaluation_form (one answer per choice, with relative).\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
+  "description": "Edits an evaluation form: name / description / adding, removing and changing questions / general settings, plus the evaluation settings in evaluation_setting. Updates the evaluation settings first, then the form itself. Scored questions write answers / answer_setting_mode as in create_evaluation_form (one answer per choice, with relative).\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",

@@ -177,7 +177,7 @@
  "updateForm": {
   "operationId": "updateForm",
   "summary": "Edit a form",
-  "description": "Edits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
+  "description": "Edits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",
@@ -257,7 +257,7 @@
  "previewFormFieldTypeChange": {
   "operationId": "previewFormFieldTypeChange",
   "summary": "Preview a field type change",
-  "description": "Use before changing a field's type (the field's `type` in PATCH /forms/{form_token}): changes no data, and counts, from the field's current entries, how many would be kept and how many cleared after the conversion; matches the preview the web editor shows before converting.\n- Put every conversion of one edit in the `checks` of a single call.\n- `supported: false`, or `choice_limit_exceeded: true` when multi-line text becomes a choice field, means the edit itself would be refused.",
+  "description": "Use before changing a field's type (the field's `type` in PATCH /forms/{form_token}): changes no data, and counts, from the field's current entries, how many would be kept and how many cleared after the conversion; matches the preview the web editor shows before converting.\n- Put every conversion of one edit in the `checks` of a single call.\n- `supported: false`, or `choice_limit_exceeded: true` when multi-line text becomes a choice field, means the edit itself would be refused.\n- An exam question or customized field (Department / Grade) comes back as `unavailable`: its type cannot change in place, remove the field and add a new one instead.",
   "tag": "Forms",
   "method": "get",
   "path": "/forms/{form_token}/fields/preview_convert",
@@ -1621,6 +1621,85 @@
    "form_setting"
   ],
   "responseSchema": "EvaluationSetting"
+ },
+ "getWheelFortune": {
+  "operationId": "getWheelFortune",
+  "summary": "Show a form's lucky wheel",
+  "description": "Returns the lucky wheel shown after the form is submitted: prizes, draws per entry, how winners redeem and its messages.",
+  "tag": "Form Settings",
+  "method": "get",
+  "path": "/forms/{form_token}/wheel_fortune",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "WheelFortune"
+ },
+ "updateWheelFortune": {
+  "operationId": "updateWheelFortune",
+  "summary": "Set up a form's lucky wheel",
+  "description": "Sets up the lucky wheel and turns it on or off; only the keys present are written.\n- The lucky wheel is a paid add-on: the form's account must have bought or be trying it; `confirm_form_app_trial` starts the trial. Once its trial has ended, starting the trial again or turning the wheel on answers 402, while the setup can still be saved.\n- Only members of the form's own account can set it up; members who are not the owner or an admin can only when the account has it with the enterprise plan.\n- While on, respondents go to the wheel after submitting instead of the success page or the redirect. Turning it on while the form shows something else after submitting is refused until `confirm_ending_conflicts`, which also switches the ending to a message, clears the redirect and turns the red envelope off, as choosing the wheel in the editor does.",
+  "tag": "Form Settings",
+  "method": "patch",
+  "path": "/forms/{form_token}/wheel_fortune",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "WheelFortune"
+ },
+ "exportRemainingVouchers": {
+  "operationId": "exportRemainingVouchers",
+  "summary": "Export the vouchers a prize has left",
+  "description": "Writes the codes a voucher prize has not handed out yet into an Excel file, as the editor's export does. Takes the same members as setting up the lucky wheel.",
+  "tag": "Form Settings",
+  "method": "post",
+  "path": "/forms/{form_token}/wheel_fortune/prizes/{prize_id}/remaining_vouchers",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "prize_id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "prize_id"
+  ],
+  "successStatus": 201,
+  "scopes": [
+   "form_setting"
+  ]
  },
  "listFieldRules": {
   "operationId": "listFieldRules",
