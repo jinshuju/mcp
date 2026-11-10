@@ -14,7 +14,9 @@
  *   it off entirely (the argument is no longer offered and nothing is reported);
  * - distinct_id = the Jinshuju user id (from GET /me, or the token info when the token lacks the users scope; see
  *   auth.ts); $session_id is derived from the token hash: one session per token;
- * - a session's initialize is reported at most once a day (deduplicated in process; best effort across Workers instances).
+ * - a user's initialize is reported at most once a day per client (Asia/Shanghai days), whichever token or instance
+ *   it arrives on: OAuth tokens rotate every couple of hours and a platform spreads requests over many isolates, so the
+ *   mark lives in the shared KV the Workers entry passes as well as in memory (without it, each instance on its own).
  *
  * Every other SDK injection stays off: no llm_model / conversation_id arguments, no get_more_tools / send_feedback tools.
  *
@@ -26,7 +28,7 @@
 import type { AuthInfo, McpServer } from '@modelcontextprotocol/server';
 import { deriveSessionIdFromMCPSession, instrument, type BeforeSendFn } from '@posthog/mcp';
 import { PostHog, type PostHogOptions } from 'posthog-node';
-import { sha256, userIdOf } from './auth.js';
+import { sha256, userIdOf, type SharedTokenCache } from './auth.js';
 import type { Config } from './config.js';
 import { FORBIDDEN_HINT } from './result.js';
 import { TOOLS } from './tools.js';
@@ -42,8 +44,13 @@ export const CONTEXT_INSTRUCTIONS =
 const KEPT_EVENTS = new Set(['$mcp_initialize', '$mcp_tool_call']);
 /** By default the SDK attaches the (scrubbed) arguments and result; only argument names are recorded, so these go entirely. */
 const DROPPED_PROPERTIES = ['$mcp_parameters', '$mcp_response', '$mcp_tool_description'];
-const HANDSHAKE_TTL_MS = 24 * 60 * 60_000;
+/** Key prefix of a day's handshake mark in the shared store, followed by the SHA-256 of user, client and day. */
+const HANDSHAKE_KEY_PREFIX = 'mcp-handshake:';
+/** The day is in the key, so a mark only has to outlive what is left of it. */
+const HANDSHAKE_TTL_S = 24 * 60 * 60;
 const HANDSHAKE_MAX_ENTRIES = 2000;
+/** Days follow the PostHog project's time zone, Asia/Shanghai: UTC+8 all year round. */
+const DAY_OFFSET_MS = 8 * 60 * 60_000;
 /** Time limit for sending the buffered events when a request ends: covers one request plus one retry */
 const SHUTDOWN_TIMEOUT_MS = 15_000;
 /**
@@ -112,6 +119,11 @@ export interface AnalyticsOptions {
   host: string;
   /** Whether to offer the context argument and report $mcp_intent; on by default */
   collectIntent?: boolean;
+  /**
+   * A store every instance shares (the Workers entry passes its KV binding) for the day's handshake marks. Omitted,
+   * each instance deduplicates handshakes only in its own memory.
+   */
+  shared?: Pick<SharedTokenCache, 'get' | 'put'>;
   /** For tests: the fetch used for reporting */
   fetch?: typeof fetch;
   now?: () => number;
@@ -133,7 +145,8 @@ function warn(message: string): void {
 export class McpAnalytics {
   readonly collectIntent: boolean;
   private readonly options: AnalyticsOptions;
-  private readonly handshakes = new Map<string, number>();
+  /** This instance's handshake marks, oldest first; each key carries its day, so none has to expire. */
+  private readonly handshakes = new Set<string>();
   private readonly inflight = new Set<Promise<void>>();
   private readonly now: () => number;
 
@@ -168,7 +181,7 @@ export class McpAnalytics {
       enableExceptionAutocapture: false,
       identify: distinctId ? { distinctId } : null,
       shouldRecordInputKey: (key, { declared }) => declared || DECLARED_PARAMETER_NAMES.has(key),
-      beforeSend: this.beforeSend(sessionId),
+      beforeSend: this.beforeSend(sessionId, posthog),
       logger: warn
     });
     return {
@@ -187,7 +200,7 @@ export class McpAnalytics {
     return tracked;
   }
 
-  private beforeSend(sessionId: string | undefined): BeforeSendFn {
+  private beforeSend(sessionId: string | undefined, posthog: PostHog): BeforeSendFn {
     return (event) => {
       if (!KEPT_EVENTS.has(event.event)) return null;
       const props = event.properties;
@@ -197,7 +210,6 @@ export class McpAnalytics {
         if (event.distinct_id === props.$session_id) event.distinct_id = sessionId;
         props.$session_id = sessionId;
       }
-      if (event.event === '$mcp_initialize' && this.repeatedHandshake(String(props.$session_id ?? ''))) return null;
       if (event.event === '$mcp_tool_call' && props.$mcp_is_error === true) {
         // The SDK types a thrown exception by its class; an isError result is always "Error", so the bucket comes from the text.
         const { type, status } = classifyError(String(props.$mcp_error_message ?? ''));
@@ -205,22 +217,42 @@ export class McpAnalytics {
         if (status !== undefined) props.$mcp_error_status = status;
       }
       props.mcp_caller_type = callerTypeOf(props.$mcp_client_name, props.$mcp_client_user_agent);
-      return event;
+      if (event.event !== '$mcp_initialize') return event;
+      const seen = this.seenToday(event.distinct_id, String(props.$mcp_client_name ?? ''));
+      // shutdown() waits for posthog's pending promises, not for this hook. Hold one open until a macrotask after the
+      // check: by then the SDK has handed the event to capture() (microtasks only), whose own pending promise
+      // shutdown then waits for too, so a flush that starts during the lookup still sends the event.
+      posthog.addPendingPromise(
+        seen.catch(() => undefined).then(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
+      );
+      return seen.then((repeated) => (repeated ? null : event));
     };
   }
 
-  /** Clients handshake again and again on one connection, and every later handshake reports what the first one already did. */
-  private repeatedHandshake(sessionId: string): boolean {
-    if (!sessionId) return false;
-    const now = this.now();
-    const until = this.handshakes.get(sessionId);
-    if (until !== undefined && until > now) return true;
-    this.handshakes.delete(sessionId);
+  /**
+   * Whether this user has already handshaken with this client today, as this instance's memory or the shared store
+   * remembers; marks it otherwise. Clients handshake on every connection, many times a day, and each later handshake
+   * only repeats what the first one reported. A failing store costs a duplicate event, never a lost one, as do two
+   * instances checking the same mark at once.
+   */
+  private async seenToday(who: string, client: string): Promise<boolean> {
+    if (!who) return false;
+    const day = new Date(this.now() + DAY_OFFSET_MS).toISOString().slice(0, 10);
+    const key = HANDSHAKE_KEY_PREFIX + (await sha256(`${who}\n${client}\n${day}`));
+    if (this.handshakes.has(key)) return true;
     if (this.handshakes.size >= HANDSHAKE_MAX_ENTRIES) {
-      const oldest = this.handshakes.keys().next().value;
+      const oldest = this.handshakes.values().next().value;
       if (oldest !== undefined) this.handshakes.delete(oldest);
     }
-    this.handshakes.set(sessionId, now + HANDSHAKE_TTL_MS);
+    this.handshakes.add(key);
+    const shared = this.options.shared;
+    if (!shared) return false;
+    try {
+      if ((await shared.get(key)) !== null) return true;
+      await shared.put(key, '1', { expirationTtl: HANDSHAKE_TTL_S });
+    } catch (error) {
+      console.warn('shared handshake mark failed:', error);
+    }
     return false;
   }
 
@@ -236,12 +268,17 @@ export class McpAnalytics {
 }
 
 /** Reports only when POSTHOG_API_KEY is set. */
-export function analyticsFromConfig(cfg: Config, fetchImpl?: typeof fetch): McpAnalytics | undefined {
+export function analyticsFromConfig(
+  cfg: Config,
+  fetchImpl?: typeof fetch,
+  shared?: AnalyticsOptions['shared']
+): McpAnalytics | undefined {
   if (!cfg.posthogApiKey) return undefined;
   return new McpAnalytics({
     apiKey: cfg.posthogApiKey,
     host: cfg.posthogHost,
     collectIntent: cfg.collectIntent,
-    fetch: fetchImpl
+    fetch: fetchImpl,
+    shared
   });
 }

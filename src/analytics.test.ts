@@ -2,7 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gunzipSync } from 'node:zlib';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import { callerTypeOf, classifyError, CONTEXT_DESCRIPTION, McpAnalytics, type ErrorType } from './analytics.js';
+import {
+  callerTypeOf,
+  classifyError,
+  CONTEXT_DESCRIPTION,
+  McpAnalytics,
+  type AnalyticsOptions,
+  type ErrorType
+} from './analytics.js';
 import { createApp } from './app.js';
 import { TOOLS } from './tools.js';
 import { VERSION } from './version.js';
@@ -34,6 +41,9 @@ function harness(
     /** Every /batch answers with this status */
     batchStatus?: number;
     requestTimeoutMs?: number;
+    /** The store instances share for the day's handshake marks */
+    shared?: AnalyticsOptions['shared'];
+    now?: () => number;
   } = {}
 ) {
   const apiCalls: { url: string; body?: string }[] = [];
@@ -62,7 +72,8 @@ function harness(
       return options.tokenInfo?.clone() ?? new Response('{"error":"invalid_token"}', { status: 401 });
     }
     if (url.endsWith('/me')) {
-      if (headers.get('authorization') !== 'Bearer good')
+      // `rotated` is the same user's next OAuth access token
+      if (!['Bearer good', 'Bearer rotated'].includes(headers.get('authorization') ?? ''))
         return new Response('{"error":"invalid_token"}', { status: 401 });
       return options.me?.clone() ?? new Response('{"id":"u1","name":"周"}', { headers: JSON_HEADERS });
     }
@@ -85,7 +96,9 @@ function harness(
           host: 'https://ph.test',
           collectIntent: options.collectIntent,
           fetch: fetchImpl,
-          requestTimeoutMs: options.requestTimeoutMs
+          requestTimeoutMs: options.requestTimeoutMs,
+          shared: options.shared,
+          now: options.now
         });
   const app = createApp({
     config: {
@@ -295,6 +308,83 @@ test("2026-07-28 stateless client: client info comes from each request's _meta, 
   const old = harness();
   await legacy(old.app, INITIALIZE);
   assert.equal((await old.events())[0].properties.$session_id, call.properties.$session_id);
+});
+
+test('initialize is reported once a day per user and client, whichever token or instance sharing the store it arrives on', async () => {
+  const store = new Map<string, { value: string; ttl: number }>();
+  const shared: AnalyticsOptions['shared'] = {
+    get: async (key) => store.get(key)?.value ?? null,
+    put: async (key, value, { expirationTtl }) => void store.set(key, { value, ttl: expirationTtl })
+  };
+  // 23:59 in Shanghai: two minutes later it is the next day there, still the same day in UTC
+  let clock = Date.parse('2026-11-10T15:59:00Z');
+  const now = () => clock;
+  const handshakes = async (h: ReturnType<typeof harness>) =>
+    (await h.events()).filter((e) => e.event === '$mcp_initialize').map((e) => e.properties.$mcp_client_name);
+  const cursor = { ...INITIALIZE, params: { ...INITIALIZE.params, clientInfo: { name: 'cursor', version: '1.0.0' } } };
+
+  const first = harness({ shared, now });
+  await legacy(first.app, INITIALIZE);
+  // The same user's next OAuth token is a new session, but not a new handshake
+  await legacy(first.app, INITIALIZE, { Authorization: 'Bearer rotated' });
+  assert.deepEqual(await handshakes(first), ['claude-ai']);
+
+  // Another instance, with nothing in memory, finds the mark in the shared store; another client is reported
+  const second = harness({ shared, now });
+  await legacy(second.app, INITIALIZE);
+  await legacy(second.app, cursor);
+  assert.deepEqual(await handshakes(second), ['cursor']);
+
+  clock += 2 * 60_000;
+  await legacy(second.app, INITIALIZE);
+  assert.deepEqual(await handshakes(second), ['cursor', 'claude-ai'], 'a new Shanghai day is reported again');
+
+  assert.equal(store.size, 3);
+  for (const [key, entry] of store) {
+    assert.match(key, /^mcp-handshake:[0-9a-f]{64}$/, 'the key holds no user id or client name');
+    assert.equal(entry.ttl, 24 * 60 * 60);
+  }
+});
+
+test('a slow handshake store still gets the initialize into the flush that started during the lookup', async () => {
+  const shared: AnalyticsOptions['shared'] = {
+    get: () => new Promise((resolve) => setTimeout(() => resolve(null), 50)),
+    put: async () => undefined
+  };
+  const h = harness({ shared });
+  await legacy(h.app, INITIALIZE);
+  assert.deepEqual(
+    (await h.events()).map((e) => e.event),
+    ['$mcp_initialize']
+  );
+});
+
+test('a failing handshake store costs a duplicate, never a lost initialize', async () => {
+  const shared: AnalyticsOptions['shared'] = {
+    get: async () => {
+      throw new Error('kv unavailable');
+    },
+    put: async () => {
+      throw new Error('kv unavailable');
+    }
+  };
+  const warn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => void warnings.push(args);
+  try {
+    const first = harness({ shared });
+    await legacy(first.app, INITIALIZE);
+    const second = harness({ shared });
+    await legacy(second.app, INITIALIZE);
+    for (const h of [first, second])
+      assert.deepEqual(
+        (await h.events()).map((e) => e.event),
+        ['$mcp_initialize']
+      );
+  } finally {
+    console.warn = warn;
+  }
+  assert.ok(warnings.some(([message]) => String(message).startsWith('shared handshake mark failed')));
 });
 
 test('intent capture off: context is no longer advertised; a context the client still sends is accepted but not reported', async () => {

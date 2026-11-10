@@ -99,7 +99,9 @@ What is collected:
   The SDK's other injections (`llm_model`, `conversation_id`, `get_more_tools`, `send_feedback`) are all off.
 - Identity and sessions: `identify` uses the user id from `GET /me` (or from the token info, see step 2 above); `$session_id` is not the one the SDK opens per request but `ses_…` derived from the token's SHA-256
   (one session per token), so even clients on 2026-07-28 with no handshake have their calls grouped together.
-  `initialize` is reported once a day per session (deduplicated in process; best effort across Workers instances).
+  `initialize` is reported once a day (Asia/Shanghai) per user and client, whichever token or instance it arrives on: the mark (key `mcp-handshake:` + the SHA-256 of user, client and day)
+  is kept in memory and in `TOKEN_CACHE`, and `beforeSend` holds a posthog pending promise open over the lookup so the flush still waits for the event.
+  A failing store or two instances racing on one mark cost a duplicate, never a lost event.
 - Sending: posthog-node batches. On Workers, `flush()` goes into `executionCtx.waitUntil` at the end of each request; on Node a timer does it, with `shutdown()` on SIGTERM.
   Tools send no mid-call notifications, and both legs assemble the response only after the handler finishes, so events are always queued before the flush.
 
@@ -138,7 +140,7 @@ over ten thousand tokens; as one line plus a `get_schema` tool, the model reads 
   The public URL can be set with `JINSHUJU_MCP_PUBLIC_URL` (it may carry a path prefix, e.g. `https://host/jinshuju-mcp`; a comma-separated list is chosen by the request's Host,
   falling back to the first), otherwise the reverse proxy's `X-Forwarded-Proto/Host/Prefix` are trusted. Under a prefix, `resource_metadata` in the 401 challenge points to the well-known document under this service's own path,
   not the domain root (the root does not belong to this service); RFC 9728 lets clients fetch the URL the challenge gives.
-- **Workers (optional).** `worker.ts` exports the Hono app; `wrangler.jsonc`'s one binding is the KV namespace `TOKEN_CACHE` for the shared token cache
+- **Workers (optional).** `worker.ts` exports the Hono app; `wrangler.jsonc`'s one binding is the KV namespace `TOKEN_CACHE` for the shared token cache and handshake marks
   (WDL creates it on first use; on Cloudflare, create one and put its id there, or drop the entry and keep the per-isolate cache). Platforms like WDL forward in plain text after TLS termination,
   with `X-Forwarded-Proto` set to http and no `X-Forwarded-Prefix`, so inferring from the request gives the wrong URL. `JINSHUJU_MCP_PUBLIC_URL` is therefore required there,
   listing both the custom domain and the platform's default prefixed URL; the service picks one by Host.

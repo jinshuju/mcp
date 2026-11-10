@@ -56,8 +56,8 @@ export interface AppOptions {
   /** Analytics. Omitted, config decides (on only with posthogApiKey); null forces it off; node.ts / tests pass their own instance */
   analytics?: McpAnalytics | null;
   /**
-   * A cache of token verifications every instance shares (the Workers entry passes its KV binding). Omitted, each
-   * instance caches only in its own memory.
+   * A store every instance shares (the Workers entry passes its KV binding): token verifications, and the day's
+   * handshake marks of the analytics config creates. Omitted, each instance keeps both only in its own memory.
    */
   tokenCache?: SharedTokenCache;
 }
@@ -75,7 +75,9 @@ export function createApp(options: AppOptions = {}): Hono {
     fetch: fetchImpl
   });
   const analytics =
-    options.analytics === undefined ? analyticsFromConfig(cfg, fetchImpl) : (options.analytics ?? undefined);
+    options.analytics === undefined
+      ? analyticsFromConfig(cfg, fetchImpl, options.tokenCache)
+      : (options.analytics ?? undefined);
   const instructions = analytics?.collectIntent ? `${INSTRUCTIONS}\n${CONTEXT_INSTRUCTIONS}` : INSTRUCTIONS;
   let metadata: Promise<OAuthMetadata> | undefined;
   const authServerMetadata = () =>

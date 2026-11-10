@@ -57,8 +57,9 @@ After changing `mcp.overlay.yaml` or updating `spec/openapi.yaml`, run `npm run 
   To deploy what is on `main` without releasing, merge the deploy pull request `chore(main): deploy X.Y.Z` that CI keeps open: it only moves the patch in `src/version.ts`, so the deploy gets a version of its own in the logs, and nothing is tagged or published.
 
 Requests are stateless and the service needs no database or Durable Objects. On Workers-style platforms one KV
-namespace, bound as `TOKEN_CACHE` in `wrangler.jsonc`, shares token verifications across isolates; WDL creates it on
-first use, on Cloudflare create one and put its id there. Without the binding each instance caches on its own.
+namespace, bound as `TOKEN_CACHE` in `wrangler.jsonc`, shares token verifications and the analytics' daily handshake
+marks across isolates; WDL creates it on first use, on Cloudflare create one and put its id there. Without the binding
+each instance keeps them on its own.
 
 ## Evals
 

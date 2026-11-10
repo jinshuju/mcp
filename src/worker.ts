@@ -1,7 +1,7 @@
 /**
  * Cloudflare Workers entry (an optional deployment). Requests are stateless and there are no Durable Objects; the one
- * binding, the KV namespace TOKEN_CACHE, only shares token verifications across isolates, and without it each isolate
- * caches on its own.
+ * binding, the KV namespace TOKEN_CACHE, shares token verifications and the analytics' daily handshake marks across
+ * isolates, and without it each isolate keeps them on its own.
  * With SENTRY_DSN set, exceptions go to Sentry (the SDK reads SENTRY_DSN / SENTRY_ENVIRONMENT from env itself); without it,
  * nothing is sent.
  */

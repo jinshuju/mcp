@@ -7,7 +7,8 @@
   "compatibility_date": "2026-06-17",
   "compatibility_flags": ["nodejs_compat"],
   "routes": ["mcp.jinshuju.net/*", "jinshuju.net/*"],
-  // Token verifications shared by every isolate (see src/auth.ts); without the binding each isolate caches on its own.
+  // Token verifications (src/auth.ts) and the daily handshake marks of analytics (src/analytics.ts), shared by every
+  // isolate; without the binding each isolate keeps them on its own.
   // On WDL the id is a namespace-local name, created on first use. On Cloudflare, create a namespace
   // (`wrangler kv namespace create TOKEN_CACHE`) and put its id here, or remove the entry.
   "kv_namespaces": [{ "binding": "TOKEN_CACHE", "id": "token-cache" }],
