@@ -1095,6 +1095,81 @@
    "read_entries"
   ]
  },
+ "getEntryStateFlow": {
+  "operationId": "getEntryStateFlow",
+  "summary": "Show an entry's state flow",
+  "description": "Returns the entry's state in a flow and the targets its events act on, each with the events it can take now. Takes the form creator, admin or data maintainer role, and the entry must be within the caller's data scope.",
+  "tag": "Entries",
+  "method": "get",
+  "path": "/forms/{form_token}/entries/{serial_number}/state_flows/{flow}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "serial_number",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "flow",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "serial_number",
+   "flow"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "read_entries"
+  ],
+  "responseSchema": "EntryStateFlow"
+ },
+ "updateEntryStateFlow": {
+  "operationId": "updateEntryStateFlow",
+  "summary": "Trigger an event in an entry's state flow",
+  "description": "Triggers an event that GET lists on a target and returns the flow afterwards. Same role and data scope as GET.\n- `reda_confirm` approves the red envelope and pays it out of the form's red envelope balance; `reda_refuse` rejects it\n- `cancel_all` cancels the reservation and frees the reserved slots; a paid entry is not refunded\n- `winner_confirm` redeems a winner; `delete_winner` removes the winner for good, and its prize and voucher code do not go back to the pool",
+  "tag": "Entries",
+  "method": "patch",
+  "path": "/forms/{form_token}/entries/{serial_number}/state_flows/{flow}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "serial_number",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "flow",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "serial_number",
+   "flow"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "write_entries"
+  ],
+  "responseSchema": "EntryStateFlow"
+ },
  "getFormSetting": {
   "operationId": "getFormSetting",
   "summary": "Show a form's settings",
@@ -1701,6 +1776,57 @@
    "form_setting"
   ]
  },
+ "getQuickpaySetting": {
+  "operationId": "getQuickpaySetting",
+  "summary": "Show a quick payment form's settings",
+  "description": "Returns a quick payment form's payment mode, whether it hands buyers what they bought once they pay, and the deliverables it hands out.\nOnly for quick payment forms (scene = quickpay); otherwise returns 400.",
+  "tag": "Form Settings",
+  "method": "get",
+  "path": "/forms/{form_token}/quickpay_setting",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "QuickpaySetting"
+ },
+ "updateQuickpaySetting": {
+  "operationId": "updateQuickpaySetting",
+  "summary": "Update a quick payment form's settings",
+  "description": "Partially updates a quick payment form's settings (schema `QuickpaySettingInput`).\n- `deliverables` replaces the deliverables of the goods field buyers see under the resulting `mode` (`goods_field_api_code` in the response); pass `token` back to keep one.\n- A file or image deliverable takes an `attachment_id` from \"Upload a deliverable file\" or \"Prepare a deliverable file upload\", or one the form already hands out.",
+  "tag": "Form Settings",
+  "method": "patch",
+  "path": "/forms/{form_token}/quickpay_setting",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "QuickpaySetting"
+ },
  "listFieldRules": {
   "operationId": "listFieldRules",
   "summary": "Show a form's field display rules",
@@ -1798,7 +1924,7 @@
  "moveFormToFolder": {
   "operationId": "moveFormToFolder",
   "summary": "Move a form into a folder",
-  "description": "Moves the form into a folder, or out of one (pass null as `folder_token`), the same as moving it on the product page; PUT is accepted too.\n- The request body must contain the `folder_token` key (its value may be null); otherwise 400.\n- `folder_token` takes only a folder token (not an id); returns 404 when the folder does not exist or the current user lacks manage permission on it.\n- Takes a role given on the form itself, not only one inherited from a shared folder, and manage permission on the folder the caller placed it in; otherwise 403. An account access token needs no role.\n- The folder type (form / table) must match the form's type; otherwise 400.\n- To move a table, use `PATCH /tables/{table_token}/folder`.",
+  "description": "Moves the form into a folder, or out of one (pass null as `folder_token`), the same as moving it on the product page; PUT is accepted too.\n- The request body must contain the `folder_token` key (its value may be null); otherwise 400.\n- `folder_token` and `original_folder_token` take only folder tokens (not ids); returns 404 when a folder does not exist or the current user lacks manage permission on the target folder, and 400 when moving into a folder and the form is in neither `original_folder_token` nor that folder.\n- Takes a role given on the form itself, not only one inherited from a shared folder, and manage permission on the folder it is moved out of; otherwise 403. An account access token needs no role.\n- Moving it out of a folder takes it out for everyone, also out of a shared folder another cooperator put it in.\n- The folder type (form / table) must match the form's type; otherwise 400. To move a table, use `PATCH /tables/{table_token}/folder`.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}/folder",
@@ -2151,6 +2277,57 @@
   "successStatus": 201,
   "scopes": [
    "write_entries"
+  ],
+  "responseSchema": "PreparedUpload"
+ },
+ "uploadGoodsDeliverableAttachment": {
+  "operationId": "uploadGoodsDeliverableAttachment",
+  "summary": "Upload a deliverable file",
+  "description": "Uploads a file (up to 200 MB) that a quick payment form hands buyers once they pay; pass the returned `id` as a deliverable's `attachment_id`.",
+  "tag": "Uploads",
+  "method": "post",
+  "path": "/forms/{form_token}/goods_deliverable_attachments",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "multipart/form-data",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "GoodsDeliverableAttachment"
+ },
+ "prepareGoodsDeliverableAttachmentUpload": {
+  "operationId": "prepareGoodsDeliverableAttachmentUpload",
+  "summary": "Prepare a deliverable file upload",
+  "description": "Issues a one-time link for uploading a local file (up to 200 MB) that a quick payment form hands buyers once they pay, without sending its bytes in a request body.\n- With a shell that can read the file and reach the network, run `curl -F file=@<path> <upload_url>`, then pass the returned `attachment_id` as a deliverable's `attachment_id`.",
+  "tag": "Uploads",
+  "method": "post",
+  "path": "/forms/{form_token}/goods_deliverable_attachment_upload_urls",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 201,
+  "scopes": [
+   "form_setting"
   ],
   "responseSchema": "PreparedUpload"
  },
@@ -6101,7 +6278,7 @@
  "moveTableToFolder": {
   "operationId": "moveTableToFolder",
   "summary": "Move a table into a folder",
-  "description": "Moves a table into a folder, or out of its folder (`folder_token` set to null), the same as moving it on the product page; PUT is also accepted.\n- The request body must include the `folder_token` key (its value may be null); otherwise 400.\n- `folder_token` accepts only a folder token (not an id); returns 404 when the folder does not exist or the current user lacks manage permission on it.\n- Takes a role given on the table itself, not only one inherited from a shared folder, and manage permission on the folder the caller placed it in; otherwise 403. An account access token needs no role.\n- The target folder's kind must be table; otherwise 400.\n- Returns 404 `Table not found` when the token is not a table's.",
+  "description": "Moves a table into a folder, or out of its folder (`folder_token` set to null), the same as moving it on the product page; PUT is also accepted.\n- The request body must include the `folder_token` key (its value may be null); otherwise 400.\n- `folder_token` and `original_folder_token` accept only folder tokens (not ids); returns 404 when a folder does not exist or the current user lacks manage permission on the target folder, and 400 when moving into a folder and the table is in neither `original_folder_token` nor that folder.\n- Takes a role given on the table itself, not only one inherited from a shared folder, and manage permission on the folder it is moved out of; otherwise 403. An account access token needs no role.\n- Moving it out of a folder takes it out for everyone, also out of a shared folder another cooperator put it in.\n- The target folder's kind must be table; otherwise 400. Returns 404 `Table not found` when the token is not a table's.",
   "tag": "Tables",
   "method": "patch",
   "path": "/tables/{table_token}/folder",
