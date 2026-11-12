@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.0](https://github.com/jinshuju/mcp/compare/v0.9.0...v0.10.0) (2026-11-12)
+
+
+### Features
+
+* add fields anti_cheating and 5 more; update tools create_form and 8 more ([2dd3321](https://github.com/jinshuju/mcp/commit/2dd3321ce082d99fd17e80a4b8cd16422f5b2905))
+* add fields predefined_number, fixed_number, min_purchase_quantity and 1 more ([ba989d1](https://github.com/jinshuju/mcp/commit/ba989d1744af2722a2adcaac9d671e6fa7503e91))
+* add fields scannable and 34 more; update tools list_forms and 3 more ([ea3c0d6](https://github.com/jinshuju/mcp/commit/ea3c0d6aedbcfccace3a0de0f53ebe958e98b93b))
+
+
+### Performance
+
+* report each user's MCP handshake at most once a day per client ([b3cc8db](https://github.com/jinshuju/mcp/commit/b3cc8db3f33e24b4a919953741f9ac24ce2197ec))
+* report MCP analytics as anonymous events ([cd1fb5f](https://github.com/jinshuju/mcp/commit/cd1fb5ff3773903a267ebf58be5ca3a44fc7c771))
+
 ## [0.9.0](https://github.com/jinshuju/mcp/compare/v0.8.0...v0.9.0) (2026-11-07)
 
 
