@@ -9853,6 +9853,24 @@ components:
           type:
           - number
           - 'null'
+        predefined_number:
+          type:
+          - integer
+          - 'null'
+          description: Default quantity
+        fixed_number:
+          type: boolean
+          description: The quantity cannot be changed
+        min_purchase_quantity:
+          type:
+          - integer
+          - 'null'
+          description: Minimum quantity per entry; null when there are specs, which carry their own
+        max_purchase_quantity:
+          type:
+          - integer
+          - 'null'
+          description: Maximum quantity per entry; null when there are specs, which carry their own
         skus:
           type: array
           items:
@@ -9877,6 +9895,16 @@ components:
           type:
           - integer
           - 'null'
+        min_purchase_quantity:
+          type:
+          - integer
+          - 'null'
+          description: Minimum quantity per entry
+        max_purchase_quantity:
+          type:
+          - integer
+          - 'null'
+          description: Maximum quantity per entry
     ReservationItem:
       type: object
       description: Form and table reads also give the item's settings, in the shape `ReservationItemInput` takes. A write replaces the whole list; an item matched to a current one (by `api_code`, else by name) keeps whether deleted entries give their places back, which a read does not give, and keeps its images when the write leaves `images` out. Time slot tables set up in the editor are not kept

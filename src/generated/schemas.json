@@ -21422,6 +21422,31 @@
         "null"
        ]
       },
+      "predefined_number": {
+       "type": [
+        "integer",
+        "null"
+       ],
+       "description": "Default quantity"
+      },
+      "fixed_number": {
+       "type": "boolean",
+       "description": "The quantity cannot be changed"
+      },
+      "min_purchase_quantity": {
+       "type": [
+        "integer",
+        "null"
+       ],
+       "description": "Minimum quantity per entry; null when there are specs, which carry their own"
+      },
+      "max_purchase_quantity": {
+       "type": [
+        "integer",
+        "null"
+       ],
+       "description": "Maximum quantity per entry; null when there are specs, which carry their own"
+      },
       "skus": {
        "type": "array",
        "items": {
@@ -21451,6 +21476,20 @@
            "integer",
            "null"
           ]
+         },
+         "min_purchase_quantity": {
+          "type": [
+           "integer",
+           "null"
+          ],
+          "description": "Minimum quantity per entry"
+         },
+         "max_purchase_quantity": {
+          "type": [
+           "integer",
+           "null"
+          ],
+          "description": "Maximum quantity per entry"
          }
         }
        }
@@ -36577,6 +36616,31 @@
      "null"
     ]
    },
+   "predefined_number": {
+    "type": [
+     "integer",
+     "null"
+    ],
+    "description": "Default quantity"
+   },
+   "fixed_number": {
+    "type": "boolean",
+    "description": "The quantity cannot be changed"
+   },
+   "min_purchase_quantity": {
+    "type": [
+     "integer",
+     "null"
+    ],
+    "description": "Minimum quantity per entry; null when there are specs, which carry their own"
+   },
+   "max_purchase_quantity": {
+    "type": [
+     "integer",
+     "null"
+    ],
+    "description": "Maximum quantity per entry; null when there are specs, which carry their own"
+   },
    "skus": {
     "type": "array",
     "items": {
@@ -36606,6 +36670,20 @@
         "integer",
         "null"
        ]
+      },
+      "min_purchase_quantity": {
+       "type": [
+        "integer",
+        "null"
+       ],
+       "description": "Minimum quantity per entry"
+      },
+      "max_purchase_quantity": {
+       "type": [
+        "integer",
+        "null"
+       ],
+       "description": "Maximum quantity per entry"
       }
      }
     }
@@ -37162,6 +37240,20 @@
      "integer",
      "null"
     ]
+   },
+   "min_purchase_quantity": {
+    "type": [
+     "integer",
+     "null"
+    ],
+    "description": "Minimum quantity per entry"
+   },
+   "max_purchase_quantity": {
+    "type": [
+     "integer",
+     "null"
+    ],
+    "description": "Maximum quantity per entry"
    }
   }
  },
