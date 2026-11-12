@@ -97,7 +97,10 @@ What is collected:
 - Intent: the SDK injects `context` into every tool's inputSchema, and `tools/call` strips it before validation and before the handler;
   `context` still arrives when collection is off or the client uses a cached tool list, so `validation.ts` always accepts and discards it, and it never reaches the API.
   The SDK's other injections (`llm_model`, `conversation_id`, `get_more_tools`, `send_feedback`) are all off.
-- Identity and sessions: `identify` uses the user id from `GET /me` (or from the token info, see step 2 above); `$session_id` is not the one the SDK opens per request but `ses_…` derived from the token's SHA-256
+- Identity and sessions: every event is anonymous (`$process_person_profile: false`, the SDK's `identify` is off), so nothing creates or updates a person profile and the events are billed as anonymous ones.
+  `distinct_id` is `mcp:` + the user id from `GET /me` (or from the token info, see step 2 above), or the session id when no user was identified. The prefix is what keeps the events anonymous:
+  PostHog counts an event as identified whenever its distinct id already belongs to a person, whatever the event says, and the bare user id may belong to one. To read the user id, strip the prefix.
+  `$session_id` is not the one the SDK opens per request but `ses_…` derived from the token's SHA-256
   (one session per token), so even clients on 2026-07-28 with no handshake have their calls grouped together.
   `initialize` is reported once a day (Asia/Shanghai) per user and client, whichever token or instance it arrives on: the mark (key `mcp-handshake:` + the SHA-256 of user, client and day)
   is kept in memory and in `TOKEN_CACHE`, and `beforeSend` holds a posthog pending promise open over the lookup so the flush still waits for the event.

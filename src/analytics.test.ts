@@ -114,7 +114,7 @@ function harness(
     await analytics?.flush();
     return batches.flatMap((b) => b.batch);
   };
-  return { app, analytics, apiCalls, batches, events };
+  return { app, analytics, apiCalls, batches, events, batchCalls: () => batchCalls };
 }
 
 type App = ReturnType<typeof harness>['app'];
@@ -244,7 +244,7 @@ test('legacy handshake: only initialize and tool_call are reported, argument nam
     'no event for tools/list, $identify or the repeated handshake'
   );
   for (const e of events) {
-    assert.equal(e.distinct_id, 'u1');
+    assert.equal(e.distinct_id, 'mcp:u1');
     assert.equal(e.properties.$mcp_source, 'posthog_mcp_analytics');
     assert.equal(e.properties.$mcp_server_name, 'jinshuju');
     assert.equal(e.properties.$mcp_server_version, VERSION);
@@ -298,7 +298,7 @@ test("2026-07-28 stateless client: client info comes from each request's _meta, 
     ['$mcp_tool_call']
   );
   const [call] = events;
-  assert.equal(call.distinct_id, 'u1');
+  assert.equal(call.distinct_id, 'mcp:u1');
   assert.equal(call.properties.$mcp_client_name, 'modern-client');
   assert.equal(call.properties.$mcp_client_version, '2.0.0');
   assert.equal(call.properties.$mcp_protocol_version, '2026-07-28');
@@ -422,11 +422,27 @@ test('without PostHog: no context argument, receiving one is not an error, and n
   assert.equal(h.batches.length, 0);
 });
 
-test('neither GET /me nor the token info names the user: events are anonymous and no person is created', async () => {
+test("every event is anonymous: the user's distinct id is never a person's, and no person profile is processed", async () => {
+  const h = harness();
+  await legacy(h.app, INITIALIZE);
+  await legacy(h.app, { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_forms', arguments: {} } });
+  const events = await h.events();
+  // Each request sends its own batch, in whichever order the two uploads finish
+  assert.deepEqual(events.map((e) => e.event).sort(), ['$mcp_initialize', '$mcp_tool_call'], 'no $identify');
+  for (const e of events) {
+    // PostHog counts an event as identified when its distinct id belongs to a person, and the bare user id may
+    assert.equal(e.distinct_id, 'mcp:u1');
+    assert.equal(e.properties.$process_person_profile, false);
+    for (const key of ['$set', '$set_once', '$groups']) assert.equal(key in e.properties, false, key);
+  }
+});
+
+test('neither GET /me nor the token info names the user: the distinct id is the session id', async () => {
   const h = harness({ me: new Response('{"error":"forbidden"}', { status: 403, headers: JSON_HEADERS }) });
   await legacy(h.app, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'list_forms', arguments: {} } });
   const [call] = await h.events();
   assert.equal(call.event, '$mcp_tool_call');
+  assert.match(String(call.properties.$session_id), /^ses_[0-9a-f]{32}$/);
   assert.equal(call.distinct_id, call.properties.$session_id);
   assert.equal(call.properties.$process_person_profile, false);
 });
@@ -442,14 +458,16 @@ test('an OAuth token without the users scope: the user comes from the token info
   await legacy(h.app, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'list_forms', arguments: {} } });
   const [call] = await h.events();
   assert.equal(call.event, '$mcp_tool_call');
-  assert.equal(call.distinct_id, 'u1');
+  assert.equal(call.distinct_id, 'mcp:u1');
   assert.match(String(call.properties.$session_id), /^ses_[0-9a-f]{32}$/);
-  assert.notEqual(call.properties.$process_person_profile, false);
+  assert.equal(call.properties.$process_person_profile, false);
 });
 
 test("a PostHog client per request: one request's stuck upload does not hold up the next request's events", async () => {
   const h = harness({ hangFirstBatch: true, requestTimeoutMs: 200 });
   const init = await legacy(h.app, INITIALIZE); // this request's flush hangs on the first /batch
+  // Uploads run in the background: wait for this one to start, or the next request's could be the first /batch instead
+  await until(() => h.batchCalls() >= 1);
   const replay = { 'Mcp-Session-Id': init.res.headers.get('mcp-session-id')! };
   const call = await legacy(
     h.app,

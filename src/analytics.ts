@@ -12,8 +12,10 @@
  * - intent: every tool gets a context argument where the model says what the user wants to do ($mcp_intent). The SDK
  *   scrubs emails / phone numbers / IPs / card numbers from it before sending; JINSHUJU_MCP_COLLECT_INTENT=false turns
  *   it off entirely (the argument is no longer offered and nothing is reported);
- * - distinct_id = the Jinshuju user id (from GET /me, or the token info when the token lacks the users scope; see
- *   auth.ts); $session_id is derived from the token hash: one session per token;
+ * - every event is anonymous ($process_person_profile: false): nothing creates or updates a person profile, and the
+ *   events are billed as anonymous ones. distinct_id = `mcp:` + the Jinshuju user id (from GET /me, or the token info
+ *   when the token lacks the users scope; see auth.ts), or the session id when no user was identified;
+ * - $session_id is derived from the token hash: one session per token;
  * - a user's initialize is reported at most once a day per client (Asia/Shanghai days), whichever token or instance
  *   it arrives on: OAuth tokens rotate every couple of hours and a platform spreads requests over many isolates, so the
  *   mark lives in the shared KV the Workers entry passes as well as in memory (without it, each instance on its own).
@@ -42,6 +44,12 @@ export const CONTEXT_INSTRUCTIONS =
   'are being asked to serve. Leave personal details (phone numbers, ID numbers, addresses) out of it.';
 
 const KEPT_EVENTS = new Set(['$mcp_initialize', '$mcp_tool_call']);
+/**
+ * Goes before the user id in distinct_id. PostHog counts an event as identified whenever its distinct id already belongs
+ * to a person, whatever $process_person_profile says, and the bare user id may belong to one. The prefixed id is still
+ * one id per user, and never a person's.
+ */
+const DISTINCT_ID_PREFIX = 'mcp:';
 /** By default the SDK attaches the (scrubbed) arguments and result; only argument names are recorded, so these go entirely. */
 const DROPPED_PROPERTIES = ['$mcp_parameters', '$mcp_response', '$mcp_tool_description'];
 /** Key prefix of a day's handshake mark in the shared store, followed by the SHA-256 of user, client and day. */
@@ -159,7 +167,7 @@ export class McpAnalytics {
   /** Instruments this request's McpServer: the user, the session and the PostHog client are all closed over in this one request. */
   async instrument(server: McpServer, authInfo?: AuthInfo): Promise<RequestAnalytics> {
     const sessionId = authInfo ? deriveSessionIdFromMCPSession(await sha256(authInfo.token)) : undefined;
-    const distinctId = userIdOf(authInfo);
+    const userId = userIdOf(authInfo);
     const posthogOptions: PostHogOptions & { fetch?: unknown } = {
       host: this.options.host,
       // Events are sent from the server, so the IP is this service's; GeoIP on it would set the user's location to the data center.
@@ -179,9 +187,10 @@ export class McpAnalytics {
       captureModel: false,
       enableConversationId: false,
       enableExceptionAutocapture: false,
-      identify: distinctId ? { distinctId } : null,
+      // Given an identity the SDK processes a person profile for it; beforeSend names the user instead.
+      identify: null,
       shouldRecordInputKey: (key, { declared }) => declared || DECLARED_PARAMETER_NAMES.has(key),
-      beforeSend: this.beforeSend(sessionId, posthog),
+      beforeSend: this.beforeSend(sessionId, userId, posthog),
       logger: warn
     });
     return {
@@ -200,16 +209,17 @@ export class McpAnalytics {
     return tracked;
   }
 
-  private beforeSend(sessionId: string | undefined, posthog: PostHog): BeforeSendFn {
+  private beforeSend(sessionId: string | undefined, userId: string | undefined, posthog: PostHog): BeforeSendFn {
+    const distinctId = userId ? DISTINCT_ID_PREFIX + userId : sessionId;
     return (event) => {
       if (!KEPT_EVENTS.has(event.event)) return null;
       const props = event.properties;
       for (const key of DROPPED_PROPERTIES) delete props[key];
-      if (sessionId) {
-        // The SDK opens a new session per request; replace it with the token-derived one. When no user was identified, distinct_id is the session id, so replace that too.
-        if (event.distinct_id === props.$session_id) event.distinct_id = sessionId;
-        props.$session_id = sessionId;
-      }
+      // The SDK opens a new session per request and, given no identity, uses it as the distinct id too; replace both.
+      if (sessionId) props.$session_id = sessionId;
+      if (distinctId) event.distinct_id = distinctId;
+      // The SDK sets this itself when it is given no identity; what every event costs depends on it, so it is said here too.
+      props.$process_person_profile = false;
       if (event.event === '$mcp_tool_call' && props.$mcp_is_error === true) {
         // The SDK types a thrown exception by its class; an isError result is always "Error", so the bucket comes from the text.
         const { type, status } = classifyError(String(props.$mcp_error_message ?? ''));
@@ -218,7 +228,7 @@ export class McpAnalytics {
       }
       props.mcp_caller_type = callerTypeOf(props.$mcp_client_name, props.$mcp_client_user_agent);
       if (event.event !== '$mcp_initialize') return event;
-      const seen = this.seenToday(event.distinct_id, String(props.$mcp_client_name ?? ''));
+      const seen = this.seenToday(userId ?? event.distinct_id, String(props.$mcp_client_name ?? ''));
       // shutdown() waits for posthog's pending promises, not for this hook. Hold one open until a macrotask after the
       // check: by then the SDK has handed the event to capture() (microtasks only), whose own pending promise
       // shutdown then waits for too, so a flush that starts during the lookup still sends the event.
