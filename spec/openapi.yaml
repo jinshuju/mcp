@@ -10321,7 +10321,7 @@ components:
           enum:
           - classic
           - card
-          description: 'Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo / WidgetButton and takes no grids_to_occupy / start_new_row'
+          description: 'Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and takes no grids_to_occupy / start_new_row'
       allOf:
       - $ref: '#/components/schemas/FormCreateConstraints'
     TableCreateInput:
@@ -10814,6 +10814,7 @@ components:
         - `submission_region_limited=true` requires a plan that includes "Submission region limit" and at least one item in `submission_regions`.
         - `merchant_account_id` (小金商户) cannot be bound together with `wxpay_account_id` / `alipay_account_id`; a newly passed payment account must belong to the current account, and once bound, `payment_way` becomes `third_party` automatically and `payment_expirable` turns on unless passed or already `false`.
         - `notification_rules` replaces all notification rules created through the API as a whole (`[]` clears them); rules created in the desktop UI are not affected.
+        - A `weixin_collect_way` change the settings page does not offer is refused with 400 and the reason, e.g. turning collecting off while WeChat red envelopes are on.
       properties:
         success_message:
           type: string
@@ -10923,7 +10924,7 @@ components:
               - by_ip
               - by_device
               - by_fields
-              description: With by_weixin only submissions made in WeChat are accepted, and a form that collects no WeChat info starts collecting the submitter's openid through Jinshuju's official account; changing condition later does not stop that
+              description: With by_weixin only submissions made in WeChat are accepted, and a form that collects no WeChat info starts collecting the submitter's openid through Jinshuju's official account unless weixin_collect_way is passed too; changing condition later does not stop that
             cycle_period:
               type: string
               enum:
@@ -10960,6 +10961,18 @@ components:
           - gd_user_only
         weixin_limited:
           type: boolean
+        weixin_collect_way:
+          type: string
+          enum:
+          - not_collect
+          - goldendata
+          - own
+          - own_weixin_qiye
+          - yamcha
+          description: Collect submitters' WeChat info through Jinshuju's official account (goldendata) or not (not_collect); the other values are chosen on the settings page and accepted here only unchanged
+        weixin_collect_more_info_enabled:
+          type: boolean
+          description: While collecting, also ask submitters for their nickname and avatar; turned on when weixin_collect_way goes from not_collect to goldendata unless passed, and refused while weixin_collect_way is own_weixin_qiye or yamcha
         submission_region_limited:
           type: boolean
         submission_regions:
@@ -11270,7 +11283,7 @@ components:
           description: api_code of a date field, a reservation field, or created_at / updated_at
         reservation_item_key:
           type: string
-          description: The reservation item, when `date_key` is a reservation field
+          description: 'Required when `date_key` is a reservation field: the `value` of one of its `reservation_items`'
         date_offset_action:
           type: string
           enum:
@@ -11818,6 +11831,21 @@ components:
         scannable:
           type: boolean
           description: Let the filler fill this field by scanning a QR code or barcode when the form is opened in WeChat; does not work on a form served from a custom domain
+        access_control_list_limit:
+          type: boolean
+          description: Check each submitted value against acl_values; needs a non-empty acl_values
+        access_control_type:
+          type: string
+          enum:
+          - white
+          - black
+          description: white accepts only values in acl_values, black refuses them and needs a plan with the field blacklist; a new field defaults to white, and an update without it keeps the stored type
+        acl_values:
+          type: array
+          maxItems: 5000
+          items:
+            type: string
+          description: The list, one value per item; replaces the whole list, and blank items are dropped
         sms_verification:
           type: boolean
           description: Verify the number by SMS (this also turns on the image captcha)
@@ -12421,7 +12449,7 @@ components:
           - by_ip
           - by_device
           - by_fields
-          description: What identifies the same submitter; by_fields is a paid feature. Cleared when fill_type is unlimited. With by_weixin only submissions made in WeChat are accepted, and a form that collects no WeChat info starts collecting the submitter's openid through Jinshuju's official account; changing condition later does not stop that
+          description: What identifies the same submitter; by_fields is a paid feature. Cleared when fill_type is unlimited. With by_weixin only submissions made in WeChat are accepted, and a form that collects no WeChat info starts collecting the submitter's openid through Jinshuju's official account unless weixin_collect_way is passed too; changing condition later does not stop that
         cycle_period:
           type: string
           enum:
@@ -12475,6 +12503,7 @@ components:
       - allowed_audience
       - weixin_limited
       - weixin_collect_way
+      - weixin_collect_more_info_enabled
       - submission_region_limited
       - submission_regions
       - locale
@@ -12654,6 +12683,9 @@ components:
           - own_weixin_qiye
           - yamcha
           description: How WeChat user info is collected
+        weixin_collect_more_info_enabled:
+          type: boolean
+          description: While WeChat info is collected, submitters authorize their nickname and avatar too; otherwise only the OpenID is taken, silently
         submission_region_limited:
           type:
           - boolean
@@ -12857,6 +12889,18 @@ components:
           - gd_user_only
         weixin_limited:
           type: boolean
+        weixin_collect_way:
+          type: string
+          enum:
+          - not_collect
+          - goldendata
+          - own
+          - own_weixin_qiye
+          - yamcha
+          description: Collect submitters' WeChat info through Jinshuju's official account (goldendata) or not (not_collect); the other values are chosen on the settings page and accepted here only unchanged, and a change the settings page does not offer is refused with 400 and the reason. Binding a new wxpay_account_id or merchant_account_id switches it to own, so it takes no other value in that request
+        weixin_collect_more_info_enabled:
+          type: boolean
+          description: While collecting, also ask submitters for their nickname and avatar; turned on when weixin_collect_way goes from not_collect to goldendata unless passed, and refused while weixin_collect_way is own_weixin_qiye or yamcha
         locale:
           type: string
           enum:
@@ -16180,6 +16224,21 @@ components:
         scannable:
           type: boolean
           description: Let the filler fill this field by scanning a QR code or barcode when the form is opened in WeChat; does not work on a form served from a custom domain
+        access_control_list_limit:
+          type: boolean
+          description: Check each submitted value against acl_values; needs a non-empty acl_values
+        access_control_type:
+          type: string
+          enum:
+          - white
+          - black
+          description: white accepts only values in acl_values, black refuses them and needs a plan with the field blacklist; a new field defaults to white, and an update without it keeps the stored type
+        acl_values:
+          type: array
+          maxItems: 5000
+          items:
+            type: string
+          description: The list, one value per item; replaces the whole list, and blank items are dropped
         grids_to_occupy:
           type:
           - integer
@@ -16427,6 +16486,21 @@ components:
         sms_verification:
           type: boolean
           description: Verify the number by SMS (this also turns on the image captcha)
+        access_control_list_limit:
+          type: boolean
+          description: Check each submitted value against acl_values; needs a non-empty acl_values
+        access_control_type:
+          type: string
+          enum:
+          - white
+          - black
+          description: white accepts only values in acl_values, black refuses them and needs a plan with the field blacklist; a new field defaults to white, and an update without it keeps the stored type
+        acl_values:
+          type: array
+          maxItems: 5000
+          items:
+            type: string
+          description: The list, one value per item; replaces the whole list, and blank items are dropped
         grids_to_occupy:
           type:
           - integer
@@ -16470,6 +16544,21 @@ components:
         unique:
           type: boolean
           description: Refuse a value an existing entry already has
+        access_control_list_limit:
+          type: boolean
+          description: Check each submitted value against acl_values; needs a non-empty acl_values
+        access_control_type:
+          type: string
+          enum:
+          - white
+          - black
+          description: white accepts only values in acl_values, black refuses them and needs a plan with the field blacklist; a new field defaults to white, and an update without it keeps the stored type
+        acl_values:
+          type: array
+          maxItems: 5000
+          items:
+            type: string
+          description: The list, one value per item; replaces the whole list, and blank items are dropped
         grids_to_occupy:
           type:
           - integer
@@ -16513,6 +16602,21 @@ components:
         unique:
           type: boolean
           description: Refuse a value an existing entry already has
+        access_control_list_limit:
+          type: boolean
+          description: Check each submitted value against acl_values; needs a non-empty acl_values
+        access_control_type:
+          type: string
+          enum:
+          - white
+          - black
+          description: white accepts only values in acl_values, black refuses them and needs a plan with the field blacklist; a new field defaults to white, and an update without it keeps the stored type
+        acl_values:
+          type: array
+          maxItems: 5000
+          items:
+            type: string
+          description: The list, one value per item; replaces the whole list, and blank items are dropped
         grids_to_occupy:
           type:
           - integer
@@ -18989,6 +19093,21 @@ components:
         scannable:
           type: boolean
           description: Let the filler fill this field by scanning a QR code or barcode when the form is opened in WeChat; does not work on a form served from a custom domain
+        access_control_list_limit:
+          type: boolean
+          description: Check each submitted value against acl_values; needs a non-empty acl_values
+        access_control_type:
+          type: string
+          enum:
+          - white
+          - black
+          description: white accepts only values in acl_values, black refuses them and needs a plan with the field blacklist; a new field defaults to white, and an update without it keeps the stored type
+        acl_values:
+          type: array
+          maxItems: 5000
+          items:
+            type: string
+          description: The list, one value per item; replaces the whole list, and blank items are dropped
         grids_to_occupy:
           type:
           - integer
@@ -19973,7 +20092,6 @@ components:
                       - MultipleBlanksField
                       - WidgetContact
                       - WidgetVideo
-                      - WidgetButton
                 not:
                   anyOf:
                   - required:
@@ -20293,6 +20411,16 @@ components:
                   type: array
                   items:
                     type: string
+        structure:
+          type: object
+          description: The keys that give this type its shape (a table's `dimensions`, a goods field's `goods_items`), each with a sentence on what it holds. Omitted when the type has none
+          additionalProperties:
+            type: string
+        structure_specs:
+          type: object
+          description: What each key of `structure` may hold, keyed by structure key, as the JSON Schema the create request validates it against, with every `$ref` followed; read the keys a nested item takes here. A key the request schema does not define is left out
+          additionalProperties:
+            type: object
         summary:
           type: string
           description: A short explanation of what this field is and how to write it. Omitted when `kind=table`
@@ -21640,6 +21768,9 @@ components:
         auto_send:
           type: boolean
           description: SMS tasks only; false while a task created with `auto_send` false waits to be sent with `PATCH /forms/{form_token}/sms_tasks/{id}/auto_send`
+        page_url:
+          type: string
+          description: SMS tasks only; the task's page in Jinshuju
       examples:
       - id: 6716f2a8c1d2e3f4a5b6c7d9
         status: sending
@@ -23490,6 +23621,7 @@ components:
       - count
       - data
       - next
+      - page_url
       properties:
         total:
           type: integer
@@ -23506,6 +23638,9 @@ components:
           - integer
           - 'null'
           description: Row offset of the next page; null on the last page
+        page_url:
+          type: string
+          description: The settings page where the account applies for signatures, with its licenses
     MessageType:
       type: string
       enum:
@@ -24839,11 +24974,13 @@ components:
           type:
           - array
           - 'null'
-          description: The messages a run may send; on update they replace the routine's. A new or changed one is saved only as the user confirmed it on a card in this Jiri conversation.
+          description: The messages a run may send; on update they replace the routine's. A new or changed one, other than a site message, is saved only as the user confirmed it on a card in this Jiri conversation.
           items:
             anyOf:
             - $ref: '#/components/schemas/RoutineGroupMessageRuleInput'
             - $ref: '#/components/schemas/RoutineEmailMessageRuleInput'
+            - $ref: '#/components/schemas/RoutineSMSMessageRuleInput'
+            - $ref: '#/components/schemas/RoutineSystemMessageRuleInput'
             - $ref: '#/components/schemas/RoutineWebhookMessageRuleInput'
             - $ref: '#/components/schemas/RoutineWebhookBodyRuleInput'
             - $ref: '#/components/schemas/RoutineWebhookEntryRuleInput'
@@ -25242,6 +25379,8 @@ components:
             oneOf:
             - $ref: '#/components/schemas/RoutineGroupMessageRule'
             - $ref: '#/components/schemas/RoutineEmailMessageRule'
+            - $ref: '#/components/schemas/RoutineSMSMessageRule'
+            - $ref: '#/components/schemas/RoutineSystemMessageRule'
             - $ref: '#/components/schemas/RoutineWebhookMessageRule'
             - $ref: '#/components/schemas/RoutineWebhookBodyRule'
             - $ref: '#/components/schemas/RoutineWebhookEntryRule'
@@ -26307,6 +26446,159 @@ components:
           - 'null'
           format: date-time
           description: When the user confirmed it (Beijing time)
+    RoutineSMSMessageRuleInput:
+      type: object
+      description: An SMS, one message per number
+      anyOf:
+      - required:
+        - approach
+      - required:
+        - id
+      properties:
+        approach:
+          type:
+          - string
+          - 'null'
+          enum:
+          - sms
+          -
+          description: null as a rule whose template was deleted reads; sent back so with its `id`, the rule stays as it is
+        id:
+          type: string
+          description: The message rule to change, keeping whatever this item leaves out; left out for a new one
+        sms_template_id:
+          type:
+          - string
+          - 'null'
+          description: The template to send with (`id` from `GET /sms/templates`); one under review can be set, and is sent once approved. null, as a rule whose template was deleted reads, keeps the rule's template
+        recipients:
+          type: array
+          description: Mobile numbers a run may send to
+          maxItems: 50
+          uniqueItems: true
+          items:
+            type: string
+        recipient_fields:
+          type: array
+          description: Mobile fields a run may pick recipients from as well, each run the ones the instruction names; each one picked must be in the field
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - form_token
+            - field_code
+            properties:
+              form_token:
+                type: string
+                description: A form or table you can see
+              field_code:
+                type: string
+                description: A mobile field of it, such as `field_3`
+        variables:
+          type: object
+          description: What Jiri fills each variable of the template with every run, keyed by the variable such as `var_1`; every variable of the template, none else
+          additionalProperties:
+            type: string
+    RoutineSMSMessageRule:
+      type: object
+      description: An SMS, one message per number
+      required:
+      - id
+      - approach
+      - sms_template_id
+      - content
+      - recipients
+      - recipient_fields
+      - variables
+      - confirmed_at
+      properties:
+        id:
+          type: string
+        approach:
+          type:
+          - string
+          - 'null'
+          enum:
+          - sms
+          -
+          description: null when its template was deleted
+        sms_template_id:
+          type:
+          - string
+          - 'null'
+        content:
+          type:
+          - string
+          - 'null'
+          description: The template with its signature, such as `【金数据】$(var_1) 条登记信息不全`; null when the template was deleted
+        recipients:
+          type: array
+          items:
+            type: string
+        recipient_fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoutineMessageRuleField'
+        variables:
+          type: object
+          description: What Jiri fills each variable of the template with every run
+          additionalProperties:
+            type: string
+        confirmed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: When the user confirmed it (Beijing time)
+    RoutineSystemMessageRuleInput:
+      type: object
+      description: A site message to the routine's creator after each run, at most one a routine; it opens the run
+      anyOf:
+      - required:
+        - approach
+      - required:
+        - id
+      properties:
+        approach:
+          type: string
+          enum:
+          - system_message
+        id:
+          type: string
+          description: The message rule to change, keeping whatever this item leaves out; left out for a new one
+        title:
+          type: string
+          maxLength: 200
+          description: How Jiri writes the title each run, such as `上周新生报名：N 人`
+        content:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+          description: How Jiri writes the summary each run, such as `各年级人数和增减`; left out, null or empty, the message is the title alone
+    RoutineSystemMessageRule:
+      type: object
+      description: A site message to the routine's creator after each run
+      required:
+      - id
+      - approach
+      - title
+      - content
+      properties:
+        id:
+          type: string
+        approach:
+          type: string
+          enum:
+          - system_message
+        title:
+          type: string
+          description: How Jiri writes the title each run
+        content:
+          type:
+          - string
+          - 'null'
+          description: How Jiri writes the summary each run; null when the message is the title alone
     StateFlowName:
       type: string
       enum:

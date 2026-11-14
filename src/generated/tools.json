@@ -402,7 +402,7 @@
       "classic",
       "card"
      ],
-     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo / WidgetButton and takes no grids_to_occupy / start_new_row"
+     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and takes no grids_to_occupy / start_new_row"
     }
    },
    "additionalProperties": false,
@@ -6491,7 +6491,7 @@
       "classic",
       "card"
      ],
-     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo / WidgetButton and takes no grids_to_occupy / start_new_row"
+     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and takes no grids_to_occupy / start_new_row"
     },
     "scene": {
      "type": "string",
@@ -7454,7 +7454,7 @@
       "classic",
       "card"
      ],
-     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo / WidgetButton and takes no grids_to_occupy / start_new_row"
+     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and takes no grids_to_occupy / start_new_row"
     },
     "scene": {
      "type": "string",
