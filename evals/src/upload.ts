@@ -3,7 +3,7 @@
  * Field labels and the result choices below are the existing form's own: the form is looked up by them, so they stay as written.
  */
 import type { EvalApi } from './api.js';
-import { flattenFields } from './api.js';
+import { fieldLabel } from './api.js';
 import type { EvalConfig } from './config.js';
 import { saveState } from './fixtures.js';
 import { readMeta, readRecords } from './runner.js';
@@ -70,7 +70,7 @@ export async function ensureResultsForm(
   state.results_form_token = token;
   saveState(cfg, state);
   const form = await api.getForm(token);
-  const byLabel = new Map(flattenFields(form).map(({ api_code, def }) => [def.label, api_code]));
+  const byLabel = new Map(form.fields.map((def) => [fieldLabel(def), def.api_code]));
   const fields: Record<string, string> = {};
   for (const f of FIELDS) {
     const code = byLabel.get(f.label);

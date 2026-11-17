@@ -2,7 +2,7 @@
  * Assertions: the tool-call sequence, turns, the final answer (substrings / regex / LLM judge) and the real state after the run (read back through the API).
  * A task passes when every assertion passes. Expected values (labels, answer strings, claims) come from the task files and stay as written.
  */
-import { EvalApi, flattenFields, type FieldDef, type FormDetail } from './api.js';
+import { EvalApi, fieldLabel, visibleChoices, type FieldDef, type FormDetail } from './api.js';
 import { sameValue } from './fixtures.js';
 import type { LlmConfig } from './llm.js';
 import { judgeClaims } from './judge.js';
@@ -74,18 +74,17 @@ function fieldTypeOk(def: FieldDef, expect: FieldExpect): boolean {
   return types.includes(def.type);
 }
 
-function checkField(fields: { api_code: string; def: FieldDef }[], index: number, expect: FieldExpect): string[] {
-  const { def } = fields[index]!;
+function checkField(fields: FieldDef[], index: number, expect: FieldExpect): string[] {
+  const def = fields[index]!;
   const problems: string[] = [];
   if (!fieldTypeOk(def, expect)) problems.push(`type is ${def.type}, expected ${[expect.type].flat().join('/')}`);
-  const validation = (def.validation ?? {}) as Record<string, unknown>;
-  if (expect.required !== undefined && !!validation.required !== expect.required) {
+  if (expect.required !== undefined && !!def.required !== expect.required) {
     problems.push(expect.required ? 'not required' : 'should not be required');
   }
-  if (expect.unique !== undefined && !!validation.unique !== expect.unique) {
+  if (expect.unique !== undefined && !!def.unique !== expect.unique) {
     problems.push(expect.unique ? 'not set to unique' : 'should not be unique');
   }
-  const names = (def.choices ?? []).filter((c) => !c.hidden).map((c) => c.name);
+  const names = visibleChoices(def);
   if (expect.choices !== undefined && names.length !== expect.choices) {
     problems.push(`${names.length} choices, expected ${expect.choices}`);
   }
@@ -96,7 +95,7 @@ function checkField(fields: { api_code: string; def: FieldDef }[], index: number
     if (!names.some((n) => n.trim() === want)) problems.push(`missing choice "${want}"`);
   }
   if (expect.after_label) {
-    const anchor = fields.findIndex(({ def: d }) => d.label === expect.after_label);
+    const anchor = fields.findIndex((d) => fieldLabel(d) === expect.after_label);
     if (anchor < 0) problems.push(`no anchor field "${expect.after_label}"`);
     else if (index !== anchor + 1) problems.push(`not right after "${expect.after_label}"`);
   }
@@ -105,7 +104,7 @@ function checkField(fields: { api_code: string; def: FieldDef }[], index: number
 
 /** Finds a field that meets each expectation; each expectation in fields matches a different field. */
 function matchFields(form: FormDetail, expects: FieldExpect[]): AssertionResult[] {
-  const fields = flattenFields(form);
+  const fields = form.fields;
   const used = new Set<number>();
   const results: AssertionResult[] = [];
   for (const expect of expects) {
@@ -114,9 +113,9 @@ function matchFields(form: FormDetail, expects: FieldExpect[]): AssertionResult[
       .map((f, i) => i)
       .filter((i) => !used.has(i))
       .filter((i) => {
-        const def = fields[i]!.def;
-        if (expect.label && def.label.trim() !== expect.label) return false;
-        if (expect.label_contains && !def.label.includes(expect.label_contains)) return false;
+        const label = fieldLabel(fields[i]!);
+        if (expect.label && label.trim() !== expect.label) return false;
+        if (expect.label_contains && !label.includes(expect.label_contains)) return false;
         return true;
       });
     if (!candidates.length) {
@@ -134,7 +133,7 @@ function matchFields(form: FormDetail, expects: FieldExpect[]): AssertionResult[
       kind: 'state',
       name: `field "${label}"`,
       pass: best!.problems.length === 0,
-      detail: best!.problems.join('; ') || `${fields[best!.index]!.def.label} (${fields[best!.index]!.def.type})`
+      detail: best!.problems.join('; ') || `${fieldLabel(fields[best!.index]!)} (${fields[best!.index]!.type})`
     });
   }
   return results;
@@ -272,12 +271,12 @@ async function runStateCheck(ctx: AssertContext, task: Task, check: StateCheck):
     case 'form_field': {
       const seeded = state.forms[check.fixture]!;
       const form = await api.getForm(seeded.token);
-      const fields = flattenFields(form);
-      const index = fields.findIndex(({ def }) =>
+      const fields = form.fields;
+      const index = fields.findIndex((def) =>
         check.label
-          ? def.label.trim() === check.label
+          ? fieldLabel(def).trim() === check.label
           : check.label_contains
-            ? def.label.includes(check.label_contains)
+            ? fieldLabel(def).includes(check.label_contains)
             : false
       );
       const label = check.label ?? check.label_contains ?? '';
@@ -299,7 +298,7 @@ async function runStateCheck(ctx: AssertContext, task: Task, check: StateCheck):
           kind: 'state',
           name: `${name}: field "${label}"`,
           pass: !problems.length,
-          detail: problems.join('; ') || `${fields[index]!.def.type}`
+          detail: problems.join('; ') || `${fields[index]!.type}`
         }
       ];
     }

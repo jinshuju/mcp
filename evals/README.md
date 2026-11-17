@@ -103,13 +103,13 @@ Task format (`tasks/*.yaml`):
           name: 信息安全意识测验,
           scene: exam,
           exam_setting: { limited_time: 15 },
-          fields: [{ type: [single_choice], choices: 4 }]
+          fields: [{ type: [SingleSelect, RadioButton], choices: 4 }]
         }
       - {
           check: form_field,
           fixture: training,
           label: 所属团队,
-          type: [drop_down],
+          type: [DropDown],
           choices_include: [平台组],
           after_label: 部门
         }

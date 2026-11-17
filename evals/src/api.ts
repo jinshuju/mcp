@@ -18,12 +18,17 @@ export class ApiError extends Error {
   }
 }
 
+/** A field as read with Jinshuju-Version 2026-11-12 (schema Field): the keys of its `<Type>Input`, null when unset. */
 export interface FieldDef {
-  label: string;
+  api_code: string;
+  /** The write type: TextField / RadioButton / SingleSelect … */
   type: string;
+  label: string | null;
+  required?: boolean | null;
+  unique?: boolean | null;
   api_code_alias?: string | null;
-  validation?: Record<string, unknown>;
-  choices?: { name: string; value: string; hidden?: boolean }[];
+  /** value is the choice's text, api_code its code */
+  choices?: { api_code: string; value: string; hidden?: boolean }[];
   [k: string]: unknown;
 }
 
@@ -32,7 +37,7 @@ export interface FormDetail {
   token: string;
   url: string;
   description: string | null;
-  fields: Record<string, FieldDef>[];
+  fields: FieldDef[];
   setting: Record<string, unknown>;
   theme?: Record<string, unknown>;
 }
@@ -179,10 +184,12 @@ export class EvalApi {
   }
 }
 
-/** Flattens get_form's fields (an array of single-key objects) into an ordered list of [api_code, definition]. */
-export function flattenFields(form: FormDetail): { api_code: string; def: FieldDef }[] {
-  return form.fields.map((item) => {
-    const [api_code, def] = Object.entries(item)[0]!;
-    return { api_code, def };
-  });
+/** A field's label; a field without one (null) reads as empty. */
+export function fieldLabel(def: FieldDef): string {
+  return def.label ?? '';
+}
+
+/** The texts of a field's choices that respondents see (hidden ones left out). */
+export function visibleChoices(def: FieldDef): string[] {
+  return (def.choices ?? []).filter((c) => !c.hidden).map((c) => c.value);
 }

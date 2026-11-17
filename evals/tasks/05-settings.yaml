@@ -31,7 +31,7 @@
       - check: form_field
         fixture: training
         label: 所属团队
-        type: [drop_down]
+        type: [DropDown]
         choices_include: [平台组, 业务组, 数据组]
         after_label: 部门
 
@@ -49,7 +49,7 @@
       - check: form_field
         fixture: training
         label: 培训课程
-        type: [multiple_choice]
+        type: [CheckBox]
         choices: 5
         choices_include: [公司文化, 制度与流程, 产品介绍, 信息安全培训, 财务报销流程]
 

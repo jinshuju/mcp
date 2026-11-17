@@ -18,7 +18,7 @@ export interface FieldExpect {
   label?: string;
   /** Field label contains this */
   label_contains?: string;
-  /** FieldDefinition.type value (e.g. single_line_text / single_choice / rating); several candidates allowed */
+  /** The field's type as read, which is its write type (e.g. TextField / RadioButton / SingleSelect / RatingField); several candidates allowed */
   type?: string | string[];
   required?: boolean;
   unique?: boolean;

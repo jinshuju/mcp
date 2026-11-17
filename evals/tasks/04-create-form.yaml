@@ -20,17 +20,12 @@
         name: 2026 年度客户回访问卷
         min_fields: 6
         fields:
-          - { label_contains: 姓名, type: [name, single_line_text], required: true }
-          - { label_contains: 电话, type: [mobile, phone, single_line_text] }
-          - { label_contains: 日期, type: [date_time, date] }
-          - { label_contains: 评分, type: [rating] }
-          - {
-              label_contains: 续约,
-              type: [single_choice, drop_down],
-              choices: 3,
-              choices_include: [愿意, 不愿意, 再考虑]
-            }
-          - { label_contains: 意见, type: [paragraph_text] }
+          - { label_contains: 姓名, type: [NameField, TextField], required: true }
+          - { label_contains: 电话, type: [MobileField, TelephoneField, TextField] }
+          - { label_contains: 日期, type: [DateTimeField] }
+          - { label_contains: 评分, type: [RatingField] }
+          - { label_contains: 续约, type: [RadioButton, DropDown], choices: 3, choices_include: [愿意, 不愿意, 再考虑] }
+          - { label_contains: 意见, type: [TextArea] }
 
 - id: create-02
   category: 建表单
@@ -48,15 +43,11 @@
         name: 2026 团建活动报名
         min_fields: 5
         fields:
-          - { label_contains: 姓名, type: [name, single_line_text] }
-          - { label_contains: 手机, type: [mobile], unique: true }
-          - {
-              label_contains: 部门,
-              type: [single_choice, drop_down],
-              choices_include: [研发部, 市场部, 销售部, 人事部]
-            }
-          - { label_contains: 家属, type: [single_choice, drop_down, boolean], choices_min: 2 }
-          - { label_contains: 饮食, type: [multiple_choice], choices_include: [素食, 清真, 海鲜过敏] }
+          - { label_contains: 姓名, type: [NameField, TextField] }
+          - { label_contains: 手机, type: [MobileField], unique: true }
+          - { label_contains: 部门, type: [RadioButton, DropDown], choices_include: [研发部, 市场部, 销售部, 人事部] }
+          - { label_contains: 家属, type: [RadioButton, DropDown], choices_min: 2 }
+          - { label_contains: 饮食, type: [CheckBox], choices_include: [素食, 清真, 海鲜过敏] }
 
 - id: create-03
   category: 建表单
@@ -79,11 +70,11 @@
         max_fields: 7
         exam_setting: { limited_time: 15 }
         fields:
-          - { type: [single_choice], choices: 4 }
-          - { type: [single_choice], choices: 4 }
-          - { type: [single_choice], choices: 4 }
-          - { type: [single_choice], choices: 4 }
-          - { type: [single_choice], choices: 4 }
+          - { type: [SingleSelect, RadioButton], choices: 4 }
+          - { type: [SingleSelect, RadioButton], choices: 4 }
+          - { type: [SingleSelect, RadioButton], choices: 4 }
+          - { type: [SingleSelect, RadioButton], choices: 4 }
+          - { type: [SingleSelect, RadioButton], choices: 4 }
 
 - id: create-04
   category: 建表单
@@ -103,14 +94,14 @@
         scene: evaluation
         min_fields: 8
         fields:
-          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
-          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
-          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
-          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
-          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
-          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
-          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
-          - { type: [single_choice], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [SingleSelect, RadioButton], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [SingleSelect, RadioButton], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [SingleSelect, RadioButton], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [SingleSelect, RadioButton], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [SingleSelect, RadioButton], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [SingleSelect, RadioButton], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [SingleSelect, RadioButton], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
+          - { type: [SingleSelect, RadioButton], choices: 4, choices_include: [从不, 偶尔, 经常, 总是] }
 
 - id: create-05
   category: 建表单
@@ -145,5 +136,5 @@
         min_fields: 5
         setting: { success_message: 登记成功，请到前台领取访客证 }
         fields:
-          - { label_contains: 事由, type: [paragraph_text] }
-          - { label_contains: 离开, type: [date_time] }
+          - { label_contains: 事由, type: [TextArea] }
+          - { label_contains: 离开, type: [DateTimeField] }

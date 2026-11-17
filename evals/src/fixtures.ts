@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parse } from 'yaml';
 import { EVALS_DIR, type EvalConfig } from './config.js';
-import { EvalApi, flattenFields, type FieldDef, type FormDetail } from './api.js';
+import { EvalApi, fieldLabel, visibleChoices, type FieldDef, type FormDetail } from './api.js';
 import type { FixtureField, FixtureForm, FixtureState, FixturesSpec, SeededForm } from './types.js';
 
 export function loadFixturesSpec(path = resolve(EVALS_DIR, 'fixtures.yaml')): FixturesSpec {
@@ -82,12 +82,12 @@ export function toEntryInput(seeded: SeededForm, entry: Record<string, unknown>)
 }
 
 function mapFields(spec: FixtureForm, form: FormDetail): SeededForm['fields'] {
-  const byLabel = new Map(flattenFields(form).map(({ api_code, def }) => [def.label, { api_code, def }]));
+  const byLabel = new Map(form.fields.map((def) => [fieldLabel(def), def]));
   const fields: SeededForm['fields'] = {};
   for (const f of spec.fields) {
     const hit = byLabel.get(f.label);
     if (!hit) throw new Error(`Form ${spec.name} has no field "${f.label}"`);
-    fields[f.key] = { api_code: hit.api_code, type: hit.def.type, label: f.label };
+    fields[f.key] = { api_code: hit.api_code, type: hit.type, label: f.label };
   }
   return fields;
 }
@@ -235,27 +235,26 @@ export async function resetStructure(
   log: (s: string) => void = () => {}
 ): Promise<void> {
   let form = await api.getForm(seeded.token, { theme: true });
-  const current = flattenFields(form);
+  const current = form.fields;
   const specLabels = new Set(spec.fields.map((f) => f.label));
   const ops: { add?: unknown[]; remove?: string[]; update?: unknown[]; update_choices?: unknown[] } = {};
 
   // Remove extra fields; add missing ones back
-  const extra = current.filter(({ def }) => !specLabels.has(def.label)).map(({ api_code }) => api_code);
+  const extra = current.filter((def) => !specLabels.has(fieldLabel(def))).map((def) => def.api_code);
   if (extra.length) ops.remove = extra;
-  const missing = spec.fields.filter((f) => !current.some(({ def }) => def.label === f.label));
+  const missing = spec.fields.filter((f) => !current.some((def) => fieldLabel(def) === f.label));
   if (missing.length) ops.add = missing.map(toFieldInput);
 
   for (const f of spec.fields) {
-    const hit = current.find(({ def }) => def.label === f.label);
+    const hit = current.find((def) => fieldLabel(def) === f.label);
     if (!hit) continue;
-    const validation = (hit.def.validation ?? {}) as Record<string, unknown>;
     const update: Record<string, unknown> = { api_code: hit.api_code };
-    if (!!validation.required !== !!f.required) update.required = !!f.required;
-    if (UNIQUE_TYPES.has(f.type) && !!validation.unique !== !!f.unique) update.unique = !!f.unique;
+    if (!!hit.required !== !!f.required) update.required = !!f.required;
+    if (UNIQUE_TYPES.has(f.type) && !!hit.unique !== !!f.unique) update.unique = !!f.unique;
     if (Object.keys(update).length > 1) (ops.update ??= []).push(update);
     if (f.choices) {
-      const names = (hit.def.choices ?? []).filter((c) => !c.hidden).map((c) => c.name);
-      const removeChoices = (hit.def.choices ?? []).filter((c) => !f.choices!.includes(c.name)).map((c) => c.value);
+      const names = visibleChoices(hit);
+      const removeChoices = (hit.choices ?? []).filter((c) => !f.choices!.includes(c.value)).map((c) => c.api_code);
       const addChoices = f.choices.filter((c) => !names.includes(c)).map((value) => ({ value }));
       if (removeChoices.length || addChoices.length) {
         (ops.update_choices ??= []).push({
