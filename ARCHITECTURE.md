@@ -25,7 +25,7 @@ scripts/sync-summary.mjs Titles and describes the spec-sync PR from the src/gene
 
 src/
   types.ts        Shapes of the generated output (OperationSpec / ToolSpec / BodySpec)
-  api.ts          JinshujuApi: sends one request per OperationSpec (URL, query, JSON / multipart, Bearer, timeout, one refresh on 401)
+  api.ts          JinshujuApi: sends one request per OperationSpec (URL, query, JSON / multipart, Bearer, Jinshuju-Version, timeout, one refresh on 401)
   result.ts       Turns an ApiResponse into a CallToolResult (truncation, structuredContent, error details)
   tools.ts        Registers ToolSpecs as MCP tools; get_schema
   composites.ts   Orchestration of composite tools: create / edit exam and evaluation forms (two requests), count_entries for one / several forms
@@ -73,6 +73,8 @@ The overlay's `include` decides the tool set: 59 tools map one to one onto opera
 5. `JinshujuApi.call` builds the URL: path parameters are `encodeURIComponent`ed, empty query values are left out, arrays are sent as `name[]=` (how the server reads arrays),
    and a parameter declared with `content: application/json` (`filters` / `sort` / `metrics` / `dimensions` / `checks`) is sent as one value holding the JSON text, whether the model passed the array or the text;
    the request body = the arguments left after removing path / query parameters (flatten), or the `bodyParam` key; JSON / multipart (the base64 triple becomes a file again).
+   Every request carries `Jinshuju-Version` (`API_VERSION`), the version openapi.yaml describes, so a field reads in the shape of its `<Type>Input` and can be written back as it is;
+   without the header the API would answer in the undocumented 2013-07-03 shapes, which no tool schema describes. `generate.ts` records the version the spec names in `meta.json`, and a test keeps the two equal.
    When the API answers `401`, the credential refreshes once and retries (only stdio OAuth sessions can). In HTTP mode it cannot renew the client's token, so it has the verifier forget it instead:
    the refusal reaches the client as an `isError` result inside a `200`, and its next request gets the `401` challenge that has it re-authorize. For composite tools, `composites.ts` decides which request goes first
    and what to say on failure (creating an exam form: the form first, then the settings, and a rejected setting says plainly "The form was created"; editing an exam form: the settings first, and if they are rejected none of the other changes are sent).
@@ -152,8 +154,8 @@ over ten thousand tokens; as one line plus a `get_schema` tool, the model reads 
 
 `npm test` builds, then runs `node --test dist/*.test.js`. Every `fetch` is injected; tests touch no network and do not read the user's credential file:
 
-- `generated.test.ts` guards invariants of the generated output: no `$ref`, required path parameters, flatten / nesting, input shapes of projections and composites, pointers, annotations;
-- `api.test.ts` guards URL (including JSON-text query parameters) / body / multipart / refresh on 401 / transport errors;
+- `generated.test.ts` guards invariants of the generated output: no `$ref`, required path parameters, flatten / nesting, input shapes of projections and composites, pointers, annotations, and that the requested API version is the one the spec describes;
+- `api.test.ts` guards URL (including JSON-text query parameters) / body / multipart / the version header / refresh on 401 / transport errors;
 - `server.test.ts` runs the full tools/list, tools/call, composite request order and failure messages, and resources through `InMemoryTransport` + `@modelcontextprotocol/client`;
 - `app.test.ts` runs the 401 challenge, PRM, caching and the legacy handshake through Hono's `app.request`;
 - `analytics.test.ts` injects a fake PostHog ingest and guards what is collected: which events, argument names without values, `context` never reaching the API, one session across both protocol versions, the error buckets and caller type, and behaviour when turned off or not configured.
@@ -167,7 +169,7 @@ never through an MCP under test. Design, task format and metrics are in [evals/R
 ## Release and sync
 
 - CI checks that `npm run generate` leaves no diff in `src/generated`, so the output never drifts.
-- `spec-sync.yml` fetches the live openapi.yaml daily and, when it changed, regenerates and opens a PR — a person only reviews the tool diff. `scripts/sync-summary.mjs` titles it from that diff (added / removed tools, new fields, updated tools), since the squash-merged title is the CHANGELOG line.
+- `spec-sync.yml` fetches the live openapi.yaml daily and, when it changed, regenerates and opens a PR — a person only reviews the tool diff. `scripts/sync-summary.mjs` titles it from that diff (added / removed tools, new fields, updated tools), since the squash-merged title is the CHANGELOG line. A synced spec that names a newer API version fails the version test until `API_VERSION` is moved on purpose, with the overlay and evals checked against the new shapes.
 - CI's `pre-release` job runs `scripts/release.mjs` once the tests pass on a push to main: the conventional commits since the last tag keep the release PR (`chore(main): release X.Y.0`; a release moves the minor, or the major past 1.0.0) current, and merging it tags the version and writes the Gitea release.
 - The same job keeps the deploy PR (`chore(main): deploy X.Y.Z`) current from the commits since `src/version.ts` last changed: it moves only the patch in that file, so merging it deploys main under a version of its own and tags or publishes nothing. `package.json` keeps the version on npm. The two PRs change the same line; merging one leaves the other in conflict until that push rebuilds it.
 - `.github/workflows/release.yml`, the one workflow left on GitHub, publishes the mirrored tag to npm through OIDC trusted publishing, which only GitHub Actions can do.

@@ -668,8 +668,11 @@ for (const name of Object.keys(schemas).sort()) schemaCatalog[name] = componentS
 
 const info = spec.info as Json;
 const specHash = createHash('sha256').update(read('spec/openapi.yaml')).digest('hex').slice(0, 16);
+// The API version the document describes ("This document describes version `YYYY-MM-DD`"): src/api.ts asks for it in
+// Jinshuju-Version, and a test keeps the two equal, so a spec describing a newer version cannot slip in unnoticed.
+const apiVersion = /describes version `(\d{4}-\d{2}-\d{2})`/.exec(String(info.description ?? ''))?.[1] ?? null;
 const meta = {
-  generatedFrom: { title: info.title, version: info.version, sha256: specHash },
+  generatedFrom: { title: info.title, version: info.version, apiVersion, sha256: specHash },
   baseUrl: ((spec.servers as Json[])?.[0]?.url as string) ?? 'https://jinshuju.net/api/v1',
   toolCount: tools.length,
   operationCount: Object.keys(operations).length,

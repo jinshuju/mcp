@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 import { TOOLS, SCHEMAS } from './tools.js';
 import { OPERATIONS } from './composites.js';
 import { META } from './server.js';
+import { API_VERSION } from './api.js';
+
+test('requests ask for the API version spec/openapi.yaml describes', () => {
+  // The tools' schemas come from the spec; asking for another version would answer in shapes they do not describe.
+  // When a synced spec describes a newer version, move API_VERSION on purpose, with the overlay and evals checked against it.
+  assert.equal(META.generatedFrom.apiVersion, API_VERSION);
+});
 
 test('the operation table covers every openapi operation, including those the composite tools use', () => {
   assert.equal(Object.keys(OPERATIONS).length, META.operationCount);

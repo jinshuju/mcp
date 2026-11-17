@@ -87,12 +87,13 @@ test('buildBody: multipart turns the base64 triple back into a file', async () =
   assert.equal(body.get('image_type'), 'header');
 });
 
-test('JinshujuApi.call: sends the credential, parses JSON, reads rate-limit and warning headers; refreshes once on 401', async () => {
-  const seen: { url: string; auth: string | null }[] = [];
+test('JinshujuApi.call: sends the credential and API version, parses JSON, reads rate-limit and warning headers; refreshes once on 401', async () => {
+  const seen: { url: string; auth: string | null; version: string | null }[] = [];
   let calls = 0;
   const fetchImpl: typeof fetch = async (input, init) => {
     calls++;
-    seen.push({ url: String(input), auth: new Headers(init?.headers).get('authorization') });
+    const headers = new Headers(init?.headers);
+    seen.push({ url: String(input), auth: headers.get('authorization'), version: headers.get('jinshuju-version') });
     if (calls === 1) return new Response('{"error":"invalid_token"}', { status: 401 });
     return new Response('{"total":1,"count":1,"data":[],"next":null}', {
       status: 200,
@@ -117,6 +118,11 @@ test('JinshujuApi.call: sends the credential, parses JSON, reads rate-limit and 
   assert.equal(calls, 2);
   assert.equal(seen[0].auth, 'Bearer old');
   assert.equal(seen[1].auth, 'Bearer new');
+  assert.deepEqual(
+    seen.map((s) => s.version),
+    ['2026-11-12', '2026-11-12'],
+    'every request, the retry too, asks for the version spec/openapi.yaml describes'
+  );
   assert.equal(res.status, 200);
   assert.deepEqual(res.json, { total: 1, count: 1, data: [], next: null });
   assert.equal(res.warnings, 'limit: too big');

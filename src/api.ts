@@ -6,6 +6,12 @@
 import type { Credential } from './credential.js';
 import type { OperationSpec } from './types.js';
 
+/**
+ * The API version every request asks for (the `Jinshuju-Version` header): the one spec/openapi.yaml describes, where a
+ * field reads in the shape its write schema takes. Without the header the API answers in 2013-07-03, no longer documented.
+ */
+export const API_VERSION = '2026-11-12';
+
 export interface ApiOptions {
   baseUrl: string;
   fetch?: typeof fetch;
@@ -147,6 +153,7 @@ export class JinshujuApi {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
+      'Jinshuju-Version': API_VERSION,
       'User-Agent': this.options.userAgent ?? 'jinshuju-mcp'
     };
     if (contentType) headers['Content-Type'] = contentType;

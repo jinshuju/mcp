@@ -62,7 +62,8 @@ export interface ToolSpec extends OperationSpec {
 }
 
 export interface GeneratedMeta {
-  generatedFrom: { title: string; version: string; sha256: string };
+  /** apiVersion: the Jinshuju-Version the document describes; null when its description no longer names one */
+  generatedFrom: { title: string; version: string; apiVersion: string | null; sha256: string };
   baseUrl: string;
   toolCount: number;
   operationCount: number;
