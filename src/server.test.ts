@@ -54,7 +54,7 @@ test('tools/list: the generated tools plus get_schema, with annotations and outp
   for (const spec of withOutput) assert.ok(tools.find((t) => t.name === spec.name)?.outputSchema, spec.name);
   assert.ok(tools.find((t) => t.name === 'get_schema'));
   const createForm = tools.find((t) => t.name === 'create_form')!;
-  assert.equal(createForm.outputSchema, undefined, 'the Form response contains FieldDefinition, so it is not sent');
+  assert.equal(createForm.outputSchema, undefined, 'the Form response is too large to send');
   assert.match(createForm.description ?? '', /get_schema/);
   await close();
 });

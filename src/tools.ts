@@ -83,20 +83,25 @@ function nameWords(name: string): Set<string> {
   );
 }
 
-/** Schema names containing the name come first, then those sharing the most words with it. */
+/**
+ * Schema names containing the name come first, then those sharing the most words with it; on a tie, the side the name
+ * asks for (a write schema `…Input`, or the read schema of the same name) goes first.
+ */
 function similarSchemaNames(name: string): string[] {
   const lower = name.toLowerCase();
   const words = nameWords(name);
+  const wantsInput = name.endsWith('Input');
   const score = (candidate: string): number => {
     if (candidate.toLowerCase().includes(lower)) return 2;
     const other = nameWords(candidate);
     const shared = [...words].filter((word) => other.has(word)).length;
     return shared / new Set([...words, ...other]).size;
   };
+  const side = (candidate: string) => (candidate.endsWith('Input') === wantsInput ? 0 : 1);
   return schemaNames()
     .map((candidate) => ({ candidate, score: score(candidate) }))
     .filter((scored) => scored.score > 0)
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.score - a.score || side(a.candidate) - side(b.candidate))
     .slice(0, 5)
     .map((scored) => scored.candidate);
 }

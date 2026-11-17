@@ -147,14 +147,16 @@ composites:
 # Large schemas that branch on type are not inlined into a tool's inputSchema / outputSchema;
 # they become a one-line pointer, read on demand through the `get_schema` tool / `jinshuju://schemas/{name}` resource.
 # The first six are named in get_schema's description, so the scene-only field schemas go last.
+# A field read has the shape of its `<Type>Input` (Field / TableColumn), so the read schemas are pointers but not among the six.
 pointerSchemas:
   - FieldInput
   - FieldUpdateInput
-  - FieldDefinition
   - FormSettingWriteInput
   - FormSettingInput
   - FormSetting
   - ThemeInput
+  - Field
+  - TableColumn
   - FormTheme
   - EvaluationSettingInput
   - EvaluationSetting

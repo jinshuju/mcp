@@ -81,7 +81,7 @@
      ],
      "items": {
       "type": "object",
-      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
+      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these; each endpoint says how they combine and which fields and operators it takes.",
       "required": [
        "operator"
       ],
@@ -134,6 +134,15 @@
        },
        "value": {
         "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
+       },
+       "group_index": {
+        "type": "integer",
+        "description": "Entry filters only: conditions sharing a `group_index` are joined by AND, or by OR when it is negative, and the groups are joined by OR; leaving it out is group 0. `creator_id` and `serial_number` take none: they narrow every group"
+       },
+       "groupIndex": {
+        "type": "integer",
+        "deprecated": true,
+        "description": "Deprecated alias of `group_index`; use `group_index`."
        }
       }
      },
@@ -507,7 +516,10 @@
             ]
            },
            "label": {
-            "type": "string",
+            "type": [
+             "string",
+             "null"
+            ],
             "description": "Field label"
            }
           },
@@ -1586,7 +1598,7 @@
      ],
      "items": {
       "type": "object",
-      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
+      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these; each endpoint says how they combine and which fields and operators it takes.",
       "required": [
        "operator"
       ],
@@ -1639,6 +1651,15 @@
        },
        "value": {
         "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
+       },
+       "group_index": {
+        "type": "integer",
+        "description": "Entry filters only: conditions sharing a `group_index` are joined by AND, or by OR when it is negative, and the groups are joined by OR; leaving it out is group 0. `creator_id` and `serial_number` take none: they narrow every group"
+       },
+       "groupIndex": {
+        "type": "integer",
+        "deprecated": true,
+        "description": "Deprecated alias of `group_index`; use `group_index`."
        }
       }
      },
@@ -1654,7 +1675,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND unless `group_index` groups them. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -2512,7 +2533,7 @@
      ],
      "items": {
       "type": "object",
-      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
+      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these; each endpoint says how they combine and which fields and operators it takes.",
       "required": [
        "operator"
       ],
@@ -2565,6 +2586,15 @@
        },
        "value": {
         "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
+       },
+       "group_index": {
+        "type": "integer",
+        "description": "Entry filters only: conditions sharing a `group_index` are joined by AND, or by OR when it is negative, and the groups are joined by OR; leaving it out is group 0. `creator_id` and `serial_number` take none: they narrow every group"
+       },
+       "groupIndex": {
+        "type": "integer",
+        "deprecated": true,
+        "description": "Deprecated alias of `group_index`; use `group_index`."
        }
       }
      },
@@ -2580,7 +2610,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND unless `group_index` groups them. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -2679,7 +2709,7 @@
      ],
      "items": {
       "type": "object",
-      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
+      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these; each endpoint says how they combine and which fields and operators it takes.",
       "required": [
        "operator"
       ],
@@ -2732,6 +2762,15 @@
        },
        "value": {
         "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
+       },
+       "group_index": {
+        "type": "integer",
+        "description": "Entry filters only: conditions sharing a `group_index` are joined by AND, or by OR when it is negative, and the groups are joined by OR; leaving it out is group 0. `creator_id` and `serial_number` take none: they narrow every group"
+       },
+       "groupIndex": {
+        "type": "integer",
+        "deprecated": true,
+        "description": "Deprecated alias of `group_index`; use `group_index`."
        }
       }
      },
@@ -2747,7 +2786,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND unless `group_index` groups them. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -2830,7 +2869,7 @@
      ],
      "items": {
       "type": "object",
-      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
+      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these; each endpoint says how they combine and which fields and operators it takes.",
       "required": [
        "operator"
       ],
@@ -2883,6 +2922,15 @@
        },
        "value": {
         "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
+       },
+       "group_index": {
+        "type": "integer",
+        "description": "Entry filters only: conditions sharing a `group_index` are joined by AND, or by OR when it is negative, and the groups are joined by OR; leaving it out is group 0. `creator_id` and `serial_number` take none: they narrow every group"
+       },
+       "groupIndex": {
+        "type": "integer",
+        "deprecated": true,
+        "description": "Deprecated alias of `group_index`; use `group_index`."
        }
       }
      },
@@ -3180,7 +3228,7 @@
      ],
      "items": {
       "type": "object",
-      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
+      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these; each endpoint says how they combine and which fields and operators it takes.",
       "required": [
        "operator"
       ],
@@ -3233,6 +3281,15 @@
        },
        "value": {
         "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
+       },
+       "group_index": {
+        "type": "integer",
+        "description": "Entry filters only: conditions sharing a `group_index` are joined by AND, or by OR when it is negative, and the groups are joined by OR; leaving it out is group 0. `creator_id` and `serial_number` take none: they narrow every group"
+       },
+       "groupIndex": {
+        "type": "integer",
+        "deprecated": true,
+        "description": "Deprecated alias of `group_index`; use `group_index`."
        }
       }
      },
@@ -3248,7 +3305,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND unless `group_index` groups them. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
@@ -4341,7 +4398,7 @@
      ],
      "items": {
       "type": "object",
-      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
+      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these; each endpoint says how they combine and which fields and operators it takes.",
       "required": [
        "operator"
       ],
@@ -4394,6 +4451,15 @@
        },
        "value": {
         "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
+       },
+       "group_index": {
+        "type": "integer",
+        "description": "Entry filters only: conditions sharing a `group_index` are joined by AND, or by OR when it is negative, and the groups are joined by OR; leaving it out is group 0. `creator_id` and `serial_number` take none: they narrow every group"
+       },
+       "groupIndex": {
+        "type": "integer",
+        "deprecated": true,
+        "description": "Deprecated alias of `group_index`; use `group_index`."
        }
       }
      },
@@ -4596,7 +4662,10 @@
         ]
        },
        "label": {
-        "type": "string",
+        "type": [
+         "string",
+         "null"
+        ],
         "description": "Field label"
        }
       },
@@ -4735,7 +4804,10 @@
             ]
            },
            "label": {
-            "type": "string",
+            "type": [
+             "string",
+             "null"
+            ],
             "description": "Field label"
            }
           },
@@ -6810,7 +6882,10 @@
             ]
            },
            "label": {
-            "type": "string",
+            "type": [
+             "string",
+             "null"
+            ],
             "description": "Field label"
            }
           },
@@ -7574,7 +7649,10 @@
             ]
            },
            "label": {
-            "type": "string",
+            "type": [
+             "string",
+             "null"
+            ],
             "description": "Field label"
            }
           },
@@ -8023,7 +8101,7 @@
      ],
      "items": {
       "type": "object",
-      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these, combined with AND; each endpoint says which fields and operators it takes.",
+      "description": "One filter condition. A `filters` parameter is the JSON text of an array of these; each endpoint says how they combine and which fields and operators it takes.",
       "required": [
        "operator"
       ],
@@ -8076,6 +8154,15 @@
        },
        "value": {
         "description": "Condition value; its type depends on the field and the operator: a two-element array `[min, max]` for `between` / `not_between` (`{\"<column api_code>\": [min, max]}` on a matrix or table field), `{\"unit\": \"day\", \"n\": 30}` for `within_last` (unit minute / day / week / month), no value for `null` / `not_null`, a choice api_code or label on a choice field (a cascading drop-down also takes a `level1-level2` path), and serial numbers of the related table for `any_in` / `none_in` on a relation field."
+       },
+       "group_index": {
+        "type": "integer",
+        "description": "Entry filters only: conditions sharing a `group_index` are joined by AND, or by OR when it is negative, and the groups are joined by OR; leaving it out is group 0. `creator_id` and `serial_number` take none: they narrow every group"
+       },
+       "groupIndex": {
+        "type": "integer",
+        "deprecated": true,
+        "description": "Deprecated alias of `group_index`; use `group_index`."
        }
       }
      },
@@ -8091,7 +8178,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND unless `group_index` groups them. Besides field api_codes, `creator_id` and `serial_number` can be filtered on.\n- To find entries whose multiple-choice field contains a choice, use `any_in` (`none_in` to exclude); `eq` is not \"contains\": it matches only entries with exactly the same set of choices."
     },
     "keyword": {
      "type": "string",
