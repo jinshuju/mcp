@@ -411,7 +411,7 @@
       "classic",
       "card"
      ],
-     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and takes no grids_to_occupy / start_new_row"
+     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo, and keeps grids_to_occupy / start_new_row without showing them; to split a form into a few pages or steps, keep classic and add PageBreak fields"
     }
    },
    "additionalProperties": false,
@@ -430,7 +430,7 @@
  {
   "operationId": "updateForm",
   "summary": "Edit a form",
-  "description": "Edit a form\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.\nReturns schema \"Form\" (see get_schema).\nBefore removing a field or choice, check_field_data tells whether it already has entries; removal cannot be undone. To change only field rules, use edit_field_rules.",
+  "description": "Edit a form\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `layout`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.\nReturns schema \"Form\" (see get_schema).\nBefore removing a field or choice, check_field_data tells whether it already has entries; removal cannot be undone. To change only field rules, use edit_field_rules.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",
@@ -463,6 +463,14 @@
      "type": "string",
      "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
     },
+    "layout": {
+     "type": "string",
+     "enum": [
+      "classic",
+      "card"
+     ],
+     "description": "Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out"
+    },
     "name": {
      "type": "string"
     },
@@ -491,7 +499,7 @@
          },
          {
           "type": "object",
-          "description": "A table column definition; type is limited to the column types a table supports, and a column takes no validations\nBranches on type; get_schema shows each branch's own properties: TextAreaColumnInput, RadioButtonColumnInput, CheckBoxColumnInput, BooleanFieldColumnInput, MobileFieldColumnInput, NumberFieldColumnInput, DateTimeFieldColumnInput, EmailFieldColumnInput, 13 in all.",
+          "description": "A table column definition; type is limited to the column types a table supports, and a column takes no validations\nBranches on type; get_schema shows each branch's own properties: TextAreaColumnInput, RadioButtonColumnInput, CheckBoxColumnInput, BooleanFieldColumnInput, MobileFieldColumnInput, NumberFieldColumnInput, DateTimeFieldColumnInput, EmailFieldColumnInput, 15 in all.",
           "required": [
            "type",
            "label"
@@ -512,7 +520,9 @@
              "AttachmentField",
              "FormulaField",
              "RelationField",
-             "SequenceField"
+             "SequenceField",
+             "LookupField",
+             "RollupField"
             ]
            },
            "label": {
@@ -591,8 +601,8 @@
               },
               "quota": {
                "type": "integer",
-               "minimum": 1,
-               "description": "Maximum number of places; leave out for no limit"
+               "minimum": 0,
+               "description": "Maximum number of places; 0 opens the choice already full; leave out for no limit"
               },
               "operand_value": {
                "type": "number",
@@ -663,8 +673,8 @@
               },
               "quota": {
                "type": "integer",
-               "minimum": 1,
-               "description": "Maximum number of places; leave out for no limit"
+               "minimum": 0,
+               "description": "Maximum number of places; 0 opens the choice already full; leave out for no limit"
               },
               "operand_value": {
                "type": "number",
@@ -1882,7 +1892,7 @@
  {
   "operationId": "createEntry",
   "summary": "Create an entry",
-  "description": "Create an entry\nSubmits one entry keyed by field api_code (or api_code_alias). Unknown keys are ignored; when no valid key remains, returns 400, with `error_description` starting with `Entry attributes cannot be empty` and naming each dropped key (not a field of this form, or a signature / calculated field that cannot be written).\n- The form's field display rules and field validation still apply; a validation failure returns 400, and `error_description` is `{ \"<api_code>\": [\"error\"] }` serialized as a JSON string.\n- Mobile fields skip SMS verification; signature fields and calculated fields cannot be written.\n- Returns 403 when the form's entry count has reached the plan limit.\n- Attachment fields accept several forms of input; see `EntryInput`.\nReturns schema \"Entry\" (see get_schema).",
+  "description": "Create an entry\nSubmits one entry keyed by field api_code (or api_code_alias). Unknown keys are ignored; when no valid key remains, returns 400, with `error_description` starting with `Entry attributes cannot be empty` and naming each dropped key (not a field of this form, or a signature / calculated field that cannot be written).\n- The form's field display rules and field validation still apply; a validation failure returns 400, and `error_description` is `{ \"<api_code>\": [\"error\"] }` serialized as a JSON string. A value for a field a rule hides, or for an address part the field does not let change, is not saved and comes back in `ignored_fields`.\n- Mobile fields skip SMS verification; signature fields and calculated fields cannot be written.\n- Returns 403 when the form's entry count has reached the plan limit.\n- Attachment fields accept several forms of input; see `EntryInput`.\nReturns schema \"Entry\" (see get_schema).",
   "tag": "Entries",
   "method": "post",
   "path": "/forms/{form_token}/entries",
@@ -1918,7 +1928,7 @@
     },
     "entry": {
      "type": "object",
-     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"<color api_code or name>\"` |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
      "additionalProperties": true,
      "examples": [
       {
@@ -2003,7 +2013,7 @@
     },
     "entry": {
      "type": "object",
-     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"<color api_code or name>\"` |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
      "additionalProperties": true,
      "examples": [
       {
@@ -2108,7 +2118,7 @@
  {
   "operationId": "createEntriesBatch",
   "summary": "Create entries in batch",
-  "description": "Create entries in batch\nSubmits up to 200 entries at a time. Each entry is validated on its own; valid ones are written in bulk, invalid ones are recorded in `errors` (`index` is the position in the request array).\nReturns 201 when at least one succeeds and 422 when all fail; returns 400 when `entries` is empty or has over 200 entries.\nBefore writing, the entry count limit is checked against the number of entries submitted; over the limit returns 403. A batch write does not trigger the callbacks of a single create, but creates one \"import\" activity record and backfills calculated fields.",
+  "description": "Create entries in batch\nSubmits up to 200 entries at a time. Each entry is validated on its own; valid ones are written in bulk, invalid ones are recorded in `errors` (`index` is the position in the request array).\nReturns 201 when at least one succeeds and 422 when all fail; returns 400 when `entries` is empty or has over 200 entries.\nBefore writing, the entry count limit is checked against the number of entries submitted; over the limit returns 403. A batch write does not trigger the callbacks of a single create, but creates one \"import\" activity record and backfills calculated fields.\nReturns schema \"BatchCreateResult\" (see get_schema).",
   "tag": "Entries",
   "method": "post",
   "path": "/forms/{form_token}/entries/batch",
@@ -2147,7 +2157,7 @@
      "maxItems": 200,
      "items": {
       "type": "object",
-      "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"<color api_code or name>\"` |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+      "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
       "additionalProperties": true,
       "examples": [
        {
@@ -2177,37 +2187,6 @@
     "entries"
    ]
   },
-  "outputSchema": {
-   "type": "object",
-   "required": [
-    "created_count",
-    "errors"
-   ],
-   "properties": {
-    "created_count": {
-     "type": "integer"
-    },
-    "errors": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "required": [
-       "index",
-       "reason"
-      ],
-      "properties": {
-       "index": {
-        "type": "integer",
-        "description": "Index in the request array"
-       },
-       "reason": {
-        "type": "string"
-       }
-      }
-     }
-    }
-   }
-  },
   "annotations": {
    "readOnlyHint": false,
    "destructiveHint": false,
@@ -2218,7 +2197,7 @@
  {
   "operationId": "patchEntriesBatch",
   "summary": "Update entries in batch",
-  "description": "Update entries in batch\nPartially updates entries in batch by serial number, up to 200 rows at a time. Each row requires `serial_number`; `entry` holds the fields to change (fields not mentioned stay unchanged).\nEach row is validated on its own; failed rows are recorded in `failed_rows` (`reason` is `invalid_serial_number` / `invalid_attributes`, etc.).\nReturns 200 when at least one row succeeds and 422 when all fail; returns 400 when `entries` is empty or has over 200 rows.\nBatch update does not handle the attachment lifecycle, so it **cannot write attachment fields** (including attachment columns inside table fields); update those one entry at a time.",
+  "description": "Update entries in batch\nPartially updates entries in batch by serial number, up to 200 rows at a time. Each row requires `serial_number`; `entry` holds the fields to change (fields not mentioned stay unchanged).\nEach row is validated on its own; failed rows are recorded in `failed_rows` (`reason` is `invalid_serial_number` / `invalid_attributes`, etc.).\nReturns 200 when at least one row succeeds and 422 when all fail; returns 400 when `entries` is empty or has over 200 rows.\nBatch update does not handle the attachment lifecycle, so it **cannot write attachment fields** (including attachment columns inside table fields); update those one entry at a time.\nReturns schema \"BatchPatchResult\" (see get_schema).",
   "tag": "Entries",
   "method": "patch",
   "path": "/forms/{form_token}/entries/batch",
@@ -2268,7 +2247,7 @@
        },
        "entry": {
         "type": "object",
-        "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"<color api_code or name>\"` |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+        "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
         "additionalProperties": true,
         "examples": [
          {
@@ -2300,65 +2279,6 @@
     "form_token",
     "entries"
    ]
-  },
-  "outputSchema": {
-   "type": "object",
-   "required": [
-    "updated_count",
-    "failed_rows"
-   ],
-   "properties": {
-    "updated_count": {
-     "type": "integer"
-    },
-    "failed_rows": {
-     "type": "array",
-     "items": {
-      "type": "object",
-      "properties": {
-       "serial_number": {
-        "type": [
-         "integer",
-         "null"
-        ]
-       },
-       "reason": {
-        "type": "string",
-        "enum": [
-         "invalid_serial_number",
-         "invalid_attributes",
-         "not_found_or_forbidden",
-         "version_conflict",
-         "validation_failed"
-        ]
-       },
-       "errors": {
-        "description": "`validation_failed` gives `{ \"<api_code>\": [\"error message\"] }`; `not_found_or_forbidden` and `version_conflict` give null",
-        "oneOf": [
-         {
-          "type": "array",
-          "items": {
-           "type": "string"
-          }
-         },
-         {
-          "type": "object",
-          "additionalProperties": {
-           "type": "array",
-           "items": {
-            "type": "string"
-           }
-          }
-         },
-         {
-          "type": "null"
-         }
-        ]
-       }
-      }
-     }
-    }
-   }
   },
   "annotations": {
    "readOnlyHint": false,
@@ -4603,7 +4523,7 @@
  {
   "operationId": "createTable",
   "summary": "Create a table",
-  "description": "Create a table\nCreates a table. Same as creating a form, except:\n- field types can only be the column types tables support: `TextArea`, `RadioButton`, `CheckBox`, `BooleanField`, `MobileField`, `NumberField`, `DateTimeField`, `EmailField`, `LinkField`, `AttachmentField`, `FormulaField`, `RelationField`, `SequenceField`;\n- attachment columns do not accept limit properties such as count / size limits, and number / formula columns have limited precision; a violation returns 400 listing the offending columns;\n- choice columns do not get an \"Other\" choice; `folder_token` must be a table folder; `layout` is not supported.\n- with `with_default_entries: true`, 3 blank entries are added after creation (as when creating a table in the product); by default none are added.\nReturns the table structure, including fields and views.\nReturns schema \"Table\" (see get_schema).",
+  "description": "Create a table\nCreates a table. Same as creating a form, except:\n- field types can only be the column types tables support: `TextArea`, `RadioButton`, `CheckBox`, `BooleanField`, `MobileField`, `NumberField`, `DateTimeField`, `EmailField`, `LinkField`, `AttachmentField`, `FormulaField`, `RelationField`, `SequenceField`, `LookupField`, `RollupField`;\n- attachment columns do not accept limit properties such as count / size limits, and number / formula columns have limited precision; a violation returns 400 listing the offending columns;\n- choice columns do not get an \"Other\" choice; `folder_token` must be a table folder; `layout` is not supported.\n- with `with_default_entries: true`, 3 blank entries are added after creation (as when creating a table in the product); by default none are added.\nReturns the table structure, including fields and views.\nReturns schema \"Table\" (see get_schema).",
   "tag": "Tables",
   "method": "post",
   "path": "/tables",
@@ -4637,7 +4557,7 @@
      "minItems": 1,
      "items": {
       "type": "object",
-      "description": "A table column definition; type is limited to the column types a table supports, and a column takes no validations\nBranches on type; get_schema shows each branch's own properties: TextAreaColumnInput, RadioButtonColumnInput, CheckBoxColumnInput, BooleanFieldColumnInput, MobileFieldColumnInput, NumberFieldColumnInput, DateTimeFieldColumnInput, EmailFieldColumnInput, 13 in all.",
+      "description": "A table column definition; type is limited to the column types a table supports, and a column takes no validations\nBranches on type; get_schema shows each branch's own properties: TextAreaColumnInput, RadioButtonColumnInput, CheckBoxColumnInput, BooleanFieldColumnInput, MobileFieldColumnInput, NumberFieldColumnInput, DateTimeFieldColumnInput, EmailFieldColumnInput, 15 in all.",
       "required": [
        "type",
        "label"
@@ -4658,7 +4578,9 @@
          "AttachmentField",
          "FormulaField",
          "RelationField",
-         "SequenceField"
+         "SequenceField",
+         "LookupField",
+         "RollupField"
         ]
        },
        "label": {
@@ -4751,6 +4673,14 @@
      "type": "string",
      "description": "Table token (`token` from `GET /tables`); a 24-character hexadecimal table id is also accepted."
     },
+    "layout": {
+     "type": "string",
+     "enum": [
+      "classic",
+      "card"
+     ],
+     "description": "Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out"
+    },
     "name": {
      "type": "string"
     },
@@ -4779,7 +4709,7 @@
          },
          {
           "type": "object",
-          "description": "A table column definition; type is limited to the column types a table supports, and a column takes no validations\nBranches on type; get_schema shows each branch's own properties: TextAreaColumnInput, RadioButtonColumnInput, CheckBoxColumnInput, BooleanFieldColumnInput, MobileFieldColumnInput, NumberFieldColumnInput, DateTimeFieldColumnInput, EmailFieldColumnInput, 13 in all.",
+          "description": "A table column definition; type is limited to the column types a table supports, and a column takes no validations\nBranches on type; get_schema shows each branch's own properties: TextAreaColumnInput, RadioButtonColumnInput, CheckBoxColumnInput, BooleanFieldColumnInput, MobileFieldColumnInput, NumberFieldColumnInput, DateTimeFieldColumnInput, EmailFieldColumnInput, 15 in all.",
           "required": [
            "type",
            "label"
@@ -4800,7 +4730,9 @@
              "AttachmentField",
              "FormulaField",
              "RelationField",
-             "SequenceField"
+             "SequenceField",
+             "LookupField",
+             "RollupField"
             ]
            },
            "label": {
@@ -4879,8 +4811,8 @@
               },
               "quota": {
                "type": "integer",
-               "minimum": 1,
-               "description": "Maximum number of places; leave out for no limit"
+               "minimum": 0,
+               "description": "Maximum number of places; 0 opens the choice already full; leave out for no limit"
               },
               "operand_value": {
                "type": "number",
@@ -4951,8 +4883,8 @@
               },
               "quota": {
                "type": "integer",
-               "minimum": 1,
-               "description": "Maximum number of places; leave out for no limit"
+               "minimum": 0,
+               "description": "Maximum number of places; 0 opens the choice already full; leave out for no limit"
               },
               "operand_value": {
                "type": "number",
@@ -6563,7 +6495,7 @@
       "classic",
       "card"
      ],
-     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and takes no grids_to_occupy / start_new_row"
+     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo, and keeps grids_to_occupy / start_new_row without showing them; to split a form into a few pages or steps, keep classic and add PageBreak fields"
     },
     "scene": {
      "type": "string",
@@ -6796,7 +6728,7 @@
  {
   "operationId": "updateForm",
   "summary": "Edit a form",
-  "description": "Edits an exam form: name / description / adding, removing and changing questions / general settings, plus the exam settings in exam_setting. Updates the exam settings first (a form that is not an exam is refused, and nothing else changes), then the form itself.\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
+  "description": "Edits an exam form: name / description / adding, removing and changing questions / general settings, plus the exam settings in exam_setting. Updates the exam settings first (a form that is not an exam is refused, and nothing else changes), then the form itself.\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `layout`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",
@@ -6829,6 +6761,14 @@
      "type": "string",
      "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
     },
+    "layout": {
+     "type": "string",
+     "enum": [
+      "classic",
+      "card"
+     ],
+     "description": "Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out"
+    },
     "name": {
      "type": "string"
     },
@@ -6857,7 +6797,7 @@
          },
          {
           "type": "object",
-          "description": "A table column definition; type is limited to the column types a table supports, and a column takes no validations\nBranches on type; get_schema shows each branch's own properties: TextAreaColumnInput, RadioButtonColumnInput, CheckBoxColumnInput, BooleanFieldColumnInput, MobileFieldColumnInput, NumberFieldColumnInput, DateTimeFieldColumnInput, EmailFieldColumnInput, 13 in all.",
+          "description": "A table column definition; type is limited to the column types a table supports, and a column takes no validations\nBranches on type; get_schema shows each branch's own properties: TextAreaColumnInput, RadioButtonColumnInput, CheckBoxColumnInput, BooleanFieldColumnInput, MobileFieldColumnInput, NumberFieldColumnInput, DateTimeFieldColumnInput, EmailFieldColumnInput, 15 in all.",
           "required": [
            "type",
            "label"
@@ -6878,7 +6818,9 @@
              "AttachmentField",
              "FormulaField",
              "RelationField",
-             "SequenceField"
+             "SequenceField",
+             "LookupField",
+             "RollupField"
             ]
            },
            "label": {
@@ -6957,8 +6899,8 @@
               },
               "quota": {
                "type": "integer",
-               "minimum": 1,
-               "description": "Maximum number of places; leave out for no limit"
+               "minimum": 0,
+               "description": "Maximum number of places; 0 opens the choice already full; leave out for no limit"
               },
               "operand_value": {
                "type": "number",
@@ -7029,8 +6971,8 @@
               },
               "quota": {
                "type": "integer",
-               "minimum": 1,
-               "description": "Maximum number of places; leave out for no limit"
+               "minimum": 0,
+               "description": "Maximum number of places; 0 opens the choice already full; leave out for no limit"
               },
               "operand_value": {
                "type": "number",
@@ -7529,7 +7471,7 @@
       "classic",
       "card"
      ],
-     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and takes no grids_to_occupy / start_new_row"
+     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo, and keeps grids_to_occupy / start_new_row without showing them; to split a form into a few pages or steps, keep classic and add PageBreak fields"
     },
     "scene": {
      "type": "string",
@@ -7563,7 +7505,7 @@
  {
   "operationId": "updateForm",
   "summary": "Edit a form",
-  "description": "Edits an evaluation form: name / description / adding, removing and changing questions / general settings, plus the evaluation settings in evaluation_setting. Updates the evaluation settings first, then the form itself. Scored questions write answers / answer_setting_mode as in create_evaluation_form (one answer per choice, with relative).\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
+  "description": "Edits an evaluation form: name / description / adding, removing and changing questions / general settings, plus the evaluation settings in evaluation_setting. Updates the evaluation settings first, then the form itself. Scored questions write answers / answer_setting_mode as in create_evaluation_form (one answer per choice, with relative).\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `layout`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",
@@ -7596,6 +7538,14 @@
      "type": "string",
      "description": "Form token (`token` from `GET /forms`); a 24-character hexadecimal form id is also accepted."
     },
+    "layout": {
+     "type": "string",
+     "enum": [
+      "classic",
+      "card"
+     ],
+     "description": "Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out"
+    },
     "name": {
      "type": "string"
     },
@@ -7624,7 +7574,7 @@
          },
          {
           "type": "object",
-          "description": "A table column definition; type is limited to the column types a table supports, and a column takes no validations\nBranches on type; get_schema shows each branch's own properties: TextAreaColumnInput, RadioButtonColumnInput, CheckBoxColumnInput, BooleanFieldColumnInput, MobileFieldColumnInput, NumberFieldColumnInput, DateTimeFieldColumnInput, EmailFieldColumnInput, 13 in all.",
+          "description": "A table column definition; type is limited to the column types a table supports, and a column takes no validations\nBranches on type; get_schema shows each branch's own properties: TextAreaColumnInput, RadioButtonColumnInput, CheckBoxColumnInput, BooleanFieldColumnInput, MobileFieldColumnInput, NumberFieldColumnInput, DateTimeFieldColumnInput, EmailFieldColumnInput, 15 in all.",
           "required": [
            "type",
            "label"
@@ -7645,7 +7595,9 @@
              "AttachmentField",
              "FormulaField",
              "RelationField",
-             "SequenceField"
+             "SequenceField",
+             "LookupField",
+             "RollupField"
             ]
            },
            "label": {
@@ -7724,8 +7676,8 @@
               },
               "quota": {
                "type": "integer",
-               "minimum": 1,
-               "description": "Maximum number of places; leave out for no limit"
+               "minimum": 0,
+               "description": "Maximum number of places; 0 opens the choice already full; leave out for no limit"
               },
               "operand_value": {
                "type": "number",
@@ -7796,8 +7748,8 @@
               },
               "quota": {
                "type": "integer",
-               "minimum": 1,
-               "description": "Maximum number of places; leave out for no limit"
+               "minimum": 0,
+               "description": "Maximum number of places; 0 opens the choice already full; leave out for no limit"
               },
               "operand_value": {
                "type": "number",
