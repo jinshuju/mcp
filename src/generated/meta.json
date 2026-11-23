@@ -3,7 +3,7 @@
     "title": "Jinshuju API v1",
     "version": "1.0",
     "apiVersion": "2026-11-12",
-    "sha256": "62e0ff4180009085"
+    "sha256": "ecba7cac6969de9a"
   },
   "baseUrl": "https://jinshuju.net/api/v1",
   "toolCount": 65,
