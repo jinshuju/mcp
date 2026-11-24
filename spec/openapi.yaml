@@ -248,6 +248,13 @@ paths:
         schema:
           type: boolean
           default: false
+      - name: include_redirect_rules
+        in: query
+        required: false
+        description: When `true`, includes `redirect_rules` (redirect rules, the same as the `data` of `GET /forms/{form_token}/redirect_rules`).
+        schema:
+          type: boolean
+          default: false
       - name: include_extended_attributes
         in: query
         required: false
@@ -269,11 +276,11 @@ paths:
       summary: Edit a form
       operationId: updateForm
       description: |
-        Edits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `layout`, otherwise returns 400.
+        Edits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `redirect_rules` / `layout`, otherwise returns 400.
         - `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;
           `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;
           exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.
-        - `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.
+        - `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns; `redirect_rules` does the same with `GET /forms/{form_token}/redirect_rules`, and adding or changing one needs a plan with the `field_redirect_rules` feature.
         - `setting`, as on create, accepts only whitelisted keys.
         Returns the full updated form structure.
 
@@ -450,7 +457,7 @@ paths:
       - Forms
       summary: List the fields a filter condition can use
       description: |
-        Read before writing filter conditions (the `scope_conditions` of a routine or a notification rule, a view's `filter`): lists the fields a condition can name and, for each operator a field takes, what its `value` holds. Write conditions as the examples show.
+        Read before writing filter conditions (the `scope_conditions` of a routine or a notification rule, a view's `filter`, or the `scope_conditions` of a FormAssociation, read on its associated form): lists the fields a condition can name and, for each operator a field takes, what its `value` holds. Write conditions as the examples show.
         - A condition is `{ "trigger": <trigger>, "operator": <operator>, "value": <an example> }`, with `"scope_attr"` added when the field's is not null; leave `value` out when the example is `null`.
         - Use only the fields and operators listed here.
         - For a routine's `event.scope_conditions`, ask with `fields_context=routine`: a routine filters only on its source's own fields, and formula and linked fields are left out.
@@ -1333,7 +1340,7 @@ paths:
       - Form Settings
       summary: Show a form's settings
       description: |
-        Returns the form's after-submission settings, collection rules (closing rules, fill frequency), access policy, WeChat restrictions and Webhook settings.
+        Returns the form's after-submission settings, collection rules (closing rules, fill frequency), access policy, WeChat restrictions, the card shown when shared in WeChat and Webhook settings.
         OAuth scope: form_setting
         The `weixin` key is returned only when the form has a WeChat Official Account selected (selected_weixin_appid is present).
       operationId: getFormSetting
@@ -2309,6 +2316,43 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  "/forms/{form_token}/redirect_rules":
+    get:
+      tags:
+      - Forms
+      summary: Show a form's redirect rules
+      description: |
+        Returns the form's effective redirect rules: a submission that meets a rule's conditions goes to its `redirect_url` instead of the success page, on a plan with the `field_redirect_rules` feature. `index` is the 0-based position; redirect_rules updates and removals in PATCH /forms/{form_token} locate rules by this index.
+        OAuth scope: forms
+      operationId: listRedirectRules
+      parameters:
+      - $ref: '#/components/parameters/FormToken'
+      responses:
+        '200':
+          description: List of redirect rules
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - count
+                - data
+                properties:
+                  count:
+                    type: integer
+                    description: Number of rules
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RedirectRule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   "/forms/{form_token}/extended_attributes":
     get:
       tags:
@@ -2557,7 +2601,7 @@ paths:
       tags:
       - Views
       summary: Create a view on a form
-      description: 'Creates a new view on the form, created by the caller; visibility defaults to cooperators when not passed, and position is the highest position among the currently visible views plus 1. Each user can have at most 100 views on one form; at the limit, returns 422 (View limit reached). When view_type is kanban and kanban_group_by_api_code is not passed, the server picks the grouping field; when kanban_hidden_groups is not passed, the __unset__ group is hidden by default; when prefer_columns is empty, the form''s default columns are used (at most 5 columns for a kanban view, serial_number included), except for a public view (allowed_audience public), which returns 422 without prefer_columns. Returns 422 when filter is invalid (not an array, unknown field, unsupported operator, invalid value). Returns 422 when model validation fails (e.g. name is empty or longer than 120 characters, or the grouping field does not support kanban grouping). Form views (view_type form): supported only on tables, otherwise 422; title defaults to the table name; without field_overrides, all fillable columns are selected in the current column order; published defaults to false (the fill link does not work while unpublished). title / description / published / field_overrides apply only to form views; using them on another type returns 422. Creating, updating or deleting a form view (including switching a view to or from a form view) requires the caller to hold a predefined role on the table that can add entries, otherwise 403; an account token is exempt. Returns 422 when a fill item''s column does not exist, cannot be a fill item, or sets a validation its column type does not support; the error message names the column''s api_code. allowed_audience, search_field_api_codes and privacy_protected_field_api_codes, and any change to or deletion of a public view, take manage permission on the form; on a form whose account does not have public views yet, those three keys return 403. OAuth scope: forms'
+      description: 'Creates a new view on the form, created by the caller; visibility defaults to cooperators when not passed, and position is the highest position among the currently visible views plus 1. Each user can have at most 100 views on one form; at the limit, returns 422 (View limit reached). When view_type is kanban and kanban_group_by_api_code is not passed, the server picks the grouping field; when kanban_hidden_groups is not passed, the __unset__ group is hidden by default; when prefer_columns is empty, the form''s default columns are used (at most 5 columns for a kanban view, serial_number included). Returns 422 when filter is invalid (not an array, unknown field, unsupported operator, invalid value). Returns 422 when model validation fails (e.g. name is empty or longer than 120 characters, or the grouping field does not support kanban grouping). Form views (view_type form): supported only on tables, otherwise 422; title defaults to the table name; without field_overrides, all fillable columns are selected in the current column order; published defaults to false (the fill link does not work while unpublished). title / description / published / field_overrides apply only to form views; using them on another type returns 422. Creating, updating or deleting a form view (including switching a view to or from a form view) requires the caller to hold a predefined role on the table that can add entries, otherwise 403; an account token is exempt. Returns 422 when a fill item''s column does not exist, cannot be a fill item, or sets a validation its column type does not support; the error message names the column''s api_code. OAuth scope: forms'
       operationId: createFormView
       parameters:
       - $ref: '#/components/parameters/FormToken'
@@ -2628,7 +2672,7 @@ paths:
       tags:
       - Views
       summary: Update a view of a form
-      description: 'Updates the view''s configuration; PUT is accepted too. Only the keys present in the request are updated: an empty array for filter clears the filters, and leaving filter out keeps them unchanged; when kanban_group_by_api_code changes and kanban_group_order / kanban_hidden_groups are not passed with it, those two lists reset to their defaults. Cooperators can change the configuration of a view visible to cooperators, but only the view''s creator can switch visibility, otherwise returns 403; a view whose view_scope is form cannot switch visibility. Returns 422 when filter is invalid or model validation fails. field_overrides replaces the fill item settings as a whole; form views have the same permission requirements and parameter limits as on create. allowed_audience, search_field_api_codes and privacy_protected_field_api_codes, and any change to or deletion of a public view, take manage permission on the form; on a form whose account does not have public views yet, those three keys return 403. OAuth scope: forms'
+      description: 'Updates the view''s configuration; PUT is accepted too. Only the keys present in the request are updated: an empty array for filter clears the filters, and leaving filter out keeps them unchanged; when kanban_group_by_api_code changes and kanban_group_order / kanban_hidden_groups are not passed with it, those two lists reset to their defaults. Cooperators can change the configuration of a view visible to cooperators, but only the view''s creator can switch visibility, otherwise returns 403; a view whose view_scope is form cannot switch visibility. Returns 422 when filter is invalid or model validation fails. field_overrides replaces the fill item settings as a whole; form views have the same permission requirements and parameter limits as on create. OAuth scope: forms'
       operationId: updateFormView
       requestBody:
         required: true
@@ -2661,7 +2705,7 @@ paths:
       tags:
       - Views
       summary: Delete a view of a form
-      description: 'Deletes a view. Predefined views (predefined) and views whose view_scope is form cannot be deleted, and the deletion is also refused when it would leave the caller with no visible view; all of these return 422. Deleting a form view needs the same permission as creating one (otherwise 403); once it is deleted, its fill link stops working immediately, and this cannot be undone. allowed_audience, search_field_api_codes and privacy_protected_field_api_codes, and any change to or deletion of a public view, take manage permission on the form. OAuth scope: forms'
+      description: 'Deletes a view. Predefined views (predefined) and views whose view_scope is form cannot be deleted, and the deletion is also refused when it would leave the caller with no visible view; all of these return 422. Deleting a form view needs the same permission as creating one (otherwise 403); once it is deleted, its fill link stops working immediately, and this cannot be undone. OAuth scope: forms'
       operationId: deleteFormView
       responses:
         '200':
@@ -2726,6 +2770,113 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  "/forms/{form_token}/published_artifacts":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    get:
+      tags:
+      - Artifacts
+      summary: List the shared pages that use a form
+      operationId: listFormPublishedArtifacts
+      description: |
+        Lists the shared pages (HTML artifacts) whose published version writes to this form or table, or shows its data, with what each page shows and whether reading the data was granted or stopped; the most recently changed first.
+        OAuth scope: forms
+        - Paging: `next` is a row offset; pass it back unchanged for the next page. Only one of `next`, `page` and `skip` can be passed. 50 per page by default, `limit` changes it (at most 1000).
+      parameters:
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/OffsetNext'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/EntriesSkip'
+      responses:
+        '200':
+          description: The pages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormPublishedArtifactListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/published_artifacts/{published_artifact_token}/data_grant":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - name: published_artifact_token
+      in: path
+      required: true
+      description: The shared page's `token` from `GET /forms/{form_token}/published_artifacts`
+      schema:
+        type: string
+    delete:
+      tags:
+      - Artifacts
+      summary: Stop a shared page showing a form's data
+      operationId: revokeFormPublishedArtifactDataGrant
+      description: |
+        Stops the shared page reading this form's data at once; the page itself stays shared. Sharing the page again does not undo it: a manager of this form restores it with POST.
+        OAuth scope: forms
+      responses:
+        '200':
+          description: Stopped; returns the page's token
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - token
+                properties:
+                  token:
+                    type: string
+                    description: The page's token
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: The form does not exist, or the page does not show this form's data, or showing it was already stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags:
+      - Artifacts
+      summary: Let a stopped shared page show a form's data again
+      operationId: restoreFormPublishedArtifactDataGrant
+      description: |
+        Lets the page's audience read this form's data through it again, granted in the current user's name.
+        OAuth scope: forms
+      responses:
+        '201':
+          description: Restored; returns the page's token
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - token
+                properties:
+                  token:
+                    type: string
+                    description: The page's token
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: The form does not exist, or the page's published version does not show this form's data, or showing it was not stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   "/forms/{form_token}/entry_attachments":
     post:
       tags:
@@ -3919,6 +4070,7 @@ paths:
                   - contact_widget
                   - reservation_item
                   - wheel_fortune_prize
+                  - weixin_share_icon
                   description: What the image is for
                 file:
                   type: string
@@ -3976,6 +4128,7 @@ paths:
                   - contact_widget
                   - reservation_item
                   - wheel_fortune_prize
+                  - weixin_share_icon
                   description: What the image is for
               additionalProperties: false
       responses:
@@ -4159,7 +4312,7 @@ paths:
       summary: Edit a table
       operationId: updateTable
       description: |
-        Edits a table incrementally; `PUT` is also accepted. The request body is the same as for editing a form (`kind` is ignored); attachment columns in `fields.add` and `fields.update` do not accept limit properties, and types in `fields.add` must be column types tables support.
+        Edits a table incrementally; `PUT` is also accepted. The request body is the same as for editing a form (`kind` is ignored), except that `redirect_rules` is refused; attachment columns in `fields.add` and `fields.update` do not accept limit properties, and types in `fields.add` must be column types tables support.
 
         OAuth scope: forms
       requestBody:
@@ -4283,6 +4436,112 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/tables/{table_token}/published_artifacts":
+    parameters:
+    - $ref: '#/components/parameters/TableToken'
+    get:
+      tags:
+      - Artifacts
+      summary: List the shared pages that use a table
+      operationId: listTablePublishedArtifacts
+      description: |
+        Same as GET /forms/{form_token}/published_artifacts, for a table.
+        OAuth scope: forms
+      parameters:
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/OffsetNext'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/EntriesSkip'
+      responses:
+        '200':
+          description: The pages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormPublishedArtifactListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/tables/{table_token}/published_artifacts/{published_artifact_token}/data_grant":
+    parameters:
+    - $ref: '#/components/parameters/TableToken'
+    - name: published_artifact_token
+      in: path
+      required: true
+      description: The shared page's `token` from `GET /tables/{table_token}/published_artifacts`
+      schema:
+        type: string
+    delete:
+      tags:
+      - Artifacts
+      summary: Stop a shared page showing a table's data
+      operationId: revokeTablePublishedArtifactDataGrant
+      description: |
+        Same as DELETE /forms/{form_token}/published_artifacts/{published_artifact_token}/data_grant, for a table.
+        OAuth scope: forms
+      responses:
+        '200':
+          description: Stopped; returns the page's token
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - token
+                properties:
+                  token:
+                    type: string
+                    description: The page's token
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: The table does not exist, or the page does not show this table's data, or showing it was already stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags:
+      - Artifacts
+      summary: Let a stopped shared page show a table's data again
+      operationId: restoreTablePublishedArtifactDataGrant
+      description: |
+        Same as POST /forms/{form_token}/published_artifacts/{published_artifact_token}/data_grant, for a table.
+        OAuth scope: forms
+      responses:
+        '201':
+          description: Restored; returns the page's token
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - token
+                properties:
+                  token:
+                    type: string
+                    description: The page's token
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: The table does not exist, or the page's published version does not show this table's data, or showing it was not stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '429':
           $ref: '#/components/responses/TooManyRequests'
   "/tables/{table_token}/condition_triggerable_fields":
@@ -5813,7 +6072,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PublishedArtifactError'
         '403':
-          description: Sharing beyond `private` is not open to this account, or the OAuth token lacks its scope
+          description: Sharing beyond `private` is not open to this account, the page shows data from a form the current user does not manage (`data_grant_forbidden`), or the OAuth token lacks its scope
           content:
             application/json:
               schema:
@@ -5824,12 +6083,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishedArtifactError'
+        '409':
+          description: The share changed while this request was checked (`share_changed`); read it again and resend
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishedArtifactError'
         '422':
           description: The version is not HTML (`not_html`), its file is gone, or it is banned (`version_banned`)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PublishedArtifactError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/artifacts/{artifact_id}/data_sources":
+    parameters:
+    - name: artifact_id
+      in: path
+      required: true
+      description: Artifact id from the list (its latest version), artifact version id or token, or the URL-encoded artifact address from Jinshuju (`.../artifacts/{token}`)
+      schema:
+        type: string
+    get:
+      tags:
+      - Artifacts
+      summary: List the data an artifact's page shows
+      operationId: listArtifactDataSources
+      description: |
+        Returns the form and table data an HTML artifact's page reads, as declared when it was delivered: whoever the page is shared with can read it through the page. Empty for a page that reads none.
+        OAuth scope: artifacts
+      responses:
+        '200':
+          description: The data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactDataSourceListResponse'
+        '400':
+          description: An account access token has no user the artifact belongs to
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: The artifact does not exist or is not the current user's
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '429':
           $ref: '#/components/responses/TooManyRequests'
   "/template_usages":
@@ -10275,7 +10581,7 @@ components:
         | Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |
         | Reservation | `[{"api_code": "item", "scheduled_at": "2021-04-26", "end_at"?: "...", "number": 1}]` |
         | Color mark | `"color_mark": "color_1"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `""` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |
-        | International mobile number | Also pass `"<api_code>_country_id"` / `"<api_code>_country_code"` |
+        | Mobile number taking international numbers | A mainland China number alone; a number of another country or region also needs `"<api_code>_intl_mobile_no_country_id"` (such as `"US"`) and `"<api_code>_intl_mobile_no_country_code"` (such as `"1"`) |
       additionalProperties: true
       examples:
       - field_1: 张三
@@ -10519,7 +10825,7 @@ components:
           enum:
           - classic
           - card
-          description: 'Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo, and keeps grids_to_occupy / start_new_row without showing them; to split a form into a few pages or steps, keep classic and add PageBreak fields'
+          description: 'Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / WidgetContact / WidgetVideo, and keeps grids_to_occupy / start_new_row without showing them; to split a form into a few pages or steps, keep classic and add PageBreak fields'
       allOf:
       - $ref: '#/components/schemas/FormCreateConstraints'
     TableCreateInput:
@@ -10601,6 +10907,7 @@ components:
           - LikertField
           - MatrixField
           - MatrixScaleField
+          - MultipleBlanksField
           - GoodsField
           - FormulaField
           - ReservationField
@@ -10648,6 +10955,7 @@ components:
           LikertField: "#/components/schemas/LikertFieldInput"
           MatrixField: "#/components/schemas/MatrixFieldInput"
           MatrixScaleField: "#/components/schemas/MatrixScaleFieldInput"
+          MultipleBlanksField: "#/components/schemas/MultipleBlanksFieldInput"
           GoodsField: "#/components/schemas/GoodsFieldInput"
           FormulaField: "#/components/schemas/FormulaFieldInput"
           ReservationField: "#/components/schemas/ReservationFieldInput"
@@ -10688,6 +10996,7 @@ components:
       - $ref: '#/components/schemas/LikertFieldInput'
       - $ref: '#/components/schemas/MatrixFieldInput'
       - $ref: '#/components/schemas/MatrixScaleFieldInput'
+      - $ref: '#/components/schemas/MultipleBlanksFieldInput'
       - $ref: '#/components/schemas/GoodsFieldInput'
       - $ref: '#/components/schemas/FormulaFieldInput'
       - $ref: '#/components/schemas/ReservationFieldInput'
@@ -10789,7 +11098,7 @@ components:
       type: object
       title: GoodsItemInput
       additionalProperties: false
-      description: A goods item
+      description: A goods item; a price_only or text_options item is the only item of its field, and an images item takes at most 5 images across image_urls, image_base64s and attachment_ids
       required:
       - name
       - layout
@@ -10913,6 +11222,7 @@ components:
                 - number
                 - 'null'
                 minimum: 0
+                description: From 0.01 to 99999999 on a price_only item
               original_price:
                 type:
                 - number
@@ -11145,6 +11455,7 @@ components:
               description: Pass false to delete the rule
             limit:
               type: integer
+              minimum: 0
               maximum: 2147483647
           additionalProperties: false
         fill_frequency:
@@ -11194,15 +11505,21 @@ components:
         access_password:
           type: string
         allowed_audience:
-          type: string
-          enum:
-          - public
-          - internal
-          - private
-          - weixin_qiye_followers_only
-          - weixin_followers_only
-          - submitter_only
-          - gd_user_only
+          description: Who can fill in
+          anyOf:
+          - type: string
+            enum:
+            - public
+            - gd_user_only
+          - type: string
+            enum:
+            - internal
+            - private
+            - weixin_qiye_followers_only
+            - weixin_followers_only
+            - submitter_only
+            deprecated: true
+            description: Values the form editor no longer offers; they still take effect
         weixin_limited:
           type: boolean
           description: Fill in only inside WeChat; turned on by fill_frequency condition by_weixin, and cannot be false while that limit is on
@@ -11318,20 +11635,20 @@ components:
           description: Shown on the respondent's my-entries page before the form opens
         not_open_show_form:
           type: string
-          description: Rich text shown while the form cannot be filled in (not open yet or stopped) and `show_form_when_unavailable` is on; embedded iframe domains must be on the allowlist
+          description: Rich text shown while the form cannot be filled in (not open yet or stopped) and `show_form_when_unavailable` is on; at most 40 characters of text, an inserted open / close time counting as 20 and a countdown as 10; embedded iframe domains must be on the allowlist
         not_open_hide_form:
           type: string
-          description: Rich text shown while the form cannot be filled in (not open yet or stopped) and `show_form_when_unavailable` is off; embedded iframe domains must be on the allowlist
+          description: Rich text shown while the form cannot be filled in (not open yet or stopped) and `show_form_when_unavailable` is off; at most 10000 characters of text, counted as in not_open_show_form; embedded iframe domains must be on the allowlist
         fill_frequency_limited:
           type: string
           maxLength: 40
           description: Shown once the submitter reaches the fill frequency limit when the matching text below is empty
         fill_frequency_limited_show_form:
           type: string
-          description: Rich text shown at the fill frequency limit when the form stays visible; embedded iframe domains must be on the allowlist
+          description: Rich text shown at the fill frequency limit when the form stays visible; at most 40 characters of text; embedded iframe domains must be on the allowlist
         fill_frequency_limited_hide_form:
           type: string
-          description: Rich text shown at the fill frequency limit when the form is hidden; embedded iframe domains must be on the allowlist
+          description: Rich text shown at the fill frequency limit when the form is hidden; at most 10000 characters of text; embedded iframe domains must be on the allowlist
       additionalProperties: false
     GenCodeRule:
       type: object
@@ -11860,7 +12177,7 @@ components:
           format: date-time
     FormUpdateInput:
       type: object
-      description: Contains at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `layout`
+      description: Contains at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `redirect_rules` / `layout`
       properties:
         layout:
           $ref: '#/components/schemas/FormLayoutUpdate'
@@ -11901,6 +12218,8 @@ components:
           additionalProperties: false
         field_rules:
           $ref: '#/components/schemas/FieldRuleOperations'
+        redirect_rules:
+          $ref: '#/components/schemas/RedirectRuleOperations'
       additionalProperties: false
     FieldUpdateInput:
       type: object
@@ -11943,6 +12262,7 @@ components:
           - LikertField
           - MatrixField
           - MatrixScaleField
+          - MultipleBlanksField
           - GoodsField
           - FormulaField
           - ReservationField
@@ -11976,7 +12296,6 @@ components:
           - Timer
           - ImageGroup
           - WidgetVideo
-          - MultipleBlanksField
           - BooleanField
           - RelationField
           - SequenceField
@@ -11995,13 +12314,13 @@ components:
           type:
           - string
           - 'null'
-          description: Text shown under the field label
+          description: Text shown under the field label; WidgetButton takes none
         private:
           type: boolean
-          description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
+          description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it; WidgetButton / WidgetContact / WidgetMap / WidgetMarquee take none'
         required:
           type: boolean
-          description: Required
+          description: Required; WidgetButton / WidgetContact / WidgetMap / WidgetMarquee take none
         unique:
           type: boolean
           description: Refuse duplicate values; takes effect only on TextField / NameField / EmailField / MobileField / TelephoneField / IdCardField / LinkField / FormAssociation / TextArea / NumberField
@@ -12014,7 +12333,7 @@ components:
           description: Target position of the field in the form, from 0; appended at the end by default
         rating_max:
           type: integer
-          minimum: 1
+          minimum: 3
           maximum: 10
         choices:
           type: array
@@ -12067,7 +12386,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WidgetImageInput'
-          description: 'WidgetContact: replaces the images; one whose attachment_id is an image the field already has is kept as it is, so the images read can be written back'
+          description: 'WidgetContact: replaces the images, at most one, or more only as images the field already has; one whose attachment_id is an image the field already has is kept as it is, so the images read can be written back'
         answers:
           type: array
           items:
@@ -12147,8 +12466,16 @@ components:
           - 'null'
           minimum: 0
           description: Maximum number of choices; for a LikertField with likert_choice_style=multiple, the maximum per statement
+        with_exclusive_choice:
+          type: boolean
+          description: 'Exclusive choices: a filler who picks one of exclusive_choice_api_codes, such as `以上都没有`, cannot pick any other choice. Needs a non-empty exclusive_choice_api_codes, and cannot go with a minimum_length above 1'
+        exclusive_choice_api_codes:
+          type: array
+          items:
+            type: string
+          description: The exclusive choices, each named by its api_code or by its label, which is how to name a choice created in the same request; read back as api_codes. Takes effect only with with_exclusive_choice=true
         predefined_value:
-          description: 'Default value: a string for text fields, a date string matching the precision or today / yesterday / tomorrow for DateTimeField, an {"hour", "minute"} object for TimeField, an address object for AddressField'
+          description: 'Default value: a string for text fields, a link starting with http:// or https:// for LinkField, a mainland China mobile number for MobileField, a number with no more decimal places than precision for NumberField, a date string matching the precision or today / yesterday / tomorrow for DateTimeField, an {"hour", "minute", "second"} object for TimeField (hour 0-23, minute and second 0-59), an address object for AddressField'
         placeholder:
           type:
           - string
@@ -12217,7 +12544,7 @@ components:
           type:
           - string
           - 'null'
-          description: Currency symbol
+          description: Currency symbol, for a table column only
         currency_symbol_position:
           type:
           - string
@@ -12226,7 +12553,7 @@ components:
           - prefix
           - suffix
           -
-          description: Where the currency symbol goes
+          description: Where the currency symbol goes, for a table column only
         icon_type:
           type:
           - string
@@ -12239,7 +12566,6 @@ components:
           - formula-2
           - date-2
           - sum
-          - text
           - text2
           -
           description: Field icon
@@ -12257,14 +12583,16 @@ components:
           type:
           - number
           - 'null'
-          exclusiveMinimum: 0
+          minimum: 0.01
           maximum: 500
+          multipleOf: 0.01
           description: Maximum size of one file, in MB
         max_file_quantity:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 15
           description: Maximum number of files
         media_type:
           type:
@@ -12358,11 +12686,13 @@ components:
           type:
           - string
           - 'null'
+          maxLength: 20
           description: Text shown at the lowest rating
         maximum_ratings_display_text:
           type:
           - string
           - 'null'
+          maxLength: 20
           description: Text shown at the highest rating
         rating_type:
           type:
@@ -12384,10 +12714,8 @@ components:
           - integer
           - 'null'
           minimum: 2
+          maximum: 4
           description: Number of levels of the cascading drop-down; every choice path must reach this depth
-        choice_filterable:
-          type: boolean
-          description: Allow filtering the choices
         horizontal_on_mobile:
           type: boolean
           description: Lay out horizontally on mobile
@@ -12400,24 +12728,19 @@ components:
           - multiple
           -
           description: One choice (single) or several (multiple) per statement
-        advanced_feature:
-          type: boolean
-          description: Turn on the advanced features
         unit:
           type:
           - string
           - 'null'
           maxLength: 2
-          description: Unit of quantity, at most 2 characters
-        collapse_on_mobile:
-          type: boolean
-          description: Collapse the goods list on mobile
+          description: Unit of quantity, at most 2 characters; a field whose item is price_only or text_options takes none
         columns_on_mobile:
           type:
           - integer
           - 'null'
           minimum: 1
-          description: Goods per row on mobile
+          maximum: 2
+          description: Goods per row on mobile; a field whose item is price_only or text_options takes none
         formula:
           type:
           - string
@@ -12453,12 +12776,9 @@ components:
         allow_multiple_number:
           type: boolean
           description: Several places can be booked in one time slot
-        use_daily_time_range:
-          type: boolean
-          description: Use a daily time slot table
         associated_form_token:
           type: string
-          description: Token of the associated form
+          description: Token of the associated form; while the field keeps scope_conditions, a new token needs scope_conditions for the new form in the same request, an empty array to remove them
         associated_field_api_codes:
           type: array
           minItems: 1
@@ -12469,14 +12789,56 @@ components:
         privacy_safe:
           type: boolean
           description: Show the associated fields with privacy masking everywhere
-        allow_reverse_association:
-          type: boolean
-          description: Show the reverse association on the associated form
-        reverse_display_field_api_codes:
+        scope_conditions:
           type: array
+          description: Conditions of a LookupField / RollupField (on columns of the related table) or of a FormAssociation (on fields of the associated form). Conditions sharing a `group_index` are joined by AND, or by OR when it is negative, and the groups are joined by OR; leaving it out is group 0. An empty array removes the conditions
           items:
-            type: string
-          description: api_code of the fields the reverse association shows
+            type: object
+            additionalProperties: false
+            required:
+            - trigger
+            - operator
+            properties:
+              trigger:
+                type: string
+                description: api_code of a column of the related table, a relation column being refused; or of a field of the associated form
+              operator:
+                type: string
+                enum:
+                - equal
+                - not_equal
+                - eq
+                - ne
+                - any_in
+                - none_in
+                - between
+                - not_between
+                - gte
+                - gt
+                - lte
+                - lt
+                - 'null'
+                - not_null
+                - like
+                - and
+                - or
+                - not_like
+                - match
+                description: "`equal` / `not_equal` only as a condition a FormAssociation already keeps"
+              value:
+                description: Value in the shape the field type and operator take; a relative date such as today is refused on a LookupField / RollupField
+              group_index:
+                type: integer
+                description: A FormAssociation takes it within signed 32 bits
+              scope_attr:
+                type:
+                - string
+                - 'null'
+                enum:
+                - date_time
+                - api_code
+                -
+                description: FormAssociation only. `date_time` for a reservation field tested by its date, as condition_triggerable_fields gives it; leave it out otherwise. `api_code` is how the editor marks a condition on the reservation items, taken back unchanged on a kept condition; a new one leaves it out
         related_form_token:
           type: string
           description: Token of the related table; must be another table, and you need manage permission on it
@@ -12498,43 +12860,6 @@ components:
           - string
           - 'null'
           description: api_code, in the related table, of the column whose values are shown or computed
-        scope_conditions:
-          type: array
-          description: Reads only the linked rows that match. Conditions sharing a `group_index` must all hold, different groups are alternatives; an empty array removes the conditions
-          items:
-            type: object
-            additionalProperties: false
-            required:
-            - trigger
-            - operator
-            properties:
-              trigger:
-                type: string
-                description: api_code of a column of the related table; a relation column is refused
-              operator:
-                type: string
-                enum:
-                - eq
-                - ne
-                - any_in
-                - none_in
-                - between
-                - not_between
-                - gte
-                - gt
-                - lte
-                - lt
-                - 'null'
-                - not_null
-                - like
-                - and
-                - or
-                - not_like
-                - match
-              value:
-                description: Value in the shape the column type and operator take; a relative date such as today is refused
-              group_index:
-                type: integer
         aggregation:
           type:
           - string
@@ -12578,15 +12903,6 @@ components:
           - 'null'
           minimum: 1
           description: Number of buttons; must equal the length of buttons
-        fixed_to_bottom:
-          type: boolean
-          description: Pin the button bar to the bottom of the page
-        widget_max_images_number:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          description: Maximum number of images shown; at least the length of widget_images
         phones:
           type: array
           description: Contact phone numbers
@@ -12618,20 +12934,6 @@ components:
           - number
           - 'null'
           description: Latitude
-        value:
-          type:
-          - string
-          - 'null'
-          description: Value shown
-        localizable_on_mobile:
-          type: boolean
-          description: On mobile, allow opening the location in a map
-        lines:
-          type:
-          - integer
-          - 'null'
-          minimum: 1
-          description: Number of scrolling lines
         entries_init_number:
           type:
           - integer
@@ -12641,15 +12943,6 @@ components:
         entries_number_visible:
           type: boolean
           description: Show the submission count
-        marquee_data_type:
-          type:
-          - string
-          - 'null'
-          enum:
-          - fake
-          - real
-          -
-          description: 'Data source: fake for generated data, real for real entries'
         start_date:
           type:
           - string
@@ -12727,7 +13020,10 @@ components:
                 type: string
                 description: New choice label
               operand_value:
-                type: number
+                type:
+                - number
+                - 'null'
+                description: Numeric value of the choice; null clears it
               selected:
                 type: boolean
               quota:
@@ -12785,28 +13081,72 @@ components:
         conditions:
           type: array
           items:
-            type: object
-            required:
-            - trigger
-            - value
-            properties:
-              trigger:
-                type: string
-                description: api_code of the trigger field
-              comparator:
-                type: string
-                description: Comparator, defaults to the first one the field supports; an unsupported one returns 400 listing the available comparators
-              value:
-                type:
-                - string
-                - number
-                - array
-                items:
-                  type:
-                  - string
-                  - number
-                description: 'Value to compare with: a choice value or an array of them (on a cascading drop-down, a choice of its first level), a text for like / not_like, [low, high] for between'
-            additionalProperties: false
+            $ref: '#/components/schemas/RuleConditionInput'
+      additionalProperties: false
+    RedirectRuleOperations:
+      type: object
+      description: Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature
+      properties:
+        add:
+          type: array
+          items:
+            $ref: '#/components/schemas/RedirectRuleWriteInput'
+        remove:
+          type: array
+          items:
+            type: integer
+        update:
+          type: array
+          items:
+            $ref: '#/components/schemas/RedirectRuleWriteInput'
+      additionalProperties: false
+    RedirectRuleWriteInput:
+      type: object
+      properties:
+        index:
+          type: integer
+          description: 'Used by update only: index of the rule to change (0-based)'
+        redirect_url:
+          type: string
+          description: Where a submission that meets the conditions goes; an address without `http://` or `https://` is opened with `http://`
+        operator:
+          type: string
+          enum:
+          - or
+          - and
+          description: How the conditions are combined, defaults to or
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleConditionInput'
+      additionalProperties: false
+    RuleConditionInput:
+      type: object
+      required:
+      - trigger
+      - value
+      properties:
+        trigger:
+          type: string
+          description: api_code of the trigger field
+        comparator:
+          type: string
+          description: Comparator, defaults to the first one the field supports; an unsupported one returns 400 listing the available comparators
+        value:
+          type:
+          - string
+          - number
+          - array
+          items:
+            type:
+            - string
+            - number
+          description: 'Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between'
+        parent_choices:
+          type: array
+          items:
+            type: string
+          description: On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice
       additionalProperties: false
     FormSettingSaveOk:
       type: object
@@ -13327,6 +13667,63 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GenCodeRule'
+        weixin_share:
+          $ref: '#/components/schemas/WeixinShare'
+    WeixinShare:
+      type: object
+      description: The card a link to the form shows when shared in WeChat; absent for a table
+      required:
+      - title
+      - description
+      - icon_url
+      - predefined_icon
+      properties:
+        title:
+          type:
+          - string
+          - 'null'
+          description: Card title; null shows the form name
+        description:
+          type:
+          - string
+          - 'null'
+          description: Card description; null shows the form description
+        icon_url:
+          type: string
+          description: URL of the icon the card shows
+        predefined_icon:
+          type:
+          - integer
+          - 'null'
+          description: The built-in icon the card shows, as `predefined_icon` takes it; null for any other icon
+    WeixinShareInput:
+      type: object
+      description: The card a link to the form shows when shared in WeChat; only the keys present are written, and at most one of `predefined_icon`, `icon_image_url` and `icon_attachment_id`. A table refuses it with 400
+      properties:
+        title:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+          description: Card title; null or empty shows the form name
+        description:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+          description: Card description; null or empty shows the form description
+        predefined_icon:
+          type: integer
+          minimum: 1
+          maximum: 35
+          description: One of the built-in icons the settings page offers, `https://gd-pub.jinshujufiles.com/weixin_thumbnail/next<predefined_icon>.png`; drops a custom icon
+        icon_image_url:
+          type: string
+          description: A public image URL to use as a custom icon; needs `customized_weixin_thumbnail` in the plan
+        icon_attachment_id:
+          type: string
+          description: The `attachment_id` of your own image_type=weixin_share_icon upload, to use as a custom icon; needs `customized_weixin_thumbnail` in the plan
+      additionalProperties: false
     FormSettingInput:
       type: object
       description: Request body of PATCH /forms/{form_token}/setting; only the keys present are written
@@ -13391,15 +13788,21 @@ components:
           type: string
           description: Only ASCII letters, digits and common symbols are allowed
         allowed_audience:
-          type: string
-          enum:
-          - public
-          - internal
-          - private
-          - weixin_qiye_followers_only
-          - weixin_followers_only
-          - submitter_only
-          - gd_user_only
+          description: Who can fill in
+          anyOf:
+          - type: string
+            enum:
+            - public
+            - gd_user_only
+          - type: string
+            enum:
+            - internal
+            - private
+            - weixin_qiye_followers_only
+            - weixin_followers_only
+            - submitter_only
+            deprecated: true
+            description: Values the form editor no longer offers; they still take effect
         weixin_limited:
           type: boolean
           description: Fill in only inside WeChat; turned on by fill_frequency condition by_weixin, and cannot be false while that limit is on
@@ -13457,6 +13860,7 @@ components:
           properties:
             limit:
               type: integer
+              minimum: 0
               maximum: 2147483647
           additionalProperties: false
         gen_code_enabled:
@@ -13483,6 +13887,8 @@ components:
           $ref: '#/components/schemas/FormFillFrequencyInput'
         wording:
           $ref: '#/components/schemas/FormWordingInput'
+        weixin_share:
+          $ref: '#/components/schemas/WeixinShareInput'
       additionalProperties: false
     AccessPolicyInput:
       type: object
@@ -13540,26 +13946,59 @@ components:
         conditions:
           type: array
           items:
-            type: object
-            required:
-            - trigger
-            - comparator
-            - value
-            properties:
-              trigger:
-                type: string
-                description: api_code of the trigger field
-              comparator:
-                type: string
-                enum:
-                - equal
-                - none_in
-                - between
-                - like
-                - not_like
-                description: equal means "contains any of" (for historical reasons)
-              value:
-                description: 'Condition value: an array of choice api_codes, a numeric range [min, max] or text, depending on the trigger field''s type'
+            $ref: '#/components/schemas/RuleCondition'
+    RedirectRule:
+      type: object
+      description: One redirect rule
+      required:
+      - index
+      - redirect_url
+      - operator
+      - conditions
+      properties:
+        index:
+          type: integer
+          description: 0-based position, used by PATCH /forms/{form_token} to update or remove the rule
+        redirect_url:
+          type: string
+          description: Where a submission that meets the conditions goes
+        operator:
+          type: string
+          enum:
+          - or
+          - and
+          description: Logical relation between the conditions
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuleCondition'
+    RuleCondition:
+      type: object
+      required:
+      - trigger
+      - comparator
+      - value
+      - parent_choices
+      properties:
+        parent_choices:
+          type: array
+          items:
+            type: string
+          description: On a cascading drop-down, the api_codes of the choices above `value`, from the first level; empty otherwise
+        trigger:
+          type: string
+          description: api_code of the trigger field
+        comparator:
+          type: string
+          enum:
+          - equal
+          - none_in
+          - between
+          - like
+          - not_like
+          description: equal means "contains any of" (for historical reasons)
+        value:
+          description: 'Condition value: an array of choice api_codes, a numeric range [min, max] or text, depending on the trigger field''s type'
     ExtendedAttribute:
       type: object
       required:
@@ -13950,6 +14389,11 @@ components:
         enable_checkin_code:
           type: boolean
           description: Whether submitting goes on to the check-in code page
+        success_message:
+          type:
+          - string
+          - 'null'
+          description: Message registrants see once checked in, with $(field_1) and $(checkin_time) placeholders; null means the default message
         date_settings:
           type: array
           description: When check-in is open; empty means any time
@@ -14006,6 +14450,11 @@ components:
           type: boolean
           default: true
           description: After submitting, go on to the check-in code page; registrants show the code on site. While on, check-in takes over the after-submit redirect and data push URL of the form, replacing any Webhook on it
+        success_message:
+          type:
+          - string
+          - 'null'
+          description: Message registrants see once checked in, HTML allowed; $(field_1) inserts their answer to that field of the form, $(checkin_time) the check-in time, and any other $(...) is refused. Writing it, null included, takes the admin role on the form; null shows the default message
         checkin_field_required_unique:
           type: boolean
           description: true makes the check-in field required and unique, so no registrant is left unable to check in
@@ -14040,6 +14489,11 @@ components:
         enable_checkin_code:
           type: boolean
           description: After submitting, go on to the check-in code page; registrants show the code on site. While on, check-in takes over the after-submit redirect and data push URL of the form, replacing any Webhook on it
+        success_message:
+          type:
+          - string
+          - 'null'
+          description: Message registrants see once checked in, HTML allowed; $(field_1) inserts their answer to that field of the form, $(checkin_time) the check-in time, and any other $(...) is refused. Writing it, null included, takes the admin role on the form; null shows the default message
         checkin_field_required_unique:
           type: boolean
           description: true makes the check-in field required and unique, so no registrant is left unable to check in
@@ -14700,12 +15154,8 @@ components:
       description: Request body of PATCH /forms/{form_token}/theme; contains at least one theme operation key
       properties:
         primary_color:
-          type: string
+          $ref: '#/components/schemas/ThemeColor'
           description: Theme color of the buttons and of selected choices, e.g. "#FBBF24"
-        secondary_color:
-          type: string
-          deprecated: true
-          description: Deprecated; not shown on the form.
         dominant_color:
           type: string
           pattern: "^#[0-9a-fA-F]{6}$"
@@ -14717,7 +15167,7 @@ components:
           description: Page background, either a color or an image; setting only one of them removes the other, along with the preset background image that comes with the theme template
           properties:
             background_color:
-              type: string
+              $ref: '#/components/schemas/ThemeColor'
             background_image_url:
               type: string
               description: The server fetches this URL and uses it as the background image
@@ -14743,7 +15193,7 @@ components:
               type: string
               description: Header text
             background_color:
-              type: string
+              $ref: '#/components/schemas/ThemeColor'
             text_style:
               type: object
               description: Text style; keys use underscores (e.g. font_size, text_align) and are merged into the existing style
@@ -14778,32 +15228,67 @@ components:
           additionalProperties: false
         typography:
           type: object
-          description: Typography; keys use underscores and are merged into the existing style. A color given here wins over the one `dominant_color` sets
+          description: Typography; each style is merged into the existing one. A color given here wins over the one `dominant_color` sets
           properties:
             form_header:
               type: object
-              additionalProperties:
-                type: string
+              description: font_size is one of 14px-20px / 22px / 24px, or of 14px / 15px / 16px / 20px / 24px / 28px / 36px / 40px on a beautiform-look form
+              properties:
+                font_size:
+                  type: string
+                  enum:
+                  - 14px
+                  - 15px
+                  - 16px
+                  - 17px
+                  - 18px
+                  - 19px
+                  - 20px
+                  - 22px
+                  - 24px
+                  - 28px
+                  - 36px
+                  - 40px
+                font_weight:
+                  type: string
+                  enum:
+                  - normal
+                  - bold
+                color:
+                  $ref: '#/components/schemas/ThemeColor'
+                font_family:
+                  $ref: '#/components/schemas/ThemeFontFamily'
+                text_align:
+                  type: string
+                  enum:
+                  - left
+                  - center
+                  - right
+              additionalProperties: false
             field_label:
-              type: object
-              additionalProperties:
-                type: string
+              $ref: '#/components/schemas/ThemeTextStyleInput'
             choice_style:
-              type: object
-              additionalProperties:
-                type: string
+              $ref: '#/components/schemas/ThemeTextStyleInput'
           additionalProperties: false
         form_container:
           type: object
           properties:
             background_color:
-              type: string
+              $ref: '#/components/schemas/ThemeColor'
             border_color:
-              type: string
+              $ref: '#/components/schemas/ThemeColor'
               description: Border color of the form container, e.g. "#E5E7EB"
             border_width:
               type: string
-              description: Border width of the form container, e.g. "1px"
+              enum:
+              - '0'
+              - 0px
+              - 1px
+              - 2px
+              - 3px
+              - 4px
+              - 5px
+              description: Border width of the form container
             shadow:
               type: boolean
               description: Shadow around the form container; `false` turns it off. Shows only where the web editor offers this switch, on a classic-layout form without the beautiform look; a card layout or a beautiform-look form never shows one
@@ -14812,15 +15297,10 @@ components:
           type: object
           description: Buttons; color and font size apply to every button on the form. The submit button's text is set through the form setting's `wording.submit`
           properties:
-            background_color:
-              type: string
-              deprecated: true
-              description: Deprecated alias of `primary_color`; use `primary_color`.
             color:
-              type: string
+              $ref: '#/components/schemas/ThemeColor'
             font_size:
-              type: string
-              description: e.g. "16px"
+              $ref: '#/components/schemas/ThemeFontSize'
           additionalProperties: false
         generate_header_image:
           type: object
@@ -14831,13 +15311,57 @@ components:
               description: Prompt for the image; when omitted, AI writes one from the form's content
           additionalProperties: false
       additionalProperties: false
+    ThemeColor:
+      type: string
+      pattern: "^(#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgba?\\(\\s*\\d{1,3}\\s*(,\\s*\\d{1,3}\\s*){2}(,\\s*\\d*\\.?\\d+\\s*)?\\))$"
+      not:
+        pattern: "\n"
+      description: A hex color such as "#FBBF24", or rgb() / rgba() such as "rgba(251, 191, 36, 0.5)"
+    ThemeFontSize:
+      type: string
+      enum:
+      - 14px
+      - 15px
+      - 16px
+      - 17px
+      - 18px
+      - 19px
+      - 20px
+      - 22px
+      - 24px
+    ThemeTextStyleInput:
+      type: object
+      properties:
+        font_size:
+          $ref: '#/components/schemas/ThemeFontSize'
+        font_weight:
+          type: string
+          enum:
+          - normal
+          - bold
+        color:
+          $ref: '#/components/schemas/ThemeColor'
+        font_family:
+          $ref: '#/components/schemas/ThemeFontFamily'
+      additionalProperties: false
+    ThemeFontFamily:
+      type: string
+      enum:
+      - inherit
+      - tahoma
+      - helvetica
+      - verdana
+      - georgia
+      - heiti
+      - kaiti
+      - songti
+      description: Font, as the theme editor names it; inherit uses the form's default font
     FormTheme:
       type: object
       description: Response after the theme is updated
       required:
       - form_token
       - primary_color
-      - secondary_color
       - dominant_color
       - wallpaper
       - header
@@ -14852,11 +15376,6 @@ components:
           - string
           - 'null'
           description: Theme color of the buttons and of selected choices
-        secondary_color:
-          type:
-          - string
-          - 'null'
-          deprecated: true
         dominant_color:
           type:
           - string
@@ -14970,10 +15489,6 @@ components:
         submit_button:
           type: object
           properties:
-            background_color:
-              type:
-              - string
-              - 'null'
             color:
               type:
               - string
@@ -15395,6 +15910,286 @@ components:
         version_id:
           type: string
           description: Id or token of the version to publish, required unless `allowed_audience` is `private`. The artifact id is not taken here, since its latest version can change before the share is made
+    ArtifactDataSourceListResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required:
+            - name
+            - form
+            - mode
+            - columns
+            - search
+            - filtered
+            - filter_text
+            - shareable
+            - revoked
+            - source
+            properties:
+              name:
+                type: string
+                description: The name the page reads it by
+              form:
+                type:
+                - object
+                - 'null'
+                description: The form or table it comes from; null once that is deleted
+                properties:
+                  token:
+                    type: string
+                  name:
+                    type: string
+                  kind:
+                    type: string
+                    enum:
+                    - form
+                    - table
+                    - quickpay
+              mode:
+                type: string
+                enum:
+                - list
+                - search
+                - stats
+                description: 'list: visitors page through the rows; search: visitors look up rows by giving every search field exactly; stats: visitors get statistics only'
+              columns:
+                type: array
+                description: The columns visitors see, in order; empty while the current user does not manage the form or it is deleted
+                items:
+                  type: object
+                  required:
+                  - api_code
+                  - label
+                  - masked
+                  properties:
+                    api_code:
+                      type: string
+                    label:
+                      type: string
+                    masked:
+                      type: boolean
+                      description: Shown masked
+              search:
+                type: array
+                description: The fields a visitor gives to look up rows; empty while the current user does not manage the form or it is deleted
+                items:
+                  type: object
+                  required:
+                  - api_code
+                  - label
+                  properties:
+                    api_code:
+                      type: string
+                    label:
+                      type: string
+              filtered:
+                type: boolean
+                description: Only the rows matching the conditions declared with it
+              filter_text:
+                type:
+                - string
+                - 'null'
+                description: Those conditions in words, as the share confirmation shows them; null when unfiltered, the form is gone or the current user does not manage it
+              shareable:
+                type: boolean
+                description: The current user may share the page beyond themselves, which needs a manager of the form, stopped or not; false sharing it is refused with `data_grant_forbidden`
+              revoked:
+                type: boolean
+                description: A manager of the form stopped the page showing its data; it stays hidden whoever the page is shared with until they restore it
+              source:
+                type:
+                - object
+                - 'null'
+                description: The declaration as the page wrote it, to declare it again when the page is changed; null while the current user does not manage the form (kept once the form is gone)
+                properties:
+                  form:
+                    type:
+                    - string
+                    - 'null'
+                  mode:
+                    type: string
+                  columns:
+                    type: array
+                    items:
+                      type: string
+                  masked:
+                    type: array
+                    items:
+                      type: string
+                  search:
+                    type: array
+                    items:
+                      type: string
+                  filter:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - field
+                      - operator
+                      properties:
+                        field:
+                          type: string
+                        operator:
+                          type: string
+                        value:
+                          description: Required for every operator but null and not_null
+                        group_index:
+                          type: integer
+                  sort:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        api_code:
+                          type: string
+                        order:
+                          type: string
+                          enum:
+                          - asc
+                          - desc
+    FormPublishedArtifactListResponse:
+      type: object
+      required:
+      - total
+      - count
+      - data
+      - next
+      properties:
+        total:
+          type: integer
+          description: How many pages use the form
+        count:
+          type: integer
+          description: How many are on this page
+        next:
+          type:
+          - integer
+          - 'null'
+          description: The next page's row offset; null on the last page
+        data:
+          type: array
+          items:
+            type: object
+            required:
+            - token
+            - url
+            - name
+            - allowed_audience
+            - published_by
+            - published_version
+            - writes
+            - data
+            - data_grant
+            properties:
+              token:
+                type: string
+                description: The page's token
+              url:
+                type: string
+                description: The page's share link
+              name:
+                type: string
+              allowed_audience:
+                type: string
+                enum:
+                - private
+                - internal
+                - public
+                description: Who can open the page
+              published_by:
+                type:
+                - string
+                - 'null'
+                description: Name of the user who shares the page
+              published_version:
+                type: integer
+                description: The version the link shows
+              writes:
+                type: boolean
+                description: The page submits entries to this form
+              data:
+                type: array
+                description: What the page shows of this form's data
+                items:
+                  type: object
+                  required:
+                  - name
+                  - mode
+                  - columns
+                  - search
+                  - filter_text
+                  properties:
+                    name:
+                      type: string
+                    mode:
+                      type: string
+                      enum:
+                      - list
+                      - search
+                      - stats
+                    columns:
+                      type: array
+                      items:
+                        type: object
+                        required:
+                        - api_code
+                        - label
+                        - masked
+                        properties:
+                          api_code:
+                            type: string
+                          label:
+                            type: string
+                          masked:
+                            type: boolean
+                    search:
+                      type: array
+                      description: The fields a visitor looks rows up by; empty unless mode is search
+                      items:
+                        type: object
+                        required:
+                        - api_code
+                        - label
+                        properties:
+                          api_code:
+                            type: string
+                          label:
+                            type: string
+                    filter_text:
+                      type:
+                      - string
+                      - 'null'
+                      description: Which rows the page shows, in words, as the share confirmation shows them; null when it shows every row
+              data_grant:
+                type:
+                - object
+                - 'null'
+                description: Who let the page's audience read this form's data, and who stopped it; null when the page only submits to the form, or is shared with its owner alone and was never stopped
+                properties:
+                  granted_by:
+                    type:
+                    - string
+                    - 'null'
+                  granted_at:
+                    type:
+                    - string
+                    - 'null'
+                    format: date-time
+                  revoked_by:
+                    type:
+                    - string
+                    - 'null'
+                  revoked_at:
+                    type:
+                    - string
+                    - 'null'
+                    format: date-time
     PublishedArtifactError:
       type: object
       required:
@@ -15404,6 +16199,8 @@ components:
           type: string
           enum:
           - not_found
+          - data_grant_forbidden
+          - share_changed
           - version_not_found
           - not_html
           - file_missing
@@ -16048,22 +16845,6 @@ components:
           type: string
           format: date-time
           description: Updated at
-        allowed_audience:
-          type: string
-          enum:
-          - private
-          - public
-          description: Who can read the view's entries through the page SDK; public is anyone holding the view token. Omitted, with search_field_api_codes and privacy_protected_field_api_codes, on a form whose account does not have public views yet
-        search_field_api_codes:
-          type: array
-          description: Fields a reader must all match exactly to read rows; empty means the rows are listed
-          items:
-            type: string
-        privacy_protected_field_api_codes:
-          type: array
-          description: Columns a visitor reads masked
-          items:
-            type: string
         title:
           type:
           - string
@@ -16163,24 +16944,6 @@ components:
         published:
           type: boolean
           description: Whether the fill page is published, defaults to false on create. Form views (view_type=form) only; on other view types it returns 422.
-        allowed_audience:
-          type: string
-          enum:
-          - private
-          - public
-          description: Who can read the view's entries through the page SDK; public (anyone holding the view token) takes a grid or stats view with non-empty prefer_columns, all fields a public query can display
-        search_field_api_codes:
-          type: array
-          description: Fields of a grid view, ones a public query can search on, that a reader must all fill in exactly to read rows; empty lists the rows
-          uniqueItems: true
-          items:
-            type: string
-        privacy_protected_field_api_codes:
-          type: array
-          description: Columns a visitor reads masked; they cannot be filtered, sorted or aggregated on
-          uniqueItems: true
-          items:
-            type: string
         field_overrides:
           type: array
           description: Fill item settings, replaced as a whole; when omitted on create, every fillable column is checked in the current column order. Form views (view_type=form) only; on other view types it returns 422.
@@ -16914,7 +17677,7 @@ components:
           - number
           - string
           - 'null'
-          description: Default value
+          description: Default value, with no more decimal places than precision
         placeholder:
           type:
           - string
@@ -16937,32 +17700,12 @@ components:
           minimum: 0
           maximum: 14
           description: Decimal places of a form field; refused on a table column, which takes display_precision
-        display_precision:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          description: Decimal places shown, for a table column only; refused on a form field, which takes precision
         display_as_percentage:
           type: boolean
           description: Show as a percentage; cannot be combined with thousands_separator
         thousands_separator:
           type: boolean
           description: Show a thousands separator; cannot be combined with display_as_percentage
-        currency_symbol:
-          type:
-          - string
-          - 'null'
-          description: Currency symbol
-        currency_symbol_position:
-          type:
-          - string
-          - 'null'
-          enum:
-          - prefix
-          - suffix
-          -
-          description: Where the currency symbol goes
         icon_type:
           type:
           - string
@@ -17088,7 +17831,7 @@ components:
           type:
           - string
           - 'null'
-          description: Default value
+          description: Default mobile number, a mainland China one
         placeholder:
           type:
           - string
@@ -17303,6 +18046,7 @@ components:
           items:
             $ref: '#/components/schemas/ChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -17399,6 +18143,7 @@ components:
           items:
             $ref: '#/components/schemas/ChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -17440,6 +18185,14 @@ components:
           - per_week
           -
           description: 'When every choice gets its full quota back: never (fixed), at the start of each day (per_day) or of each Monday (per_week); null for fixed'
+        with_exclusive_choice:
+          type: boolean
+          description: 'Exclusive choices: a filler who picks one of exclusive_choice_api_codes, such as `以上都没有`, cannot pick any other choice. Needs a non-empty exclusive_choice_api_codes, and cannot go with a minimum_length above 1'
+        exclusive_choice_api_codes:
+          type: array
+          items:
+            type: string
+          description: The exclusive choices, each named by its api_code or by its label, which is how to name a choice created in the same request; read back as api_codes. Takes effect only with with_exclusive_choice=true
         grids_to_occupy:
           type:
           - integer
@@ -17507,6 +18260,7 @@ components:
           items:
             $ref: '#/components/schemas/ChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -17651,7 +18405,7 @@ components:
           description: Target position of the field in the form, from 0; appended at the end by default
         rating_max:
           type: integer
-          minimum: 1
+          minimum: 3
           maximum: 10
           description: Rating scale, such as 3 / 5 / 10; 5 by default
         rating_type:
@@ -17712,7 +18466,7 @@ components:
     TelephoneFieldInput:
       type: object
       title: TelephoneFieldInput
-      description: TelephoneField field
+      description: Deprecated; use MobileField for a mainland China mobile number, TextField for any other number
       additionalProperties: false
       required:
       - type
@@ -17766,6 +18520,7 @@ components:
         start_new_row:
           type: boolean
           description: Start a new row with this field instead of placing it beside the one before; applies only with grids_to_occupy
+      deprecated: true
     AddressFieldInput:
       type: object
       title: AddressFieldInput
@@ -17863,14 +18618,16 @@ components:
           type:
           - number
           - 'null'
-          exclusiveMinimum: 0
+          minimum: 0.01
           maximum: 500
+          multipleOf: 0.01
           description: Maximum size of one file, in MB
         max_file_quantity:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 15
           description: Maximum number of files
         media_type:
           type:
@@ -18035,7 +18792,7 @@ components:
           type:
           - string
           - 'null'
-          description: Default value
+          description: Default link, starting with http:// or https://
         placeholder:
           type:
           - string
@@ -18089,11 +18846,13 @@ components:
           type:
           - string
           - 'null'
+          maxLength: 20
           description: Text shown at the lowest rating
         maximum_ratings_display_text:
           type:
           - string
           - 'null'
+          maxLength: 20
           description: Text shown at the highest rating
     TimeFieldInput:
       type: object
@@ -18133,7 +18892,7 @@ components:
           type:
           - object
           - 'null'
-          description: 'Default time, such as {"hour": 9, "minute": 30}'
+          description: 'Default time, such as {"hour": 9, "minute": 30}; hour 0-23, minute and second 0-59, no other key'
           properties:
             hour:
               type: integer
@@ -18192,8 +18951,9 @@ components:
           type: array
           minItems: 1
           items:
-            $ref: '#/components/schemas/ChoiceInput'
+            $ref: '#/components/schemas/SortChoiceInput'
           description: Choices
+          maxItems: 1000
         random_choices:
           type: boolean
           description: Shuffle the choices each time the form opens
@@ -18317,10 +19077,8 @@ components:
           - integer
           - 'null'
           minimum: 2
+          maximum: 4
           description: Number of levels of the cascading drop-down; every choice path must reach this depth
-        choice_filterable:
-          type: boolean
-          description: Allow filtering the choices
         random_choices:
           type: boolean
           description: Shuffle the choices each time the form opens
@@ -18395,6 +19153,7 @@ components:
           items:
             $ref: '#/components/schemas/ChoiceInput'
           description: Choices
+          maxItems: 1000
         statements:
           type: array
           minItems: 1
@@ -18505,9 +19264,6 @@ components:
         horizontal_on_mobile:
           type: boolean
           description: Lay out horizontally on mobile
-        advanced_feature:
-          type: boolean
-          description: Turn on the advanced features
     MatrixScaleFieldInput:
       type: object
       title: MatrixScaleFieldInput
@@ -18544,7 +19300,7 @@ components:
           description: Target position of the field in the form, from 0; appended at the end by default
         rating_max:
           type: integer
-          minimum: 1
+          minimum: 3
           maximum: 10
           description: Rating scale, such as 3 / 5 / 10; 5 by default
         statements:
@@ -18601,16 +19357,14 @@ components:
           - string
           - 'null'
           maxLength: 2
-          description: Unit of quantity, at most 2 characters
-        collapse_on_mobile:
-          type: boolean
-          description: Collapse the goods list on mobile
+          description: Unit of quantity, at most 2 characters; a field whose item is price_only or text_options takes none
         columns_on_mobile:
           type:
           - integer
           - 'null'
           minimum: 1
-          description: Goods per row on mobile
+          maximum: 2
+          description: Goods per row on mobile; a field whose item is price_only or text_options takes none
     FormulaFieldInput:
       type: object
       title: FormulaFieldInput
@@ -18678,32 +19432,12 @@ components:
           minimum: 0
           maximum: 14
           description: Decimal places of a form field; refused on a table column, which takes display_precision
-        display_precision:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          description: Decimal places shown, for a table column only; refused on a form field, which takes precision
         display_as_percentage:
           type: boolean
           description: Show as a percentage; cannot be combined with thousands_separator
         thousands_separator:
           type: boolean
           description: Show a thousands separator; cannot be combined with display_as_percentage
-        currency_symbol:
-          type:
-          - string
-          - 'null'
-          description: Currency symbol
-        currency_symbol_position:
-          type:
-          - string
-          - 'null'
-          enum:
-          - prefix
-          - suffix
-          -
-          description: Where the currency symbol goes
         icon_type:
           type:
           - string
@@ -18716,7 +19450,6 @@ components:
           - dollar1
           - cny1
           - sum
-          - text
           - text2
           -
           description: Field icon
@@ -18790,9 +19523,6 @@ components:
         allow_multiple_number:
           type: boolean
           description: Several places can be booked in one time slot
-        use_daily_time_range:
-          type: boolean
-          description: Use a daily time slot table
     FormAssociationInput:
       type: object
       title: FormAssociationInput
@@ -18851,14 +19581,57 @@ components:
         privacy_safe:
           type: boolean
           description: Show the associated fields with privacy masking everywhere
-        allow_reverse_association:
-          type: boolean
-          description: Show the reverse association on the associated form
-        reverse_display_field_api_codes:
+        scope_conditions:
           type: array
+          description: Offers only the records of the associated form that match. Conditions sharing a `group_index` are joined by AND, or by OR when it is negative, and the groups are joined by OR; leaving it out is group 0. An empty array removes the conditions and offers every record. While the field keeps conditions, a new `associated_form_token` needs them sent along
           items:
-            type: string
-          description: api_code of the fields the reverse association shows
+            type: object
+            additionalProperties: false
+            required:
+            - trigger
+            - operator
+            properties:
+              trigger:
+                type: string
+                description: A field of the associated form, as `GET /forms/{associated_form_token}/condition_triggerable_fields` lists it
+              operator:
+                type: string
+                enum:
+                - equal
+                - not_equal
+                - eq
+                - ne
+                - any_in
+                - none_in
+                - between
+                - not_between
+                - gte
+                - gt
+                - lte
+                - lt
+                - 'null'
+                - not_null
+                - like
+                - and
+                - or
+                - not_like
+                - match
+                description: One of the operators that list gives for the field; `equal` / `not_equal` are older ones a kept condition may carry, taken back unchanged but refused on a new condition
+              value:
+                description: Value in the shape that list gives for the field and operator; another shape returns 400 naming the format with an example
+              group_index:
+                type: integer
+                minimum: -2147483648
+                maximum: 2147483647
+              scope_attr:
+                type:
+                - string
+                - 'null'
+                enum:
+                - date_time
+                - api_code
+                -
+                description: "`date_time` for a reservation field tested by its date, as condition_triggerable_fields gives it; leave it out otherwise. `api_code` is how the editor marks a condition on the reservation items, taken back unchanged on a kept condition; a new one leaves it out"
         grids_to_occupy:
           type:
           - integer
@@ -18909,6 +19682,7 @@ components:
           items:
             $ref: '#/components/schemas/ImageChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -18992,6 +19766,7 @@ components:
           items:
             $ref: '#/components/schemas/ImageChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -19033,6 +19808,14 @@ components:
           - per_week
           -
           description: 'When every choice gets its full quota back: never (fixed), at the start of each day (per_day) or of each Monday (per_week); null for fixed'
+        with_exclusive_choice:
+          type: boolean
+          description: 'Exclusive choices: a filler who picks one of exclusive_choice_api_codes, such as `以上都没有`, cannot pick any other choice. Needs a non-empty exclusive_choice_api_codes, and cannot go with a minimum_length above 1'
+        exclusive_choice_api_codes:
+          type: array
+          items:
+            type: string
+          description: The exclusive choices, each named by its api_code or by its label, which is how to name a choice created in the same request; read back as api_codes. Takes effect only with with_exclusive_choice=true
       allOf:
       - description: With calculable=true, every choice needs an operand_value
         if:
@@ -19159,17 +19942,6 @@ components:
         cid:
           type: string
           description: Temporary id within this request, for formulas and the like to refer to
-        notes:
-          type:
-          - string
-          - 'null'
-          description: Text shown under the field label
-        private:
-          type: boolean
-          description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
-        required:
-          type: boolean
-          description: Required
         position:
           type: integer
           minimum: 0
@@ -19186,9 +19958,6 @@ components:
           - 'null'
           minimum: 1
           description: Number of buttons; must equal the length of buttons
-        fixed_to_bottom:
-          type: boolean
-          description: Pin the button bar to the bottom of the page
     WidgetContactInput:
       type: object
       title: WidgetContactInput
@@ -19213,27 +19982,16 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
-        private:
-          type: boolean
-          description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
-        required:
-          type: boolean
-          description: Required
         position:
           type: integer
           minimum: 0
           description: Target position of the field in the form, from 0; appended at the end by default
         widget_images:
           type: array
+          maxItems: 1
           items:
             $ref: '#/components/schemas/WidgetImageInput'
-          description: Images; each gives one of image_url / image_base64 / attachment_id
-        widget_max_images_number:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          description: Maximum number of images shown; at least the length of widget_images
+          description: The image; it gives one of image_url / image_base64 / attachment_id
         phones:
           type: array
           description: Contact phone numbers
@@ -19274,12 +20032,6 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
-        private:
-          type: boolean
-          description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
-        required:
-          type: boolean
-          description: Required
         position:
           type: integer
           minimum: 0
@@ -19299,14 +20051,6 @@ components:
           - number
           - 'null'
           description: Latitude
-        value:
-          type:
-          - string
-          - 'null'
-          description: Value shown
-        localizable_on_mobile:
-          type: boolean
-          description: On mobile, allow opening the location in a map
     WidgetMarqueeInput:
       type: object
       title: WidgetMarqueeInput
@@ -19331,22 +20075,10 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
-        private:
-          type: boolean
-          description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
-        required:
-          type: boolean
-          description: Required
         position:
           type: integer
           minimum: 0
           description: Target position of the field in the form, from 0; appended at the end by default
-        lines:
-          type:
-          - integer
-          - 'null'
-          minimum: 1
-          description: Number of scrolling lines
         entries_init_number:
           type:
           - integer
@@ -19356,15 +20088,6 @@ components:
         entries_number_visible:
           type: boolean
           description: Show the submission count
-        marquee_data_type:
-          type:
-          - string
-          - 'null'
-          enum:
-          - fake
-          - real
-          -
-          description: 'Data source: fake for generated data, real for real entries'
     SingleSelectInput:
       type: object
       title: SingleSelectInput
@@ -19410,6 +20133,7 @@ components:
           items:
             $ref: '#/components/schemas/ChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -19536,6 +20260,7 @@ components:
           items:
             $ref: '#/components/schemas/ChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -19691,6 +20416,7 @@ components:
           items:
             $ref: '#/components/schemas/ImageChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -19804,6 +20530,7 @@ components:
           items:
             $ref: '#/components/schemas/ImageChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -19952,6 +20679,7 @@ components:
           items:
             $ref: '#/components/schemas/ChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -20078,6 +20806,7 @@ components:
           items:
             $ref: '#/components/schemas/ChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -20392,7 +21121,7 @@ components:
           - number
           - string
           - 'null'
-          description: Default value
+          description: Default value, with no more decimal places than precision
         placeholder:
           type:
           - string
@@ -20415,32 +21144,12 @@ components:
           minimum: 0
           maximum: 14
           description: Decimal places of a form field; refused on a table column, which takes display_precision
-        display_precision:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          description: Decimal places shown, for a table column only; refused on a form field, which takes precision
         display_as_percentage:
           type: boolean
           description: Show as a percentage; cannot be combined with thousands_separator
         thousands_separator:
           type: boolean
           description: Show a thousands separator; cannot be combined with display_as_percentage
-        currency_symbol:
-          type:
-          - string
-          - 'null'
-          description: Currency symbol
-        currency_symbol_position:
-          type:
-          - string
-          - 'null'
-          enum:
-          - prefix
-          - suffix
-          -
-          description: Where the currency symbol goes
         icon_type:
           type:
           - string
@@ -20538,7 +21247,7 @@ components:
           description: Target position of the field in the form, from 0; appended at the end by default
         rating_max:
           type: integer
-          minimum: 1
+          minimum: 3
           maximum: 10
           description: Rating scale, such as 3 / 5 / 10; 5 by default
         rating_type:
@@ -20620,11 +21329,13 @@ components:
           type:
           - string
           - 'null'
+          maxLength: 20
           description: Text shown at the lowest rating
         maximum_ratings_display_text:
           type:
           - string
           - 'null'
+          maxLength: 20
           description: Text shown at the highest rating
         answers:
           type: array
@@ -20698,6 +21409,7 @@ components:
           items:
             $ref: '#/components/schemas/ChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -20794,6 +21506,7 @@ components:
           items:
             $ref: '#/components/schemas/ChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -20987,9 +21700,6 @@ components:
         operand_value:
           type: number
           description: Numeric value of the choice
-        selected:
-          type: boolean
-          description: Selected by default
         sub_choices:
           type: array
           items:
@@ -21403,7 +22113,6 @@ components:
                     not:
                       enum:
                       - PageBreak
-                      - MultipleBlanksField
                       - WidgetContact
                       - WidgetVideo
       - description: scene=exam takes ExamFieldInput
@@ -21444,6 +22153,23 @@ components:
             fields:
               items:
                 $ref: '#/components/schemas/FieldInput'
+      - description: scene=exam / quickpay takes no MultipleBlanksField
+        if:
+          properties:
+            scene:
+              enum:
+              - exam
+              - quickpay
+          required:
+          - scene
+        then:
+          properties:
+            fields:
+              items:
+                properties:
+                  type:
+                    not:
+                      const: MultipleBlanksField
     WidgetButtonItemInput:
       type: object
       title: WidgetButtonItemInput
@@ -22593,6 +23319,11 @@ components:
             description: Field display rules (present when `include_field_rules=true`), same as `data` of `GET /forms/{form_token}/field_rules`
             items:
               $ref: '#/components/schemas/FieldRule'
+          redirect_rules:
+            type: array
+            description: Redirect rules (present when `include_redirect_rules=true`), same as `data` of `GET /forms/{form_token}/redirect_rules`
+            items:
+              $ref: '#/components/schemas/RedirectRule'
           extended_attributes:
             type: array
             description: Source-tracking links (present when `include_extended_attributes=true`), same as `data` of `GET /forms/{form_token}/extended_attributes`
@@ -23470,6 +24201,8 @@ components:
           description: Pass false to delete the rule; omit it when passing `time_periods`
         time_periods:
           type: array
+          minItems: 1
+          maxItems: 3
           description: One daily open period per item
           items:
             type: object
@@ -26117,6 +26850,7 @@ components:
                 - number
                 - 'null'
                 minimum: 0
+                description: From 0.01 to 99999999 on a price_only item
               original_price:
                 type:
                 - number
@@ -27381,7 +28115,7 @@ components:
         description: 'YEAR(date): Four-digit year'
     ExamFieldInput:
       type: object
-      description: 'A field definition for scene=exam, branched on type: the FieldInput types plus the ones only this scene takes'
+      description: 'A field definition for scene=exam, branched on type: the FieldInput types this scene takes plus the ones only it takes'
       required:
       - type
       - label
@@ -27551,7 +28285,7 @@ components:
       title: ExamFieldInput
     EvaluationFieldInput:
       type: object
-      description: 'A field definition for scene=evaluation, branched on type: the FieldInput types plus the ones only this scene takes'
+      description: 'A field definition for scene=evaluation, branched on type: the FieldInput types this scene takes plus the ones only it takes'
       required:
       - type
       - label
@@ -27586,6 +28320,7 @@ components:
           - LikertField
           - MatrixField
           - MatrixScaleField
+          - MultipleBlanksField
           - GoodsField
           - FormulaField
           - ReservationField
@@ -27640,6 +28375,7 @@ components:
           LikertField: "#/components/schemas/LikertFieldInput"
           MatrixField: "#/components/schemas/MatrixFieldInput"
           MatrixScaleField: "#/components/schemas/MatrixScaleFieldInput"
+          MultipleBlanksField: "#/components/schemas/MultipleBlanksFieldInput"
           GoodsField: "#/components/schemas/GoodsFieldInput"
           FormulaField: "#/components/schemas/FormulaFieldInput"
           ReservationField: "#/components/schemas/ReservationFieldInput"
@@ -27687,6 +28423,7 @@ components:
       - $ref: '#/components/schemas/LikertFieldInput'
       - $ref: '#/components/schemas/MatrixFieldInput'
       - $ref: '#/components/schemas/MatrixScaleFieldInput'
+      - $ref: '#/components/schemas/MultipleBlanksFieldInput'
       - $ref: '#/components/schemas/GoodsFieldInput'
       - $ref: '#/components/schemas/FormulaFieldInput'
       - $ref: '#/components/schemas/ReservationFieldInput'
@@ -28129,6 +28866,7 @@ components:
           items:
             $ref: '#/components/schemas/ChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -28219,6 +28957,7 @@ components:
           items:
             $ref: '#/components/schemas/ChoiceInput'
           description: Choices
+          maxItems: 1000
         calculable:
           type: boolean
           description: Give each choice a numeric value; when on, every (leaf) choice must carry operand_value
@@ -28338,7 +29077,7 @@ components:
           type:
           - string
           - 'null'
-          description: Default value
+          description: Default mobile number, a mainland China one
         placeholder:
           type:
           - string
@@ -28393,7 +29132,7 @@ components:
           - number
           - string
           - 'null'
-          description: Default value
+          description: Default value, with no more decimal places than precision
         placeholder:
           type:
           - string
@@ -28422,7 +29161,7 @@ components:
           type:
           - string
           - 'null'
-          description: Currency symbol
+          description: Currency symbol, for a table column only
         currency_symbol_position:
           type:
           - string
@@ -28431,7 +29170,7 @@ components:
           - prefix
           - suffix
           -
-          description: Where the currency symbol goes
+          description: Where the currency symbol goes, for a table column only
         icon_type:
           type:
           - string
@@ -28602,7 +29341,7 @@ components:
           type:
           - string
           - 'null'
-          description: Default value
+          description: Default link, starting with http:// or https://
         placeholder:
           type:
           - string
@@ -28817,7 +29556,7 @@ components:
           type:
           - string
           - 'null'
-          description: Currency symbol
+          description: Currency symbol, for a table column only
         currency_symbol_position:
           type:
           - string
@@ -28826,7 +29565,7 @@ components:
           - prefix
           - suffix
           -
-          description: Where the currency symbol goes
+          description: Where the currency symbol goes, for a table column only
         icon_type:
           type:
           - string
@@ -28839,7 +29578,6 @@ components:
           - dollar1
           - cny1
           - sum
-          - text
           - text2
           -
           description: Field icon
@@ -29008,15 +29746,12 @@ components:
           -
         acl_values:
           type: array
-          maxItems: 5000
           items:
             type: string
         grids_to_occupy:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         minimum_length:
@@ -29088,8 +29823,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         minimum_length:
@@ -29127,11 +29860,8 @@ components:
       - range_min
       - range_max
       - precision
-      - display_precision
       - display_as_percentage
       - thousands_separator
-      - currency_symbol
-      - currency_symbol_position
       - icon_type
       - grids_to_occupy
       - start_new_row
@@ -29177,29 +29907,10 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
-          maximum: 14
-        display_precision:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
         display_as_percentage:
           type: boolean
         thousands_separator:
           type: boolean
-        currency_symbol:
-          type:
-          - string
-          - 'null'
-        currency_symbol_position:
-          type:
-          - string
-          - 'null'
-          enum:
-          - prefix
-          - suffix
-          -
         icon_type:
           type:
           - string
@@ -29214,8 +29925,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -29270,8 +29979,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -29345,15 +30052,12 @@ components:
           -
         acl_values:
           type: array
-          maxItems: 5000
           items:
             type: string
         grids_to_occupy:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -29414,15 +30118,12 @@ components:
           -
         acl_values:
           type: array
-          maxItems: 5000
           items:
             type: string
         grids_to_occupy:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -29488,15 +30189,12 @@ components:
           -
         acl_values:
           type: array
-          maxItems: 5000
           items:
             type: string
         grids_to_occupy:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -29576,8 +30274,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         choices:
@@ -29612,6 +30308,8 @@ components:
       - hide_choice_when_quota_empty
       - quota_blank_warning
       - quota_cycle_rule
+      - with_exclusive_choice
+      - exclusive_choice_api_codes
       - grids_to_occupy
       - start_new_row
       - choices
@@ -29648,12 +30346,10 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
         maximum_length:
           type:
           - integer
           - 'null'
-          minimum: 0
         hide_choice_when_quota_empty:
           type: boolean
         quota_blank_warning:
@@ -29669,12 +30365,16 @@ components:
           - per_day
           - per_week
           -
+        with_exclusive_choice:
+          type: boolean
+        exclusive_choice_api_codes:
+          type: array
+          items:
+            type: string
         grids_to_occupy:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         choices:
@@ -29753,8 +30453,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         choices:
@@ -29823,8 +30521,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         start_date:
@@ -29884,8 +30580,6 @@ components:
           - 'null'
         rating_max:
           type: integer
-          minimum: 1
-          maximum: 10
         range_max:
           type:
           - integer
@@ -29939,7 +30633,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
         api_code_alias:
           type:
           - string
@@ -29997,8 +30690,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -30060,8 +30751,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 2
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -30110,13 +30799,10 @@ components:
           type:
           - number
           - 'null'
-          exclusiveMinimum: 0
-          maximum: 500
         max_file_quantity:
           type:
           - integer
           - 'null'
-          minimum: 1
         media_type:
           type:
           - object
@@ -30247,8 +30933,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -30364,8 +31048,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -30507,8 +31189,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 5
         api_code_alias:
           type:
           - string
@@ -30529,7 +31209,6 @@ components:
       - private
       - required
       - levels
-      - choice_filterable
       - random_choices
       - calculable
       - hide_choice_when_quota_empty
@@ -30561,9 +31240,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 2
-        choice_filterable:
-          type: boolean
         random_choices:
           type: boolean
         calculable:
@@ -30587,8 +31263,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         choices:
@@ -30654,12 +31328,10 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
         maximum_length:
           type:
           - integer
           - 'null'
-          minimum: 0
         calculable:
           type: boolean
         choices:
@@ -30690,7 +31362,6 @@ components:
       - private
       - required
       - horizontal_on_mobile
-      - advanced_feature
       - statements
       - dimensions
       - api_code_alias
@@ -30713,8 +31384,6 @@ components:
         required:
           type: boolean
         horizontal_on_mobile:
-          type: boolean
-        advanced_feature:
           type: boolean
         statements:
           type: array
@@ -30774,8 +31443,6 @@ components:
             $ref: '#/components/schemas/FieldStatement'
         rating_max:
           type: integer
-          minimum: 1
-          maximum: 10
         rating_type:
           type:
           - string
@@ -30801,7 +31468,6 @@ components:
       - private
       - required
       - unit
-      - collapse_on_mobile
       - columns_on_mobile
       - goods_items
       - api_code_alias
@@ -30827,14 +31493,10 @@ components:
           type:
           - string
           - 'null'
-          maxLength: 2
-        collapse_on_mobile:
-          type: boolean
         columns_on_mobile:
           type:
           - integer
           - 'null'
-          minimum: 1
         goods_items:
           type: array
           items:
@@ -30863,11 +31525,8 @@ components:
       - result_display_type
       - result_display_as_date
       - precision
-      - display_precision
       - display_as_percentage
       - thousands_separator
-      - currency_symbol
-      - currency_symbol_position
       - icon_type
       - grids_to_occupy
       - start_new_row
@@ -30914,29 +31573,10 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
-          maximum: 14
-        display_precision:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
         display_as_percentage:
           type: boolean
         thousands_separator:
           type: boolean
-        currency_symbol:
-          type:
-          - string
-          - 'null'
-        currency_symbol_position:
-          type:
-          - string
-          - 'null'
-          enum:
-          - prefix
-          - suffix
-          -
         icon_type:
           type:
           - string
@@ -30956,8 +31596,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -30982,7 +31620,6 @@ components:
       - allow_multiple_items
       - item_allow_multiple_reservations
       - allow_multiple_number
-      - use_daily_time_range
       - reservation_items
       - api_code_alias
       - analytics
@@ -31008,8 +31645,6 @@ components:
         item_allow_multiple_reservations:
           type: boolean
         allow_multiple_number:
-          type: boolean
-        use_daily_time_range:
           type: boolean
         reservation_items:
           type: array
@@ -31038,8 +31673,7 @@ components:
       - associated_form_token
       - associated_field_api_codes
       - privacy_safe
-      - allow_reverse_association
-      - reverse_display_field_api_codes
+      - scope_conditions
       - grids_to_occupy
       - start_new_row
       - display_field_api_codes
@@ -31068,29 +31702,68 @@ components:
           type: string
         associated_field_api_codes:
           type: array
-          minItems: 1
-          maxItems: 4
           items:
             type: string
         privacy_safe:
           type: boolean
-        allow_reverse_association:
-          type: boolean
-        reverse_display_field_api_codes:
+        scope_conditions:
           type: array
           items:
-            type: string
+            type: object
+            additionalProperties: false
+            required:
+            - trigger
+            - operator
+            properties:
+              trigger:
+                type: string
+                description: A field of the associated form, as `GET /forms/{associated_form_token}/condition_triggerable_fields` lists it
+              operator:
+                type: string
+                enum:
+                - equal
+                - not_equal
+                - eq
+                - ne
+                - any_in
+                - none_in
+                - between
+                - not_between
+                - gte
+                - gt
+                - lte
+                - lt
+                - 'null'
+                - not_null
+                - like
+                - and
+                - or
+                - not_like
+                - match
+                description: One of the operators that list gives for the field; `equal` / `not_equal` are older ones a kept condition may carry, taken back unchanged but refused on a new condition
+              value:
+                description: Value in the shape that list gives for the field and operator; another shape returns 400 naming the format with an example
+              group_index:
+                type: integer
+                minimum: -2147483648
+                maximum: 2147483647
+              scope_attr:
+                type:
+                - string
+                - 'null'
+                enum:
+                - date_time
+                - api_code
+                -
+                description: "`date_time` for a reservation field tested by its date, as condition_triggerable_fields gives it; leave it out otherwise. `api_code` is how the editor marks a condition on the reservation items, taken back unchanged on a kept condition; a new one leaves it out"
         grids_to_occupy:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         display_field_api_codes:
           type: array
-          maxItems: 20
           items:
             type: string
         api_code_alias:
@@ -31192,6 +31865,8 @@ components:
       - hide_choice_when_quota_empty
       - quota_blank_warning
       - quota_cycle_rule
+      - with_exclusive_choice
+      - exclusive_choice_api_codes
       - choices
       - api_code_alias
       - analytics
@@ -31224,12 +31899,10 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
         maximum_length:
           type:
           - integer
           - 'null'
-          minimum: 0
         hide_choice_when_quota_empty:
           type: boolean
         quota_blank_warning:
@@ -31245,6 +31918,12 @@ components:
           - per_day
           - per_week
           -
+        with_exclusive_choice:
+          type: boolean
+        exclusive_choice_api_codes:
+          type: array
+          items:
+            type: string
         choices:
           type: array
           items:
@@ -31349,7 +32028,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
         api_code_alias:
           type:
           - string
@@ -31366,11 +32044,7 @@ components:
       - api_code
       - type
       - label
-      - notes
-      - private
-      - required
       - buttons_number
-      - fixed_to_bottom
       - buttons
       - api_code_alias
       - analytics
@@ -31383,21 +32057,10 @@ components:
           type:
           - string
           - 'null'
-        notes:
-          type:
-          - string
-          - 'null'
-        private:
-          type: boolean
-        required:
-          type: boolean
         buttons_number:
           type:
           - integer
           - 'null'
-          minimum: 1
-        fixed_to_bottom:
-          type: boolean
         buttons:
           type: array
           items:
@@ -31419,9 +32082,6 @@ components:
       - type
       - label
       - notes
-      - private
-      - required
-      - widget_max_images_number
       - phones
       - widget_images
       - api_code_alias
@@ -31439,15 +32099,6 @@ components:
           type:
           - string
           - 'null'
-        private:
-          type: boolean
-        required:
-          type: boolean
-        widget_max_images_number:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
         phones:
           type: array
           items:
@@ -31484,13 +32135,9 @@ components:
       - type
       - label
       - notes
-      - private
-      - required
       - nav_address
       - longitude
       - latitude
-      - value
-      - localizable_on_mobile
       - api_code_alias
       - analytics
       properties:
@@ -31506,10 +32153,6 @@ components:
           type:
           - string
           - 'null'
-        private:
-          type: boolean
-        required:
-          type: boolean
         nav_address:
           type:
           - string
@@ -31522,12 +32165,6 @@ components:
           type:
           - number
           - 'null'
-        value:
-          type:
-          - string
-          - 'null'
-        localizable_on_mobile:
-          type: boolean
         api_code_alias:
           type:
           - string
@@ -31545,12 +32182,8 @@ components:
       - type
       - label
       - notes
-      - private
-      - required
-      - lines
       - entries_init_number
       - entries_number_visible
-      - marquee_data_type
       - api_code_alias
       - analytics
       properties:
@@ -31566,30 +32199,12 @@ components:
           type:
           - string
           - 'null'
-        private:
-          type: boolean
-        required:
-          type: boolean
-        lines:
-          type:
-          - integer
-          - 'null'
-          minimum: 1
         entries_init_number:
           type:
           - integer
           - 'null'
-          minimum: 0
         entries_number_visible:
           type: boolean
-        marquee_data_type:
-          type:
-          - string
-          - 'null'
-          enum:
-          - fake
-          - real
-          -
         api_code_alias:
           type:
           - string
@@ -31670,8 +32285,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         choices:
@@ -31761,12 +32374,10 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
         maximum_length:
           type:
           - integer
           - 'null'
-          minimum: 0
         hide_choice_when_quota_empty:
           type: boolean
         quota_blank_warning:
@@ -31786,8 +32397,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         choices:
@@ -31964,12 +32573,10 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
         maximum_length:
           type:
           - integer
           - 'null'
-          minimum: 0
         hide_choice_when_quota_empty:
           type: boolean
         quota_blank_warning:
@@ -32086,8 +32693,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         choices:
@@ -32185,8 +32790,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         choices:
@@ -32285,15 +32888,12 @@ components:
           -
         acl_values:
           type: array
-          maxItems: 5000
           items:
             type: string
         grids_to_occupy:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         answers:
@@ -32384,8 +32984,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         answers:
@@ -32439,11 +33037,8 @@ components:
       - range_min
       - range_max
       - precision
-      - display_precision
       - display_as_percentage
       - thousands_separator
-      - currency_symbol
-      - currency_symbol_position
       - icon_type
       - grids_to_occupy
       - start_new_row
@@ -32492,29 +33087,10 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
-          maximum: 14
-        display_precision:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
         display_as_percentage:
           type: boolean
         thousands_separator:
           type: boolean
-        currency_symbol:
-          type:
-          - string
-          - 'null'
-        currency_symbol_position:
-          type:
-          - string
-          - 'null'
-          enum:
-          - prefix
-          - suffix
-          -
         icon_type:
           type:
           - string
@@ -32529,8 +33105,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         answers:
@@ -32599,8 +33173,6 @@ components:
           - 'null'
         rating_max:
           type: integer
-          minimum: 1
-          maximum: 10
         answers:
           type: array
           items:
@@ -32772,8 +33344,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         choices:
@@ -32857,8 +33427,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         choices:
@@ -33217,7 +33785,6 @@ components:
           type:
           - string
           - 'null'
-          description: Question text, in which each ${api_code}$ marks where the blank of that api_code sits; not writable, so a write may only repeat the current value
         api_code_alias:
           type:
           - string
@@ -33269,8 +33836,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -33344,8 +33909,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         choices:
@@ -33423,8 +33986,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         choices:
@@ -33520,8 +34081,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -33583,13 +34142,10 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
-          maximum: 14
         display_precision:
           type:
           - integer
           - 'null'
-          minimum: 0
         display_as_percentage:
           type: boolean
         thousands_separator:
@@ -33620,8 +34176,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -33683,8 +34237,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         start_date:
@@ -33743,8 +34295,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -33798,8 +34348,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -33946,13 +34494,10 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
-          maximum: 14
         display_precision:
           type:
           - integer
           - 'null'
-          minimum: 0
         display_as_percentage:
           type: boolean
         thousands_separator:
@@ -33988,8 +34533,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 1
-          maximum: 3
         start_new_row:
           type: boolean
         api_code_alias:
@@ -34123,6 +34666,7 @@ components:
           LikertField: "#/components/schemas/LikertField"
           MatrixField: "#/components/schemas/MatrixField"
           MatrixScaleField: "#/components/schemas/MatrixScaleField"
+          MultipleBlanksField: "#/components/schemas/MultipleBlanksField"
           GoodsField: "#/components/schemas/GoodsField"
           FormulaField: "#/components/schemas/FormulaField"
           ReservationField: "#/components/schemas/ReservationField"
@@ -34156,7 +34700,6 @@ components:
           Timer: "#/components/schemas/Timer"
           ImageGroup: "#/components/schemas/ImageGroup"
           WidgetVideo: "#/components/schemas/WidgetVideo"
-          MultipleBlanksField: "#/components/schemas/MultipleBlanksField"
       oneOf:
       - $ref: '#/components/schemas/TextField'
       - $ref: '#/components/schemas/TextArea'
@@ -34185,6 +34728,7 @@ components:
       - $ref: '#/components/schemas/LikertField'
       - $ref: '#/components/schemas/MatrixField'
       - $ref: '#/components/schemas/MatrixScaleField'
+      - $ref: '#/components/schemas/MultipleBlanksField'
       - $ref: '#/components/schemas/GoodsField'
       - $ref: '#/components/schemas/FormulaField'
       - $ref: '#/components/schemas/ReservationField'
@@ -34218,7 +34762,6 @@ components:
       - $ref: '#/components/schemas/Timer'
       - $ref: '#/components/schemas/ImageGroup'
       - $ref: '#/components/schemas/WidgetVideo'
-      - $ref: '#/components/schemas/MultipleBlanksField'
     TableColumn:
       type: object
       title: TableColumn
@@ -34632,19 +35175,16 @@ components:
           -
         acl_values:
           type: array
-          maxItems: 5000
           items:
             type: string
         minimum_length:
           type:
           - integer
           - 'null'
-          minimum: 0
         maximum_length:
           type:
           - integer
           - 'null'
-          minimum: 0
         api_code_alias:
           type:
           - string
@@ -34678,9 +35218,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 2
-        choice_filterable:
-          type: boolean
         range_min:
           type:
           - number
@@ -34701,27 +35238,10 @@ components:
             - minute
             - second
           - type: 'null'
-        display_precision:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
         display_as_percentage:
           type: boolean
         thousands_separator:
           type: boolean
-        currency_symbol:
-          type:
-          - string
-          - 'null'
-        currency_symbol_position:
-          type:
-          - string
-          - 'null'
-          enum:
-          - prefix
-          - suffix
-          -
         icon_type:
           type:
           - string
@@ -34734,7 +35254,6 @@ components:
           - formula-2
           - date-2
           - sum
-          - text
           - text2
           -
         formula:
@@ -34771,13 +35290,10 @@ components:
           type:
           - number
           - 'null'
-          exclusiveMinimum: 0
-          maximum: 500
         max_file_quantity:
           type:
           - integer
           - 'null'
-          minimum: 1
         media_type:
           type:
           - object
@@ -34869,7 +35385,6 @@ components:
           -
         acl_values:
           type: array
-          maxItems: 5000
           items:
             type: string
         minimum_length:
@@ -34992,7 +35507,6 @@ components:
           -
         acl_values:
           type: array
-          maxItems: 5000
           items:
             type: string
         api_code_alias:
@@ -35046,12 +35560,10 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
         maximum_length:
           type:
           - integer
           - 'null'
-          minimum: 0
         hide_choice_when_quota_empty:
           type: boolean
         quota_blank_warning:
@@ -35145,7 +35657,6 @@ components:
       - notes
       - private
       - levels
-      - choice_filterable
       - random_choices
       - calculable
       - hide_choice_when_quota_empty
@@ -35172,9 +35683,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 2
-        choice_filterable:
-          type: boolean
         random_choices:
           type: boolean
         calculable:
@@ -35217,11 +35725,8 @@ components:
       - range_min
       - range_max
       - precision
-      - display_precision
       - display_as_percentage
       - thousands_separator
-      - currency_symbol
-      - currency_symbol_position
       - icon_type
       - api_code_alias
       properties:
@@ -35260,29 +35765,10 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
-          maximum: 14
-        display_precision:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
         display_as_percentage:
           type: boolean
         thousands_separator:
           type: boolean
-        currency_symbol:
-          type:
-          - string
-          - 'null'
-        currency_symbol_position:
-          type:
-          - string
-          - 'null'
-          enum:
-          - prefix
-          - suffix
-          -
         icon_type:
           type:
           - string
@@ -35312,11 +35798,8 @@ components:
       - result_display_type
       - result_display_as_date
       - precision
-      - display_precision
       - display_as_percentage
       - thousands_separator
-      - currency_symbol
-      - currency_symbol_position
       - icon_type
       - api_code_alias
       properties:
@@ -35358,29 +35841,10 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
-          maximum: 14
-        display_precision:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
         display_as_percentage:
           type: boolean
         thousands_separator:
           type: boolean
-        currency_symbol:
-          type:
-          - string
-          - 'null'
-        currency_symbol_position:
-          type:
-          - string
-          - 'null'
-          enum:
-          - prefix
-          - suffix
-          -
         icon_type:
           type:
           - string
@@ -35537,13 +36001,10 @@ components:
           type:
           - number
           - 'null'
-          exclusiveMinimum: 0
-          maximum: 500
         max_file_quantity:
           type:
           - integer
           - 'null'
-          minimum: 1
         media_type:
           type:
           - object
@@ -35624,7 +36085,6 @@ components:
           -
         acl_values:
           type: array
-          maxItems: 5000
           items:
             type: string
         api_code_alias:
@@ -36591,7 +37051,7 @@ components:
           type:
           - string
           - 'null'
-          description: Currency symbol
+          description: Currency symbol, for a table column only
         currency_symbol_position:
           type:
           - string
@@ -36600,7 +37060,7 @@ components:
           - prefix
           - suffix
           -
-          description: Where the currency symbol goes
+          description: Where the currency symbol goes, for a table column only
       allOf:
       - description: display_as_percentage and thousands_separator cannot both be true
         not:
@@ -36708,7 +37168,6 @@ components:
           type:
           - integer
           - 'null'
-          minimum: 0
         display_as_percentage:
           type: boolean
         thousands_separator:
@@ -36747,4 +37206,130 @@ components:
       enum:
       - classic
       - card
-      description: Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out
+      description: Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out; a card form takes no new field of those types
+    MultipleBlanksFieldInput:
+      type: object
+      title: MultipleBlanksFieldInput
+      description: MultipleBlanksField field; a form of scene exam / quickpay takes none, on create or in fields.add
+      additionalProperties: false
+      required:
+      - type
+      - label
+      - placeholder
+      properties:
+        type:
+          const: MultipleBlanksField
+        label:
+          type:
+          - string
+          - 'null'
+          description: Field label
+        cid:
+          type: string
+          description: Temporary id within this request, for formulas and the like to refer to
+        notes:
+          type:
+          - string
+          - 'null'
+          description: Text shown under the field label
+        private:
+          type: boolean
+          description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
+        required:
+          type: boolean
+          description: Required
+        position:
+          type: integer
+          minimum: 0
+          description: Target position of the field in the form, from 0; appended at the end by default
+        placeholder:
+          type: string
+          description: Question text, with ${name}$ where each blank goes, e.g. "Room ${room}$, guest ${guest}$"; a name takes letters, digits, _ and -, and appears once. It may hold the HTML a form description takes; scripts and event attributes are removed. Read back, each blank is marked by its api_code; fixed once the field is created, so an update may only repeat it
+        dimensions:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items:
+            $ref: '#/components/schemas/BlankInput'
+          description: The blanks, one per ${name}$; an item whose cid is a name in placeholder fills that blank, then one whose api_code is, and the others fill the rest in order. Left out, each ${name}$ makes a blank
+    BlankInput:
+      type: object
+      title: BlankInput
+      additionalProperties: false
+      description: 'A blank of a MultipleBlanksField. A blank read from another form can be sent as read: a write sets type, label, placeholder, cid, api_code, and takes every other key a blank reads only empty or false, since a blank does not keep it'
+      properties:
+        type:
+          type: string
+          enum:
+          - TextField
+        label:
+          type:
+          - string
+          - 'null'
+          description: Name of the blank; may be empty
+        placeholder:
+          type:
+          - string
+          - 'null'
+          description: Hint shown in the empty blank
+        cid:
+          type: string
+          description: The name its ${name}$ in placeholder uses
+        api_code:
+          type: string
+          description: The name its ${name}$ in placeholder uses, as in a field read from another form; the blank gets a new api_code
+        notes:
+          type:
+          - string
+          - 'null'
+        private:
+          type: boolean
+        predefined_value: {}
+        scannable:
+          type: boolean
+        access_control_list_limit:
+          type: boolean
+        access_control_type:
+          type:
+          - string
+          - 'null'
+          enum:
+          - white
+          - black
+          -
+        acl_values:
+          type: array
+          items:
+            type: string
+        minimum_length:
+          type:
+          - integer
+          - 'null'
+        maximum_length:
+          type:
+          - integer
+          - 'null'
+        api_code_alias:
+          type:
+          - string
+          - 'null'
+    SortChoiceInput:
+      type: object
+      title: SortChoiceInput
+      additionalProperties: false
+      description: A choice to rank; value and name mean the same, give either
+      anyOf:
+      - required:
+        - value
+      - required:
+        - name
+      properties:
+        value:
+          type: string
+          description: Choice label
+        name:
+          type: string
+          description: Same as value
+        api_code:
+          type: string
+          description: The choice api_code; generated by the server when left out, and keeps the identity of the choice on edit

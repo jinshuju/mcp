@@ -262,6 +262,11 @@
     "required": false
    },
    {
+    "name": "include_redirect_rules",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "include_extended_attributes",
     "in": "query",
     "required": false
@@ -282,6 +287,7 @@
    "include_analytics",
    "include_theme",
    "include_field_rules",
+   "include_redirect_rules",
    "include_extended_attributes",
    "include_exam_setting",
    "include_transactions"
@@ -314,6 +320,11 @@
      "type": "boolean",
      "default": false,
      "description": "When `true`, includes `field_rules` (field display rules, the same as the `data` of `GET /forms/{form_token}/field_rules`)."
+    },
+    "include_redirect_rules": {
+     "type": "boolean",
+     "default": false,
+     "description": "When `true`, includes `redirect_rules` (redirect rules, the same as the `data` of `GET /forms/{form_token}/redirect_rules`)."
     },
     "include_extended_attributes": {
      "type": "boolean",
@@ -411,7 +422,7 @@
       "classic",
       "card"
      ],
-     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo, and keeps grids_to_occupy / start_new_row without showing them; to split a form into a few pages or steps, keep classic and add PageBreak fields"
+     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / WidgetContact / WidgetVideo, and keeps grids_to_occupy / start_new_row without showing them; to split a form into a few pages or steps, keep classic and add PageBreak fields"
     }
    },
    "additionalProperties": false,
@@ -430,7 +441,7 @@
  {
   "operationId": "updateForm",
   "summary": "Edit a form",
-  "description": "Edit a form\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `layout`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.\nReturns schema \"Form\" (see get_schema).\nBefore removing a field or choice, check_field_data tells whether it already has entries; removal cannot be undone. To change only field rules, use edit_field_rules.",
+  "description": "Edit a form\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `redirect_rules` / `layout`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns; `redirect_rules` does the same with `GET /forms/{form_token}/redirect_rules`, and adding or changing one needs a plan with the `field_redirect_rules` feature.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.\nReturns schema \"Form\" (see get_schema).\nBefore removing a field or choice, check_field_data tells whether it already has entries; removal cannot be undone. To change only field rules, use edit_field_rules.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",
@@ -469,7 +480,7 @@
       "classic",
       "card"
      ],
-     "description": "Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out"
+     "description": "Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out; a card form takes no new field of those types"
     },
     "name": {
      "type": "string"
@@ -737,7 +748,11 @@
              "description": "New choice label"
             },
             "operand_value": {
-             "type": "number"
+             "type": [
+              "number",
+              "null"
+             ],
+             "description": "Numeric value of the choice; null clears it"
             },
             "selected": {
              "type": "boolean"
@@ -831,7 +846,14 @@
                "number"
               ]
              },
-             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a choice of its first level), a text for like / not_like, [low, high] for between"
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
             }
            },
            "additionalProperties": false
@@ -908,7 +930,161 @@
                "number"
               ]
              },
-             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a choice of its first level), a text for like / not_like, [low, high] for between"
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      }
+     },
+     "additionalProperties": false
+    },
+    "redirect_rules": {
+     "type": "object",
+     "description": "Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature",
+     "properties": {
+      "add": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "Used by update only: index of the rule to change (0-based)"
+         },
+         "redirect_url": {
+          "type": "string",
+          "description": "Where a submission that meets the conditions goes; an address without `http://` or `https://` is opened with `http://`"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "How the conditions are combined, defaults to or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger",
+            "value"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "api_code of the trigger field"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "Comparator, defaults to the first one the field supports; an unsupported one returns 400 listing the available comparators"
+            },
+            "value": {
+             "type": [
+              "string",
+              "number",
+              "array"
+             ],
+             "items": {
+              "type": [
+               "string",
+               "number"
+              ]
+             },
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      },
+      "remove": {
+       "type": "array",
+       "items": {
+        "type": "integer"
+       }
+      },
+      "update": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "Used by update only: index of the rule to change (0-based)"
+         },
+         "redirect_url": {
+          "type": "string",
+          "description": "Where a submission that meets the conditions goes; an address without `http://` or `https://` is opened with `http://`"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "How the conditions are combined, defaults to or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger",
+            "value"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "api_code of the trigger field"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "Comparator, defaults to the first one the field supports; an unsupported one returns 400 listing the available comparators"
+            },
+            "value": {
+             "type": [
+              "string",
+              "number",
+              "array"
+             ],
+             "items": {
+              "type": [
+               "string",
+               "number"
+              ]
+             },
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
             }
            },
            "additionalProperties": false
@@ -1952,7 +2128,7 @@
     },
     "entry": {
      "type": "object",
-     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| Mobile number taking international numbers | A mainland China number alone; a number of another country or region also needs `\"<api_code>_intl_mobile_no_country_id\"` (such as `\"US\"`) and `\"<api_code>_intl_mobile_no_country_code\"` (such as `\"1\"`) |\n",
      "additionalProperties": true,
      "examples": [
       {
@@ -2037,7 +2213,7 @@
     },
     "entry": {
      "type": "object",
-     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| Mobile number taking international numbers | A mainland China number alone; a number of another country or region also needs `\"<api_code>_intl_mobile_no_country_id\"` (such as `\"US\"`) and `\"<api_code>_intl_mobile_no_country_code\"` (such as `\"1\"`) |\n",
      "additionalProperties": true,
      "examples": [
       {
@@ -2181,7 +2357,7 @@
      "maxItems": 200,
      "items": {
       "type": "object",
-      "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+      "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| Mobile number taking international numbers | A mainland China number alone; a number of another country or region also needs `\"<api_code>_intl_mobile_no_country_id\"` (such as `\"US\"`) and `\"<api_code>_intl_mobile_no_country_code\"` (such as `\"1\"`) |\n",
       "additionalProperties": true,
       "examples": [
        {
@@ -2271,7 +2447,7 @@
        },
        "entry": {
         "type": "object",
-        "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| International mobile number | Also pass `\"<api_code>_country_id\"` / `\"<api_code>_country_code\"` |\n",
+        "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| Mobile number taking international numbers | A mainland China number alone; a number of another country or region also needs `\"<api_code>_intl_mobile_no_country_id\"` (such as `\"US\"`) and `\"<api_code>_intl_mobile_no_country_code\"` (such as `\"1\"`) |\n",
         "additionalProperties": true,
         "examples": [
          {
@@ -3932,7 +4108,7 @@
  {
   "operationId": "createFormView",
   "summary": "Create a view on a form",
-  "description": "Create a view on a form\nCreates a new view on the form, created by the caller; visibility defaults to cooperators when not passed, and position is the highest position among the currently visible views plus 1. Each user can have at most 100 views on one form; at the limit, returns 422 (View limit reached). When view_type is kanban and kanban_group_by_api_code is not passed, the server picks the grouping field; when kanban_hidden_groups is not passed, the __unset__ group is hidden by default; when prefer_columns is empty, the form's default columns are used (at most 5 columns for a kanban view, serial_number included), except for a public view (allowed_audience public), which returns 422 without prefer_columns. Returns 422 when filter is invalid (not an array, unknown field, unsupported operator, invalid value). Returns 422 when model validation fails (e.g. name is empty or longer than 120 characters, or the grouping field does not support kanban grouping). Form views (view_type form): supported only on tables, otherwise 422; title defaults to the table name; without field_overrides, all fillable columns are selected in the current column order; published defaults to false (the fill link does not work while unpublished). title / description / published / field_overrides apply only to form views; using them on another type returns 422. Creating, updating or deleting a form view (including switching a view to or from a form view) requires the caller to hold a predefined role on the table that can add entries, otherwise 403; an account token is exempt. Returns 422 when a fill item's column does not exist, cannot be a fill item, or sets a validation its column type does not support; the error message names the column's api_code. allowed_audience, search_field_api_codes and privacy_protected_field_api_codes, and any change to or deletion of a public view, take manage permission on the form; on a form whose account does not have public views yet, those three keys return 403.",
+  "description": "Create a view on a form\nCreates a new view on the form, created by the caller; visibility defaults to cooperators when not passed, and position is the highest position among the currently visible views plus 1. Each user can have at most 100 views on one form; at the limit, returns 422 (View limit reached). When view_type is kanban and kanban_group_by_api_code is not passed, the server picks the grouping field; when kanban_hidden_groups is not passed, the __unset__ group is hidden by default; when prefer_columns is empty, the form's default columns are used (at most 5 columns for a kanban view, serial_number included). Returns 422 when filter is invalid (not an array, unknown field, unsupported operator, invalid value). Returns 422 when model validation fails (e.g. name is empty or longer than 120 characters, or the grouping field does not support kanban grouping). Form views (view_type form): supported only on tables, otherwise 422; title defaults to the table name; without field_overrides, all fillable columns are selected in the current column order; published defaults to false (the fill link does not work while unpublished). title / description / published / field_overrides apply only to form views; using them on another type returns 422. Creating, updating or deleting a form view (including switching a view to or from a form view) requires the caller to hold a predefined role on the table that can add entries, otherwise 403; an account token is exempt. Returns 422 when a fill item's column does not exist, cannot be a fill item, or sets a validation its column type does not support; the error message names the column's api_code.",
   "tag": "Views",
   "method": "post",
   "path": "/forms/{form_token}/views",
@@ -4001,7 +4177,7 @@
  {
   "operationId": "updateFormView",
   "summary": "Update a view of a form",
-  "description": "Update a view of a form\nUpdates the view's configuration; PUT is accepted too. Only the keys present in the request are updated: an empty array for filter clears the filters, and leaving filter out keeps them unchanged; when kanban_group_by_api_code changes and kanban_group_order / kanban_hidden_groups are not passed with it, those two lists reset to their defaults. Cooperators can change the configuration of a view visible to cooperators, but only the view's creator can switch visibility, otherwise returns 403; a view whose view_scope is form cannot switch visibility. Returns 422 when filter is invalid or model validation fails. field_overrides replaces the fill item settings as a whole; form views have the same permission requirements and parameter limits as on create. allowed_audience, search_field_api_codes and privacy_protected_field_api_codes, and any change to or deletion of a public view, take manage permission on the form; on a form whose account does not have public views yet, those three keys return 403.",
+  "description": "Update a view of a form\nUpdates the view's configuration; PUT is accepted too. Only the keys present in the request are updated: an empty array for filter clears the filters, and leaving filter out keeps them unchanged; when kanban_group_by_api_code changes and kanban_group_order / kanban_hidden_groups are not passed with it, those two lists reset to their defaults. Cooperators can change the configuration of a view visible to cooperators, but only the view's creator can switch visibility, otherwise returns 403; a view whose view_scope is form cannot switch visibility. Returns 422 when filter is invalid or model validation fails. field_overrides replaces the fill item settings as a whole; form views have the same permission requirements and parameter limits as on create.",
   "tag": "Views",
   "method": "patch",
   "path": "/forms/{form_token}/views/{view_token}",
@@ -4071,7 +4247,7 @@
  {
   "operationId": "deleteFormView",
   "summary": "Delete a view of a form",
-  "description": "Delete a view of a form\nDeletes a view. Predefined views (predefined) and views whose view_scope is form cannot be deleted, and the deletion is also refused when it would leave the caller with no visible view; all of these return 422. Deleting a form view needs the same permission as creating one (otherwise 403); once it is deleted, its fill link stops working immediately, and this cannot be undone. allowed_audience, search_field_api_codes and privacy_protected_field_api_codes, and any change to or deletion of a public view, take manage permission on the form.",
+  "description": "Delete a view of a form\nDeletes a view. Predefined views (predefined) and views whose view_scope is form cannot be deleted, and the deletion is also refused when it would leave the caller with no visible view; all of these return 422. Deleting a form view needs the same permission as creating one (otherwise 403); once it is deleted, its fill link stops working immediately, and this cannot be undone.",
   "tag": "Views",
   "method": "delete",
   "path": "/forms/{form_token}/views/{view_token}",
@@ -4664,7 +4840,7 @@
  {
   "operationId": "updateTable",
   "summary": "Edit a table",
-  "description": "Edit a table\nEdits a table incrementally; `PUT` is also accepted. The request body is the same as for editing a form (`kind` is ignored); attachment columns in `fields.add` and `fields.update` do not accept limit properties, and types in `fields.add` must be column types tables support.\nReturns schema \"Table\" (see get_schema).",
+  "description": "Edit a table\nEdits a table incrementally; `PUT` is also accepted. The request body is the same as for editing a form (`kind` is ignored), except that `redirect_rules` is refused; attachment columns in `fields.add` and `fields.update` do not accept limit properties, and types in `fields.add` must be column types tables support.\nReturns schema \"Table\" (see get_schema).",
   "tag": "Tables",
   "method": "patch",
   "path": "/tables/{table_token}",
@@ -4703,7 +4879,7 @@
       "classic",
       "card"
      ],
-     "description": "Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out"
+     "description": "Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out; a card form takes no new field of those types"
     },
     "name": {
      "type": "string"
@@ -4971,7 +5147,11 @@
              "description": "New choice label"
             },
             "operand_value": {
-             "type": "number"
+             "type": [
+              "number",
+              "null"
+             ],
+             "description": "Numeric value of the choice; null clears it"
             },
             "selected": {
              "type": "boolean"
@@ -5065,7 +5245,14 @@
                "number"
               ]
              },
-             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a choice of its first level), a text for like / not_like, [low, high] for between"
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
             }
            },
            "additionalProperties": false
@@ -5142,7 +5329,161 @@
                "number"
               ]
              },
-             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a choice of its first level), a text for like / not_like, [low, high] for between"
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      }
+     },
+     "additionalProperties": false
+    },
+    "redirect_rules": {
+     "type": "object",
+     "description": "Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature",
+     "properties": {
+      "add": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "Used by update only: index of the rule to change (0-based)"
+         },
+         "redirect_url": {
+          "type": "string",
+          "description": "Where a submission that meets the conditions goes; an address without `http://` or `https://` is opened with `http://`"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "How the conditions are combined, defaults to or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger",
+            "value"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "api_code of the trigger field"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "Comparator, defaults to the first one the field supports; an unsupported one returns 400 listing the available comparators"
+            },
+            "value": {
+             "type": [
+              "string",
+              "number",
+              "array"
+             ],
+             "items": {
+              "type": [
+               "string",
+               "number"
+              ]
+             },
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      },
+      "remove": {
+       "type": "array",
+       "items": {
+        "type": "integer"
+       }
+      },
+      "update": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "Used by update only: index of the rule to change (0-based)"
+         },
+         "redirect_url": {
+          "type": "string",
+          "description": "Where a submission that meets the conditions goes; an address without `http://` or `https://` is opened with `http://`"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "How the conditions are combined, defaults to or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger",
+            "value"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "api_code of the trigger field"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "Comparator, defaults to the first one the field supports; an unsupported one returns 400 listing the available comparators"
+            },
+            "value": {
+             "type": [
+              "string",
+              "number",
+              "array"
+             ],
+             "items": {
+              "type": [
+               "string",
+               "number"
+              ]
+             },
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
             }
            },
            "additionalProperties": false
@@ -5930,7 +6271,8 @@
       "goods_item",
       "contact_widget",
       "reservation_item",
-      "wheel_fortune_prize"
+      "wheel_fortune_prize",
+      "weixin_share_icon"
      ],
      "description": "What the image is for"
     }
@@ -6173,7 +6515,8 @@
       "goods_item",
       "contact_widget",
       "reservation_item",
-      "wheel_fortune_prize"
+      "wheel_fortune_prize",
+      "weixin_share_icon"
      ],
      "description": "What the image is for"
     },
@@ -6413,7 +6756,14 @@
              "number"
             ]
            },
-           "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a choice of its first level), a text for like / not_like, [low, high] for between"
+           "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+          },
+          "parent_choices": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
           }
          },
          "additionalProperties": false
@@ -6490,7 +6840,14 @@
              "number"
             ]
            },
-           "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a choice of its first level), a text for like / not_like, [low, high] for between"
+           "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+          },
+          "parent_choices": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
           }
          },
          "additionalProperties": false
@@ -6567,7 +6924,7 @@
       "classic",
       "card"
      ],
-     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo, and keeps grids_to_occupy / start_new_row without showing them; to split a form into a few pages or steps, keep classic and add PageBreak fields"
+     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / WidgetContact / WidgetVideo, and keeps grids_to_occupy / start_new_row without showing them; to split a form into a few pages or steps, keep classic and add PageBreak fields"
     },
     "scene": {
      "type": "string",
@@ -6800,7 +7157,7 @@
  {
   "operationId": "updateForm",
   "summary": "Edit a form",
-  "description": "Edits an exam form: name / description / adding, removing and changing questions / general settings, plus the exam settings in exam_setting. Updates the exam settings first (a form that is not an exam is refused, and nothing else changes), then the form itself.\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `layout`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
+  "description": "Edits an exam form: name / description / adding, removing and changing questions / general settings, plus the exam settings in exam_setting. Updates the exam settings first (a form that is not an exam is refused, and nothing else changes), then the form itself.\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `redirect_rules` / `layout`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns; `redirect_rules` does the same with `GET /forms/{form_token}/redirect_rules`, and adding or changing one needs a plan with the `field_redirect_rules` feature.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",
@@ -6839,7 +7196,7 @@
       "classic",
       "card"
      ],
-     "description": "Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out"
+     "description": "Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out; a card form takes no new field of those types"
     },
     "name": {
      "type": "string"
@@ -7107,7 +7464,11 @@
              "description": "New choice label"
             },
             "operand_value": {
-             "type": "number"
+             "type": [
+              "number",
+              "null"
+             ],
+             "description": "Numeric value of the choice; null clears it"
             },
             "selected": {
              "type": "boolean"
@@ -7201,7 +7562,14 @@
                "number"
               ]
              },
-             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a choice of its first level), a text for like / not_like, [low, high] for between"
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
             }
            },
            "additionalProperties": false
@@ -7278,7 +7646,161 @@
                "number"
               ]
              },
-             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a choice of its first level), a text for like / not_like, [low, high] for between"
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      }
+     },
+     "additionalProperties": false
+    },
+    "redirect_rules": {
+     "type": "object",
+     "description": "Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature",
+     "properties": {
+      "add": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "Used by update only: index of the rule to change (0-based)"
+         },
+         "redirect_url": {
+          "type": "string",
+          "description": "Where a submission that meets the conditions goes; an address without `http://` or `https://` is opened with `http://`"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "How the conditions are combined, defaults to or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger",
+            "value"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "api_code of the trigger field"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "Comparator, defaults to the first one the field supports; an unsupported one returns 400 listing the available comparators"
+            },
+            "value": {
+             "type": [
+              "string",
+              "number",
+              "array"
+             ],
+             "items": {
+              "type": [
+               "string",
+               "number"
+              ]
+             },
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      },
+      "remove": {
+       "type": "array",
+       "items": {
+        "type": "integer"
+       }
+      },
+      "update": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "Used by update only: index of the rule to change (0-based)"
+         },
+         "redirect_url": {
+          "type": "string",
+          "description": "Where a submission that meets the conditions goes; an address without `http://` or `https://` is opened with `http://`"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "How the conditions are combined, defaults to or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger",
+            "value"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "api_code of the trigger field"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "Comparator, defaults to the first one the field supports; an unsupported one returns 400 listing the available comparators"
+            },
+            "value": {
+             "type": [
+              "string",
+              "number",
+              "array"
+             ],
+             "items": {
+              "type": [
+               "string",
+               "number"
+              ]
+             },
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
             }
            },
            "additionalProperties": false
@@ -7567,7 +8089,7 @@
       "classic",
       "card"
      ],
-     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo, and keeps grids_to_occupy / start_new_row without showing them; to split a form into a few pages or steps, keep classic and add PageBreak fields"
+     "description": "Layout; applies only when scene is survey / form / exam / evaluation; card is the paged layout, one field per page: it cannot hold PageBreak / WidgetContact / WidgetVideo, and keeps grids_to_occupy / start_new_row without showing them; to split a form into a few pages or steps, keep classic and add PageBreak fields"
     },
     "scene": {
      "type": "string",
@@ -7601,7 +8123,7 @@
  {
   "operationId": "updateForm",
   "summary": "Edit a form",
-  "description": "Edits an evaluation form: name / description / adding, removing and changing questions / general settings, plus the evaluation settings in evaluation_setting. Updates the evaluation settings first, then the form itself. Scored questions write answers / answer_setting_mode as in create_evaluation_form (one answer per choice, with relative).\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `layout`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
+  "description": "Edits an evaluation form: name / description / adding, removing and changing questions / general settings, plus the evaluation settings in evaluation_setting. Updates the evaluation settings first, then the form itself. Scored questions write answers / answer_setting_mode as in create_evaluation_form (one answer per choice, with relative).\nEdits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `redirect_rules` / `layout`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns; `redirect_rules` does the same with `GET /forms/{form_token}/redirect_rules`, and adding or changing one needs a plan with the `field_redirect_rules` feature.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",
@@ -7640,7 +8162,7 @@
       "classic",
       "card"
      ],
-     "description": "Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / MultipleBlanksField / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out"
+     "description": "Switches the layout; only a form of scene survey / form / exam / evaluation takes card, a table never. Switching keeps the fields and the theme as they are, PageBreak / WidgetContact / WidgetVideo and grids_to_occupy / start_new_row included, which the paged fill page may leave out; a card form takes no new field of those types"
     },
     "name": {
      "type": "string"
@@ -7908,7 +8430,11 @@
              "description": "New choice label"
             },
             "operand_value": {
-             "type": "number"
+             "type": [
+              "number",
+              "null"
+             ],
+             "description": "Numeric value of the choice; null clears it"
             },
             "selected": {
              "type": "boolean"
@@ -8002,7 +8528,14 @@
                "number"
               ]
              },
-             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a choice of its first level), a text for like / not_like, [low, high] for between"
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
             }
            },
            "additionalProperties": false
@@ -8079,7 +8612,161 @@
                "number"
               ]
              },
-             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a choice of its first level), a text for like / not_like, [low, high] for between"
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      }
+     },
+     "additionalProperties": false
+    },
+    "redirect_rules": {
+     "type": "object",
+     "description": "Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature",
+     "properties": {
+      "add": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "Used by update only: index of the rule to change (0-based)"
+         },
+         "redirect_url": {
+          "type": "string",
+          "description": "Where a submission that meets the conditions goes; an address without `http://` or `https://` is opened with `http://`"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "How the conditions are combined, defaults to or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger",
+            "value"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "api_code of the trigger field"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "Comparator, defaults to the first one the field supports; an unsupported one returns 400 listing the available comparators"
+            },
+            "value": {
+             "type": [
+              "string",
+              "number",
+              "array"
+             ],
+             "items": {
+              "type": [
+               "string",
+               "number"
+              ]
+             },
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
+            }
+           },
+           "additionalProperties": false
+          }
+         }
+        },
+        "additionalProperties": false
+       }
+      },
+      "remove": {
+       "type": "array",
+       "items": {
+        "type": "integer"
+       }
+      },
+      "update": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "index": {
+          "type": "integer",
+          "description": "Used by update only: index of the rule to change (0-based)"
+         },
+         "redirect_url": {
+          "type": "string",
+          "description": "Where a submission that meets the conditions goes; an address without `http://` or `https://` is opened with `http://`"
+         },
+         "operator": {
+          "type": "string",
+          "enum": [
+           "or",
+           "and"
+          ],
+          "description": "How the conditions are combined, defaults to or"
+         },
+         "conditions": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "required": [
+            "trigger",
+            "value"
+           ],
+           "properties": {
+            "trigger": {
+             "type": "string",
+             "description": "api_code of the trigger field"
+            },
+            "comparator": {
+             "type": "string",
+             "description": "Comparator, defaults to the first one the field supports; an unsupported one returns 400 listing the available comparators"
+            },
+            "value": {
+             "type": [
+              "string",
+              "number",
+              "array"
+             ],
+             "items": {
+              "type": [
+               "string",
+               "number"
+              ]
+             },
+             "description": "Value to compare with: a choice value or an array of them (on a cascading drop-down, a first-level choice, or the api_code of a deeper one together with parent_choices), a text for like / not_like, [low, high] for between"
+            },
+            "parent_choices": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             },
+             "description": "On a cascading drop-down, the api_codes of the choices above `value`, from the first level; leave out for a first-level choice"
             }
            },
            "additionalProperties": false

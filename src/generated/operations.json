@@ -115,6 +115,11 @@
     "required": false
    },
    {
+    "name": "include_redirect_rules",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "include_extended_attributes",
     "in": "query",
     "required": false
@@ -135,6 +140,7 @@
    "include_analytics",
    "include_theme",
    "include_field_rules",
+   "include_redirect_rules",
    "include_extended_attributes",
    "include_exam_setting",
    "include_transactions"
@@ -177,7 +183,7 @@
  "updateForm": {
   "operationId": "updateForm",
   "summary": "Edit a form",
-  "description": "Edits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `layout`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
+  "description": "Edits a form partially; also accepts `PUT`. The request body must contain at least one of `name` / `description` / `fields` / `setting` / `field_rules` / `redirect_rules` / `layout`, otherwise returns 400.\n- `fields` is changed incrementally through four kinds of operation, `add` / `remove` / `update` / `update_choices`; fields, choices and api_codes not mentioned are all kept;\n  `update[].type` changes a field's type in place, and a change that clears entry data must carry `confirm_data_loss: true`;\n  exam questions and customized fields (Department / Grade) cannot change type in place — remove the field and add a new one instead.\n- `field_rules` does `add` / `remove` / `update` on rules located by the `index` that `GET /forms/{form_token}/field_rules` returns; `redirect_rules` does the same with `GET /forms/{form_token}/redirect_rules`, and adding or changing one needs a plan with the `field_redirect_rules` feature.\n- `setting`, as on create, accepts only whitelisted keys.\nReturns the full updated form structure.",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",
@@ -287,7 +293,7 @@
  "listFormConditionTriggerableFields": {
   "operationId": "listFormConditionTriggerableFields",
   "summary": "List the fields a filter condition can use",
-  "description": "Read before writing filter conditions (the `scope_conditions` of a routine or a notification rule, a view's `filter`): lists the fields a condition can name and, for each operator a field takes, what its `value` holds. Write conditions as the examples show.\n- A condition is `{ \"trigger\": <trigger>, \"operator\": <operator>, \"value\": <an example> }`, with `\"scope_attr\"` added when the field's is not null; leave `value` out when the example is `null`.\n- Use only the fields and operators listed here.\n- For a routine's `event.scope_conditions`, ask with `fields_context=routine`: a routine filters only on its source's own fields, and formula and linked fields are left out.\n- A cooperator gets only the fields their role can read.",
+  "description": "Read before writing filter conditions (the `scope_conditions` of a routine or a notification rule, a view's `filter`, or the `scope_conditions` of a FormAssociation, read on its associated form): lists the fields a condition can name and, for each operator a field takes, what its `value` holds. Write conditions as the examples show.\n- A condition is `{ \"trigger\": <trigger>, \"operator\": <operator>, \"value\": <an example> }`, with `\"scope_attr\"` added when the field's is not null; leave `value` out when the example is `null`.\n- Use only the fields and operators listed here.\n- For a routine's `event.scope_conditions`, ask with `fields_context=routine`: a routine filters only on its source's own fields, and formula and linked fields are left out.\n- A cooperator gets only the fields their role can read.",
   "tag": "Forms",
   "method": "get",
   "path": "/forms/{form_token}/condition_triggerable_fields",
@@ -1173,7 +1179,7 @@
  "getFormSetting": {
   "operationId": "getFormSetting",
   "summary": "Show a form's settings",
-  "description": "Returns the form's after-submission settings, collection rules (closing rules, fill frequency), access policy, WeChat restrictions and Webhook settings.\nThe `weixin` key is returned only when the form has a WeChat Official Account selected (selected_weixin_appid is present).",
+  "description": "Returns the form's after-submission settings, collection rules (closing rules, fill frequency), access policy, WeChat restrictions, the card shown when shared in WeChat and Webhook settings.\nThe `weixin` key is returned only when the form has a WeChat Official Account selected (selected_weixin_appid is present).",
   "tag": "Form Settings",
   "method": "get",
   "path": "/forms/{form_token}/setting",
@@ -1849,6 +1855,28 @@
    "forms"
   ]
  },
+ "listRedirectRules": {
+  "operationId": "listRedirectRules",
+  "summary": "Show a form's redirect rules",
+  "description": "Returns the form's effective redirect rules: a submission that meets a rule's conditions goes to its `redirect_url` instead of the success page, on a plan with the `field_redirect_rules` feature. `index` is the 0-based position; redirect_rules updates and removals in PATCH /forms/{form_token} locate rules by this index.",
+  "tag": "Forms",
+  "method": "get",
+  "path": "/forms/{form_token}/redirect_rules",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ]
+ },
  "listExtendedAttributes": {
   "operationId": "listExtendedAttributes",
   "summary": "List the source-tracking links",
@@ -2002,7 +2030,7 @@
  "createFormView": {
   "operationId": "createFormView",
   "summary": "Create a view on a form",
-  "description": "Creates a new view on the form, created by the caller; visibility defaults to cooperators when not passed, and position is the highest position among the currently visible views plus 1. Each user can have at most 100 views on one form; at the limit, returns 422 (View limit reached). When view_type is kanban and kanban_group_by_api_code is not passed, the server picks the grouping field; when kanban_hidden_groups is not passed, the __unset__ group is hidden by default; when prefer_columns is empty, the form's default columns are used (at most 5 columns for a kanban view, serial_number included), except for a public view (allowed_audience public), which returns 422 without prefer_columns. Returns 422 when filter is invalid (not an array, unknown field, unsupported operator, invalid value). Returns 422 when model validation fails (e.g. name is empty or longer than 120 characters, or the grouping field does not support kanban grouping). Form views (view_type form): supported only on tables, otherwise 422; title defaults to the table name; without field_overrides, all fillable columns are selected in the current column order; published defaults to false (the fill link does not work while unpublished). title / description / published / field_overrides apply only to form views; using them on another type returns 422. Creating, updating or deleting a form view (including switching a view to or from a form view) requires the caller to hold a predefined role on the table that can add entries, otherwise 403; an account token is exempt. Returns 422 when a fill item's column does not exist, cannot be a fill item, or sets a validation its column type does not support; the error message names the column's api_code. allowed_audience, search_field_api_codes and privacy_protected_field_api_codes, and any change to or deletion of a public view, take manage permission on the form; on a form whose account does not have public views yet, those three keys return 403.",
+  "description": "Creates a new view on the form, created by the caller; visibility defaults to cooperators when not passed, and position is the highest position among the currently visible views plus 1. Each user can have at most 100 views on one form; at the limit, returns 422 (View limit reached). When view_type is kanban and kanban_group_by_api_code is not passed, the server picks the grouping field; when kanban_hidden_groups is not passed, the __unset__ group is hidden by default; when prefer_columns is empty, the form's default columns are used (at most 5 columns for a kanban view, serial_number included). Returns 422 when filter is invalid (not an array, unknown field, unsupported operator, invalid value). Returns 422 when model validation fails (e.g. name is empty or longer than 120 characters, or the grouping field does not support kanban grouping). Form views (view_type form): supported only on tables, otherwise 422; title defaults to the table name; without field_overrides, all fillable columns are selected in the current column order; published defaults to false (the fill link does not work while unpublished). title / description / published / field_overrides apply only to form views; using them on another type returns 422. Creating, updating or deleting a form view (including switching a view to or from a form view) requires the caller to hold a predefined role on the table that can add entries, otherwise 403; an account token is exempt. Returns 422 when a fill item's column does not exist, cannot be a fill item, or sets a validation its column type does not support; the error message names the column's api_code.",
   "tag": "Views",
   "method": "post",
   "path": "/forms/{form_token}/views",
@@ -2060,7 +2088,7 @@
  "updateFormView": {
   "operationId": "updateFormView",
   "summary": "Update a view of a form",
-  "description": "Updates the view's configuration; PUT is accepted too. Only the keys present in the request are updated: an empty array for filter clears the filters, and leaving filter out keeps them unchanged; when kanban_group_by_api_code changes and kanban_group_order / kanban_hidden_groups are not passed with it, those two lists reset to their defaults. Cooperators can change the configuration of a view visible to cooperators, but only the view's creator can switch visibility, otherwise returns 403; a view whose view_scope is form cannot switch visibility. Returns 422 when filter is invalid or model validation fails. field_overrides replaces the fill item settings as a whole; form views have the same permission requirements and parameter limits as on create. allowed_audience, search_field_api_codes and privacy_protected_field_api_codes, and any change to or deletion of a public view, take manage permission on the form; on a form whose account does not have public views yet, those three keys return 403.",
+  "description": "Updates the view's configuration; PUT is accepted too. Only the keys present in the request are updated: an empty array for filter clears the filters, and leaving filter out keeps them unchanged; when kanban_group_by_api_code changes and kanban_group_order / kanban_hidden_groups are not passed with it, those two lists reset to their defaults. Cooperators can change the configuration of a view visible to cooperators, but only the view's creator can switch visibility, otherwise returns 403; a view whose view_scope is form cannot switch visibility. Returns 422 when filter is invalid or model validation fails. field_overrides replaces the fill item settings as a whole; form views have the same permission requirements and parameter limits as on create.",
   "tag": "Views",
   "method": "patch",
   "path": "/forms/{form_token}/views/{view_token}",
@@ -2095,7 +2123,7 @@
  "deleteFormView": {
   "operationId": "deleteFormView",
   "summary": "Delete a view of a form",
-  "description": "Deletes a view. Predefined views (predefined) and views whose view_scope is form cannot be deleted, and the deletion is also refused when it would leave the caller with no visible view; all of these return 422. Deleting a form view needs the same permission as creating one (otherwise 403); once it is deleted, its fill link stops working immediately, and this cannot be undone. allowed_audience, search_field_api_codes and privacy_protected_field_api_codes, and any change to or deletion of a public view, take manage permission on the form.",
+  "description": "Deletes a view. Predefined views (predefined) and views whose view_scope is form cannot be deleted, and the deletion is also refused when it would leave the caller with no visible view; all of these return 422. Deleting a form view needs the same permission as creating one (otherwise 403); once it is deleted, its fill link stops working immediately, and this cannot be undone.",
   "tag": "Views",
   "method": "delete",
   "path": "/forms/{form_token}/views/{view_token}",
@@ -2172,6 +2200,109 @@
    "read_entries"
   ],
   "responseSchema": "EntryListResponse"
+ },
+ "listFormPublishedArtifacts": {
+  "operationId": "listFormPublishedArtifacts",
+  "summary": "List the shared pages that use a form",
+  "description": "Lists the shared pages (HTML artifacts) whose published version writes to this form or table, or shows its data, with what each page shows and whether reading the data was granted or stopped; the most recently changed first.\n- Paging: `next` is a row offset; pass it back unchanged for the next page. Only one of `next`, `page` and `skip` can be passed. 50 per page by default, `limit` changes it (at most 1000).",
+  "tag": "Artifacts",
+  "method": "get",
+  "path": "/forms/{form_token}/published_artifacts",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "limit",
+   "next",
+   "page",
+   "skip"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "FormPublishedArtifactListResponse"
+ },
+ "restoreFormPublishedArtifactDataGrant": {
+  "operationId": "restoreFormPublishedArtifactDataGrant",
+  "summary": "Let a stopped shared page show a form's data again",
+  "description": "Lets the page's audience read this form's data through it again, granted in the current user's name.",
+  "tag": "Artifacts",
+  "method": "post",
+  "path": "/forms/{form_token}/published_artifacts/{published_artifact_token}/data_grant",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "published_artifact_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "published_artifact_token"
+  ],
+  "successStatus": 201,
+  "scopes": [
+   "forms"
+  ]
+ },
+ "revokeFormPublishedArtifactDataGrant": {
+  "operationId": "revokeFormPublishedArtifactDataGrant",
+  "summary": "Stop a shared page showing a form's data",
+  "description": "Stops the shared page reading this form's data at once; the page itself stays shared. Sharing the page again does not undo it: a manager of this form restores it with POST.",
+  "tag": "Artifacts",
+  "method": "delete",
+  "path": "/forms/{form_token}/published_artifacts/{published_artifact_token}/data_grant",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "published_artifact_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "published_artifact_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ]
  },
  "uploadEntryAttachment": {
   "operationId": "uploadEntryAttachment",
@@ -3351,7 +3482,7 @@
  "updateTable": {
   "operationId": "updateTable",
   "summary": "Edit a table",
-  "description": "Edits a table incrementally; `PUT` is also accepted. The request body is the same as for editing a form (`kind` is ignored); attachment columns in `fields.add` and `fields.update` do not accept limit properties, and types in `fields.add` must be column types tables support.",
+  "description": "Edits a table incrementally; `PUT` is also accepted. The request body is the same as for editing a form (`kind` is ignored), except that `redirect_rules` is refused; attachment columns in `fields.add` and `fields.update` do not accept limit properties, and types in `fields.add` must be column types tables support.",
   "tag": "Tables",
   "method": "patch",
   "path": "/tables/{table_token}",
@@ -3457,6 +3588,109 @@
    "forms"
   ],
   "responseSchema": "FieldTypeChangePreviewResponse"
+ },
+ "listTablePublishedArtifacts": {
+  "operationId": "listTablePublishedArtifacts",
+  "summary": "List the shared pages that use a table",
+  "description": "Same as GET /forms/{form_token}/published_artifacts, for a table.",
+  "tag": "Artifacts",
+  "method": "get",
+  "path": "/tables/{table_token}/published_artifacts",
+  "params": [
+   {
+    "name": "table_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "table_token",
+   "limit",
+   "next",
+   "page",
+   "skip"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "FormPublishedArtifactListResponse"
+ },
+ "restoreTablePublishedArtifactDataGrant": {
+  "operationId": "restoreTablePublishedArtifactDataGrant",
+  "summary": "Let a stopped shared page show a table's data again",
+  "description": "Same as POST /forms/{form_token}/published_artifacts/{published_artifact_token}/data_grant, for a table.",
+  "tag": "Artifacts",
+  "method": "post",
+  "path": "/tables/{table_token}/published_artifacts/{published_artifact_token}/data_grant",
+  "params": [
+   {
+    "name": "table_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "published_artifact_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "table_token",
+   "published_artifact_token"
+  ],
+  "successStatus": 201,
+  "scopes": [
+   "forms"
+  ]
+ },
+ "revokeTablePublishedArtifactDataGrant": {
+  "operationId": "revokeTablePublishedArtifactDataGrant",
+  "summary": "Stop a shared page showing a table's data",
+  "description": "Same as DELETE /forms/{form_token}/published_artifacts/{published_artifact_token}/data_grant, for a table.",
+  "tag": "Artifacts",
+  "method": "delete",
+  "path": "/tables/{table_token}/published_artifacts/{published_artifact_token}/data_grant",
+  "params": [
+   {
+    "name": "table_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "published_artifact_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "table_token",
+   "published_artifact_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ]
  },
  "listTableConditionTriggerableFields": {
   "operationId": "listTableConditionTriggerableFields",
@@ -4833,6 +5067,29 @@
    "artifacts"
   ],
   "responseSchema": "PublishedArtifact"
+ },
+ "listArtifactDataSources": {
+  "operationId": "listArtifactDataSources",
+  "summary": "List the data an artifact's page shows",
+  "description": "Returns the form and table data an HTML artifact's page reads, as declared when it was delivered: whoever the page is shared with can read it through the page. Empty for a page that reads none.",
+  "tag": "Artifacts",
+  "method": "get",
+  "path": "/artifacts/{artifact_id}/data_sources",
+  "params": [
+   {
+    "name": "artifact_id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "artifact_id"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "artifacts"
+  ],
+  "responseSchema": "ArtifactDataSourceListResponse"
  },
  "createTemplateUsage": {
   "operationId": "createTemplateUsage",
