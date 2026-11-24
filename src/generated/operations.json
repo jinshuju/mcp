@@ -211,7 +211,7 @@
  "deleteForm": {
   "operationId": "deleteForm",
   "summary": "Delete a form",
-  "description": "Moves the form and its entries to the trash, from which the product can restore it; on success, returns the form token.",
+  "description": "Moves the form and its entries to the trash, from which the product can restore it within 2 years; on success, returns the form token.\n- `GET /forms/{form_token}/deletion_preview` shows what the delete affects, and whether it would be refused.\n- A quickpay page (`kind: quickpay` in the preview) has no trash: deleting it cannot be undone.",
   "tag": "Forms",
   "method": "delete",
   "path": "/forms/{form_token}",
@@ -229,6 +229,29 @@
   "scopes": [
    "forms"
   ]
+ },
+ "previewFormDeletion": {
+  "operationId": "previewFormDeletion",
+  "summary": "Preview deleting a form",
+  "description": "Use before `DELETE /forms/{form_token}`: changes nothing, and tells whether the delete would be refused and what it affects.",
+  "tag": "Forms",
+  "method": "get",
+  "path": "/forms/{form_token}/deletion_preview",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "DeletionPreview"
  },
  "checkFormFieldData": {
   "operationId": "checkFormFieldData",
@@ -1571,6 +1594,198 @@
   ],
   "responseSchema": "NotificationListResponse"
  },
+ "listOpenResults": {
+  "operationId": "listOpenResults",
+  "summary": "List result shares",
+  "description": "Lists the form's result shares (`结果分享`), newest first: links that show the form's entries and statistics to whoever opens them.",
+  "tag": "Form Settings",
+  "method": "get",
+  "path": "/forms/{form_token}/open_results",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ]
+ },
+ "createOpenResult": {
+  "operationId": "createOpenResult",
+  "summary": "Create a result share",
+  "description": "Creates a result share (`结果分享`) and returns its link in `url`. Visitors see the values of `readable_field_api_codes` entry by entry and the statistics of `report_field_api_codes`; a list left out shows nothing of its kind.\n- Keys left out take the settings page's quick-creation defaults: `allowed_audience` public, enabled, no password, `privacy_protected_field_api_codes` every field that supports privacy protection, and answer explanations shown on exam forms.\n- A password takes `password_required: true` and `access_password` together; `access_password` alone is refused.\n- Only forms have result shares, not tables or quick payment forms.\n- The plan must include `结果分享` and caps how many a form can have.",
+  "tag": "Form Settings",
+  "method": "post",
+  "path": "/forms/{form_token}/open_results",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "OpenResult"
+ },
+ "getOpenResult": {
+  "operationId": "getOpenResult",
+  "summary": "Get a result share",
+  "description": "Returns the result share and its link.",
+  "tag": "Form Settings",
+  "method": "get",
+  "path": "/forms/{form_token}/open_results/{token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "OpenResult"
+ },
+ "updateOpenResult": {
+  "operationId": "updateOpenResult",
+  "summary": "Update a result share",
+  "description": "Changes the keys present in the body; a field list given replaces the stored one. The link stays the same.\n- `access_password` is taken only while `password_required` is true, sent or already on; `password_required: false` clears the password.\n- A share whose `allowed_audience` is `submitter_only` or `sms_verification` keeps it: changing it here is refused, and so is any change to a `submitter_only` share whose submitter group is gone. Both are fixed on the settings page.",
+  "tag": "Form Settings",
+  "method": "patch",
+  "path": "/forms/{form_token}/open_results/{token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "OpenResult"
+ },
+ "deleteOpenResult": {
+  "operationId": "deleteOpenResult",
+  "summary": "Delete a result share",
+  "description": "Deletes the result share; its link stops working.",
+  "tag": "Form Settings",
+  "method": "delete",
+  "path": "/forms/{form_token}/open_results/{token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ]
+ },
+ "getUserFormSetting": {
+  "operationId": "getUserFormSetting",
+  "summary": "Show my settings of a form",
+  "description": "Returns the caller's own settings of the form (reminders, favorite, the view the data page opens on), not the form's notification rules; any role on the form has them.\n- These settings belong to a person: an account access token returns `400`.",
+  "tag": "Form Settings",
+  "method": "get",
+  "path": "/forms/{form_token}/user_form_setting",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "UserFormSetting"
+ },
+ "updateUserFormSetting": {
+  "operationId": "updateUserFormSetting",
+  "summary": "Change my settings of a form",
+  "description": "Changes the caller's own settings of the form, as the product page does: the reminders, the favorite, and the view the data page opens on.\n- Turning a reminder on takes data read rights on the form, or `403`; turning one off does not.\n- Turning on a WeChat reminder needs `weixin_bind` from `GET /forms/{form_token}/user_form_setting`, and turning on `email_notification` needs an email on the account (`email` from `GET /me`); otherwise `400`. Send the user to `page_url` to link one, then retry.\n- These settings belong to a person: an account access token returns `400`.",
+  "tag": "Form Settings",
+  "method": "patch",
+  "path": "/forms/{form_token}/user_form_setting",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "form_setting"
+  ],
+  "responseSchema": "UserFormSetting"
+ },
  "updateFormTheme": {
   "operationId": "updateFormTheme",
   "summary": "Update a form's theme",
@@ -1917,6 +2132,33 @@
    "form_token"
   ],
   "successStatus": 200,
+  "scopes": [
+   "forms"
+  ]
+ },
+ "createFormCooperators": {
+  "operationId": "createFormCooperators",
+  "summary": "Add cooperators to a form",
+  "description": "Adds members of the caller's account to the form, all with one predefined role, as adding team members on the form's cooperation page does; no invitation is sent.\n- `user_ids` are ids of active members from GET /billing_account/users. If any of them is deactivated, outside the account, or already a cooperator on the form (also through a folder), nothing is added.\n- A table has only the manager and data_viewer roles.\n- Outside the Enterprise plans, each form has a fixed number of cooperator seats besides its creator; a request needing more seats than are left adds nobody.",
+  "tag": "Forms",
+  "method": "post",
+  "path": "/forms/{form_token}/cooperators",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
   "scopes": [
    "forms"
   ]
@@ -3510,7 +3752,7 @@
  "deleteTable": {
   "operationId": "deleteTable",
   "summary": "Delete a table",
-  "description": "Deletes a table and its entries; on success, returns the table token.",
+  "description": "Moves the table and its entries to the trash, from which the product can restore it within 2 years; on success, returns the table token.\n- `GET /tables/{table_token}/deletion_preview` shows what the delete affects.",
   "tag": "Tables",
   "method": "delete",
   "path": "/tables/{table_token}",
@@ -3528,6 +3770,29 @@
   "scopes": [
    "forms"
   ]
+ },
+ "previewTableDeletion": {
+  "operationId": "previewTableDeletion",
+  "summary": "Preview deleting a table",
+  "description": "Use before `DELETE /tables/{table_token}`: changes nothing, and tells what the delete affects.",
+  "tag": "Tables",
+  "method": "get",
+  "path": "/tables/{table_token}/deletion_preview",
+  "params": [
+   {
+    "name": "table_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "table_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "DeletionPreview"
  },
  "checkTableFieldData": {
   "operationId": "checkTableFieldData",

@@ -623,6 +623,21 @@
                "type": "boolean",
                "description": "Selected by default"
               },
+              "description_text": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "description": "Text shown under the choice (its description); give this or description_url, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
+              },
+              "description_url": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "format": "uri",
+               "description": "An http or https link the choice description opens instead of a text; give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
+              },
               "is_other": {
                "type": "boolean",
                "description": "Make this the \"Other\" choice (choosing it shows a text box); its text is kept as written. A choice whose text is exactly `其他` or `其它` needs no flag. Only for RadioButton / CheckBox / DropDown"
@@ -694,6 +709,21 @@
               "selected": {
                "type": "boolean",
                "description": "Selected by default"
+              },
+              "description_text": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "description": "Text shown under the choice (its description); give this or description_url, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
+              },
+              "description_url": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "format": "uri",
+               "description": "An http or https link the choice description opens instead of a text; give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
               },
               "image_url": {
                "type": "string",
@@ -769,6 +799,20 @@
              "type": "integer",
              "minimum": 1,
              "description": "Places to give back to a single choice, multiple choice or drop-down choice with a limit, keeping the limit, as deleting an entry does; the places left stop at the limit"
+            },
+            "description_text": {
+             "type": [
+              "string",
+              "null"
+             ],
+             "description": "Text shown under the choice (its description); null removes it. Give this or description_url, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it"
+            },
+            "description_url": {
+             "type": [
+              "string",
+              "null"
+             ],
+             "description": "An http or https link the choice description opens instead of a text; null removes it. Give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it"
             }
            },
            "additionalProperties": false
@@ -1175,7 +1219,7 @@
  {
   "operationId": "deleteForm",
   "summary": "Delete a form",
-  "description": "Delete a form\nMoves the form and its entries to the trash, from which the product can restore it; on success, returns the form token.",
+  "description": "Delete a form\nMoves the form and its entries to the trash, from which the product can restore it within 2 years; on success, returns the form token.\n- `GET /forms/{form_token}/deletion_preview` shows what the delete affects, and whether it would be refused.\n- A quickpay page (`kind: quickpay` in the preview) has no trash: deleting it cannot be undone.",
   "tag": "Forms",
   "method": "delete",
   "path": "/forms/{form_token}",
@@ -5022,6 +5066,21 @@
                "type": "boolean",
                "description": "Selected by default"
               },
+              "description_text": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "description": "Text shown under the choice (its description); give this or description_url, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
+              },
+              "description_url": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "format": "uri",
+               "description": "An http or https link the choice description opens instead of a text; give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
+              },
               "is_other": {
                "type": "boolean",
                "description": "Make this the \"Other\" choice (choosing it shows a text box); its text is kept as written. A choice whose text is exactly `其他` or `其它` needs no flag. Only for RadioButton / CheckBox / DropDown"
@@ -5093,6 +5152,21 @@
               "selected": {
                "type": "boolean",
                "description": "Selected by default"
+              },
+              "description_text": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "description": "Text shown under the choice (its description); give this or description_url, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
+              },
+              "description_url": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "format": "uri",
+               "description": "An http or https link the choice description opens instead of a text; give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
               },
               "image_url": {
                "type": "string",
@@ -5168,6 +5242,20 @@
              "type": "integer",
              "minimum": 1,
              "description": "Places to give back to a single choice, multiple choice or drop-down choice with a limit, keeping the limit, as deleting an entry does; the places left stop at the limit"
+            },
+            "description_text": {
+             "type": [
+              "string",
+              "null"
+             ],
+             "description": "Text shown under the choice (its description); null removes it. Give this or description_url, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it"
+            },
+            "description_url": {
+             "type": [
+              "string",
+              "null"
+             ],
+             "description": "An http or https link the choice description opens instead of a text; null removes it. Give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it"
             }
            },
            "additionalProperties": false
@@ -6958,6 +7046,14 @@
       "need_attention": {
        "type": "string"
       },
+      "show_dispatcher_structure": {
+       "type": "boolean",
+       "description": "Show need_attention on the page before the exam starts; with show_question_settings_structure also false, examinees go straight to the questions"
+      },
+      "show_question_settings_structure": {
+       "type": "boolean",
+       "description": "Show the question structure (how many questions of each type) on the page before the exam starts"
+      },
       "success_message_rich_text": {
        "type": "string",
        "description": "Rich-text message shown after the exam is handed in; written only when the plan supports showing scores"
@@ -7339,6 +7435,21 @@
                "type": "boolean",
                "description": "Selected by default"
               },
+              "description_text": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "description": "Text shown under the choice (its description); give this or description_url, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
+              },
+              "description_url": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "format": "uri",
+               "description": "An http or https link the choice description opens instead of a text; give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
+              },
               "is_other": {
                "type": "boolean",
                "description": "Make this the \"Other\" choice (choosing it shows a text box); its text is kept as written. A choice whose text is exactly `其他` or `其它` needs no flag. Only for RadioButton / CheckBox / DropDown"
@@ -7410,6 +7521,21 @@
               "selected": {
                "type": "boolean",
                "description": "Selected by default"
+              },
+              "description_text": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "description": "Text shown under the choice (its description); give this or description_url, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
+              },
+              "description_url": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "format": "uri",
+               "description": "An http or https link the choice description opens instead of a text; give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
               },
               "image_url": {
                "type": "string",
@@ -7485,6 +7611,20 @@
              "type": "integer",
              "minimum": 1,
              "description": "Places to give back to a single choice, multiple choice or drop-down choice with a limit, keeping the limit, as deleting an entry does; the places left stop at the limit"
+            },
+            "description_text": {
+             "type": [
+              "string",
+              "null"
+             ],
+             "description": "Text shown under the choice (its description); null removes it. Give this or description_url, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it"
+            },
+            "description_url": {
+             "type": [
+              "string",
+              "null"
+             ],
+             "description": "An http or https link the choice description opens instead of a text; null removes it. Give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it"
             }
            },
            "additionalProperties": false
@@ -7839,6 +7979,14 @@
       },
       "need_attention": {
        "type": "string"
+      },
+      "show_dispatcher_structure": {
+       "type": "boolean",
+       "description": "Show need_attention on the page before the exam starts; with show_question_settings_structure also false, examinees go straight to the questions"
+      },
+      "show_question_settings_structure": {
+       "type": "boolean",
+       "description": "Show the question structure (how many questions of each type) on the page before the exam starts"
       },
       "success_message_rich_text": {
        "type": "string",
@@ -8305,6 +8453,21 @@
                "type": "boolean",
                "description": "Selected by default"
               },
+              "description_text": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "description": "Text shown under the choice (its description); give this or description_url, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
+              },
+              "description_url": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "format": "uri",
+               "description": "An http or https link the choice description opens instead of a text; give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
+              },
               "is_other": {
                "type": "boolean",
                "description": "Make this the \"Other\" choice (choosing it shows a text box); its text is kept as written. A choice whose text is exactly `其他` or `其它` needs no flag. Only for RadioButton / CheckBox / DropDown"
@@ -8376,6 +8539,21 @@
               "selected": {
                "type": "boolean",
                "description": "Selected by default"
+              },
+              "description_text": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "description": "Text shown under the choice (its description); give this or description_url, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
+              },
+              "description_url": {
+               "type": [
+                "string",
+                "null"
+               ],
+               "format": "uri",
+               "description": "An http or https link the choice description opens instead of a text; give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it; table and matrix columns do not"
               },
               "image_url": {
                "type": "string",
@@ -8451,6 +8629,20 @@
              "type": "integer",
              "minimum": 1,
              "description": "Places to give back to a single choice, multiple choice or drop-down choice with a limit, keeping the limit, as deleting an entry does; the places left stop at the limit"
+            },
+            "description_text": {
+             "type": [
+              "string",
+              "null"
+             ],
+             "description": "Text shown under the choice (its description); null removes it. Give this or description_url, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it"
+            },
+            "description_url": {
+             "type": [
+              "string",
+              "null"
+             ],
+             "description": "An http or https link the choice description opens instead of a text; null removes it. Give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it"
             }
            },
            "additionalProperties": false

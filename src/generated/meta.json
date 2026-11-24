@@ -3,11 +3,11 @@
     "title": "Jinshuju API v1",
     "version": "1.0",
     "apiVersion": "2026-11-12",
-    "sha256": "7469027843f6bd82"
+    "sha256": "741549200d716ca3"
   },
   "baseUrl": "https://jinshuju.net/api/v1",
   "toolCount": 65,
-  "operationCount": 206,
+  "operationCount": 216,
   "tools": {
     "list_forms": "listForms",
     "get_form": "getForm",
