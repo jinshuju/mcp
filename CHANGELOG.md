@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.0](https://github.com/jinshuju/mcp/compare/v0.10.0...v0.11.0) (2026-11-24)
+
+
+### Features
+
+* add fields hide_quota, description_text, description_url and 12 more; update tool delete_form ([b9b2f9f](https://github.com/jinshuju/mcp/commit/b9b2f9f76a95c032cdcf8946e5ff2ee76fb9298d))
+* add fields quota_blank_warning and 23 more; update tools list_entries and 3 more ([ac83fba](https://github.com/jinshuju/mcp/commit/ac83fba9fa3786f28301fa4c4ef9fbafe35214cb))
+* add fields with_exclusive_choice and 20 more; update tools create_entry and 12 more ([556d420](https://github.com/jinshuju/mcp/commit/556d420ce82bd7cf3d48cdd384a1b16947cdb5b4))
+
 ## [0.10.0](https://github.com/jinshuju/mcp/compare/v0.9.0...v0.10.0) (2026-11-17)
 
 
