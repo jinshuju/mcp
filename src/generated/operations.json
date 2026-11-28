@@ -130,6 +130,11 @@
     "required": false
    },
    {
+    "name": "include_evaluation_setting",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "include_transactions",
     "in": "query",
     "required": false
@@ -143,6 +148,7 @@
    "include_redirect_rules",
    "include_extended_attributes",
    "include_exam_setting",
+   "include_evaluation_setting",
    "include_transactions"
   ],
   "successStatus": 200,
@@ -1869,7 +1875,7 @@
  "getEvaluationSetting": {
   "operationId": "getEvaluationSetting",
   "summary": "Show a form's evaluation settings",
-  "description": "Returns an evaluation form's report display, dimension (indicator) settings and total score range comments.\nOnly for forms in the evaluation scene (scene = evaluation); otherwise returns 400. Returns an empty object `{}` when the form has no evaluation settings record yet.",
+  "description": "Returns an evaluation form's report display, dimension (indicator) settings, total score range comments, time limit and random questions.\nOnly for forms in the evaluation scene (scene = evaluation); otherwise returns 400. Returns an empty object `{}` when the form has no evaluation settings record yet.",
   "tag": "Form Settings",
   "method": "get",
   "path": "/forms/{form_token}/evaluation_setting",
@@ -1892,7 +1898,7 @@
  "updateEvaluationSetting": {
   "operationId": "updateEvaluationSetting",
   "summary": "Update a form's evaluation settings",
-  "description": "Partially updates an evaluation form's settings (schema `EvaluationSettingInput`).\n- `evaluation_comments` replaces the total score range comments as a whole (an empty array turns them off) and takes effect only when `notice_after_filling_mode`, passed or already saved, is reports / customize. A comment written with conditions in the form editor reads back as `id` + `conditions`; pass it back under that id, where only `comment` / `retry` can change.\n- `indicator_setting.indicators` replaces the dimensions as a whole; pass `api_code` back to keep a dimension. A dimension binds visible scorable questions by `field_api_codes` or `field_cids`.",
+  "description": "Partially updates an evaluation form's settings (schema `EvaluationSettingInput`).\n- `evaluation_comments` replaces the total score range comments as a whole (an empty array turns them off) and takes effect only when `notice_after_filling_mode`, passed or already saved, is reports / customize. A comment written with conditions in the form editor reads back as `id` + `conditions`; pass it back under that id, where only `comment` / `retry` can change.\n- `indicator_setting.indicators` replaces the dimensions as a whole; pass `api_code` back to keep a dimension, and of its other keys only those passed change (`name` is always passed). A dimension binds visible scorable questions by `field_api_codes` or `field_cids`.\n- Keys left out of `indicator_setting` keep their values. Left out, `enabled` turns on when dimensions are added to a form that had none and off when `indicators` is empty, as in the form editor.\n- When the radar module turns on or off (it is on when `enabled` is true and there are dimensions), `show_report_radar` and `show_indicator_comments` follow it unless they are passed.",
   "tag": "Form Settings",
   "method": "patch",
   "path": "/forms/{form_token}/evaluation_setting",
@@ -2139,7 +2145,7 @@
  "createFormCooperators": {
   "operationId": "createFormCooperators",
   "summary": "Add cooperators to a form",
-  "description": "Adds members of the caller's account to the form, all with one predefined role, as adding team members on the form's cooperation page does; no invitation is sent.\n- `user_ids` are ids of active members from GET /billing_account/users. If any of them is deactivated, outside the account, or already a cooperator on the form (also through a folder), nothing is added.\n- A table has only the manager and data_viewer roles.\n- Outside the Enterprise plans, each form has a fixed number of cooperator seats besides its creator; a request needing more seats than are left adds nobody.",
+  "description": "Adds members of the caller's account to the form, all with one predefined role, as adding team members on the form's cooperation page does; no invitation is sent.\n- Takes the predefined admin role on the form (a custom role does not count; an account token needs none) and, on an Enterprise form, membership of its account.\n- `user_ids` are ids of active members from GET /billing_account/users. If any of them is deactivated, outside the account, or already a cooperator on the form (also through a folder), nothing is added.\n- A table has only the manager and data_viewer roles.\n- Outside the Enterprise plans, each form has a fixed number of cooperator seats besides its creator; a request needing more seats than are left adds nobody.",
   "tag": "Forms",
   "method": "post",
   "path": "/forms/{form_token}/cooperators",
@@ -2159,6 +2165,68 @@
    "flatten": true
   },
   "successStatus": 201,
+  "scopes": [
+   "forms"
+  ]
+ },
+ "updateFormCooperator": {
+  "operationId": "updateFormCooperator",
+  "summary": "Change a cooperator's role",
+  "description": "Gives the cooperator another predefined role, as changing a role on the form's cooperation page does.\n- Takes the predefined admin role on the form (a custom role does not count; an account token needs none) and, on an Enterprise form, membership of its account.\n- A table has only the manager and data_viewer roles.\n- The form's creator and its only manager keep the manager role.\n- A cooperator whose role comes from a folder the form is in gets this role on the form itself, which takes precedence over the folder's.",
+  "tag": "Forms",
+  "method": "patch",
+  "path": "/forms/{form_token}/cooperators/{user_id}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "user_id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "user_id"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "Cooperator"
+ },
+ "deleteFormCooperator": {
+  "operationId": "deleteFormCooperator",
+  "summary": "Remove a cooperator",
+  "description": "Removes the user from the form's cooperators, as removing them on the form's cooperation page does.\n- Takes the predefined admin role on the form (a custom role does not count; an account token needs none) and, on an Enterprise form, membership of its account; a cooperator removing themselves to leave the form needs neither, unless a folder the form is in also gives them a role.\n- The form's creator and its only manager cannot be removed.\n- A role that comes from a folder the form is in can only be removed on that folder; when the user also has a role on the form itself, that one is removed and the folder's then applies, as `role` in the response says.",
+  "tag": "Forms",
+  "method": "delete",
+  "path": "/forms/{form_token}/cooperators/{user_id}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "user_id",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "user_id"
+  ],
+  "successStatus": 200,
   "scopes": [
    "forms"
   ]
@@ -2246,6 +2314,199 @@
    "write_entries"
   ],
   "responseSchema": "FormWeixinOauthSession"
+ },
+ "listPseudoForms": {
+  "operationId": "listPseudoForms",
+  "summary": "List a form's pseudo forms",
+  "description": "Lists the form's pseudo forms (prefilled links: the fill page with some fields already filled in), newest first, the ones made in the web app included. Takes manage permission on the form.",
+  "tag": "Forms",
+  "method": "get",
+  "path": "/forms/{form_token}/pseudo_forms",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "limit",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "page",
+    "in": "query",
+    "required": false
+   },
+   {
+    "name": "skip",
+    "in": "query",
+    "required": false
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "limit",
+   "next",
+   "page",
+   "skip"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "PseudoFormListResponse"
+ },
+ "createPseudoForm": {
+  "operationId": "createPseudoForm",
+  "summary": "Create a pseudo form",
+  "description": "Creates a pseudo form: a fill link (`fill_url`) that opens the form with the fields in `values` already filled in; an entry submitted through it keeps those values whatever the filler types. Takes manage permission on the form.\n- For one link per row of a list, use `POST /forms/{form_token}/pseudo_forms/batch`.",
+  "tag": "Forms",
+  "method": "post",
+  "path": "/forms/{form_token}/pseudo_forms",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "PseudoForm"
+ },
+ "createPseudoFormsBatch": {
+  "operationId": "createPseudoFormsBatch",
+  "summary": "Create pseudo forms in batch",
+  "description": "Creates one pseudo form per item of `pseudo_forms`, up to 200 at a time. Each item is checked on its own: valid ones are created, invalid ones are listed in `errors` by `index` (the position in the request array). Takes manage permission on the form.",
+  "tag": "Forms",
+  "method": "post",
+  "path": "/forms/{form_token}/pseudo_forms/batch",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "PseudoFormBatchCreateResult"
+ },
+ "deletePseudoFormsBatch": {
+  "operationId": "deletePseudoFormsBatch",
+  "summary": "Delete pseudo forms in batch",
+  "description": "Deletes the form's pseudo forms named in `tokens`, up to 200 at a time; their fill links stop working, and this cannot be undone. Tokens that name none of the form's pseudo forms come back in `not_found_tokens`. Takes manage permission on the form.",
+  "tag": "Forms",
+  "method": "delete",
+  "path": "/forms/{form_token}/pseudo_forms/batch",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "PseudoFormBatchDeleteResult"
+ },
+ "updatePseudoForm": {
+  "operationId": "updatePseudoForm",
+  "summary": "Update a pseudo form",
+  "description": "Renames a pseudo form or changes its preset values: the fields named in `values` change, a field set to null loses its preset, and the fields left out keep theirs. Takes manage permission on the form.",
+  "tag": "Forms",
+  "method": "patch",
+  "path": "/forms/{form_token}/pseudo_forms/{pseudo_form_token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "pseudo_form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "pseudo_form_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ],
+  "responseSchema": "PseudoForm"
+ },
+ "deletePseudoForm": {
+  "operationId": "deletePseudoForm",
+  "summary": "Delete a pseudo form",
+  "description": "Deletes a pseudo form; its fill link stops working, and this cannot be undone. Takes manage permission on the form.",
+  "tag": "Forms",
+  "method": "delete",
+  "path": "/forms/{form_token}/pseudo_forms/{pseudo_form_token}",
+  "params": [
+   {
+    "name": "form_token",
+    "in": "path",
+    "required": true
+   },
+   {
+    "name": "pseudo_form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "form_token",
+   "pseudo_form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ]
  },
  "listFormViews": {
   "operationId": "listFormViews",
@@ -5136,6 +5397,28 @@
   ],
   "responseSchema": "OpensearchQuery"
  },
+ "deleteOpensearchQuery": {
+  "operationId": "deleteOpensearchQuery",
+  "summary": "Delete a public query",
+  "description": "Deletes a public query the caller created; on success, returns the query token. Nothing restores it, and its link stops working for good.\n- To close the link for now and keep the query, update it with `enabled: false` instead.",
+  "tag": "OpenSearch",
+  "method": "delete",
+  "path": "/opensearch/queries/{query_token}",
+  "params": [
+   {
+    "name": "query_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "query_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "forms"
+  ]
+ },
  "listOpensearchQuerySuggestions": {
   "operationId": "listOpensearchQuerySuggestions",
   "summary": "Suggest fields for a public query",
@@ -6470,7 +6753,7 @@
  "searchEntriesAcrossForms": {
   "operationId": "searchEntriesAcrossForms",
   "summary": "Search entries across forms",
-  "description": "Runs one keyword as a full-text search across several forms / tables and returns, per form, the match count and some of the matching serial numbers (at most 50 per form), without entry content.\n- Search scope: the forms in `form_tokens` when given; otherwise every form and table the caller can access (for an account access token, every form and table in the account).\n  Either way, `filters` then narrows the scope; unless `filters` specifies `entries_count`, only forms with entries are searched by default (`entries_count > 0`).\n- The scope holds at most 10 forms; beyond that it returns 400: narrow it with `filters`, or pass `form_tokens` directly.\n- Forms with no match are left out of the result; forms that cannot be accessed, where the caller's role does not allow reading entries, whose search timed out or whose search service did not respond are listed with `unavailable` giving the reason (this does not mean there was no match).",
+  "description": "Runs one keyword as a full-text search across several forms / tables and returns, per form, the match count and some of the matching serial numbers (at most 50 per form), without entry content.\n- Search scope: the forms in `form_tokens` when given; otherwise every form and table the caller can access (for an account access token, every form and table in the account).\n  Either way, `filters` then narrows the scope; unless `filters` specifies `entries_count`, only forms with entries are searched by default (`entries_count > 0`).\n- Without `form_tokens` the scope has no size limit: forms are searched newest first until the call's time runs out. `unsearched_count` then says how many were left and `next` resumes after the last one searched (pass the same `keyword` and `filters` with it); repeat until `next` is null. `form_tokens` takes at most 10.\n- Forms with no match are left out of the result; forms that cannot be accessed, where the caller's role does not allow reading entries, whose search timed out or whose search service did not respond are listed with `unavailable` giving the reason (this does not mean there was no match). Forms counted in `unsearched_count` were not searched either.",
   "tag": "Entries",
   "method": "get",
   "path": "/entries/search",
@@ -6491,12 +6774,18 @@
     "in": "query",
     "required": false,
     "json": true
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
    }
   ],
   "paramNames": [
    "keyword",
    "form_tokens",
-   "filters"
+   "filters",
+   "next"
   ],
   "successStatus": 200,
   "scopes": [
@@ -6785,6 +7074,57 @@
   ],
   "paramNames": [
    "view_token"
+  ],
+  "body": {
+   "contentType": "application/json",
+   "required": true,
+   "flatten": true
+  },
+  "successStatus": 201,
+  "scopes": [
+   "submit_entries"
+  ],
+  "responseSchema": "FillEntryCreated"
+ },
+ "getFillPseudoFormPage": {
+  "operationId": "getFillPseudoFormPage",
+  "summary": "Show a pseudo form's fill page",
+  "description": "Reads the fill page behind a prefilled link (`/pf/<token>`): its title, description, the fields to fill in, the values already filled in (`predefined_values`), and whether the current user can submit right now.\nThe caller reads it as a submitter holding the link and needs no permission on the form; only what the fill page shows is returned.\n- Submit through the API only when `status.key` is `open` and `blockers` is empty; otherwise `status.message` says why, and a non-empty `blockers` means the page must be filled in a browser.\n- The fields in `predefined_values` need no answer: a submission keeps those values whatever it says.\n- Needs a personal access token or OAuth: an account access token has no current user.",
+  "tag": "Fill",
+  "method": "get",
+  "path": "/fill/pf/{pseudo_form_token}",
+  "params": [
+   {
+    "name": "pseudo_form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "pseudo_form_token"
+  ],
+  "successStatus": 200,
+  "scopes": [
+   "submit_entries"
+  ],
+  "responseSchema": "FillPage"
+ },
+ "createFillPseudoFormEntry": {
+  "operationId": "createFillPseudoFormEntry",
+  "summary": "Submit an entry through a pseudo form's fill page",
+  "description": "Submits one entry through the prefilled fill page as the current user, the same as clicking \"Submit\" on the page: only fields visible on the fill page are accepted, required fields are checked as the fill page sets them, and the submitter is recorded as the current user.\n- The preset values (`predefined_values` of the fill page) are submitted as they are, whatever `entry` says for those fields.\n- Each user can submit at most 30 times per hour.\n- Needs a personal access token or OAuth: an account access token has no current user.",
+  "tag": "Fill",
+  "method": "post",
+  "path": "/fill/pf/{pseudo_form_token}/entries",
+  "params": [
+   {
+    "name": "pseudo_form_token",
+    "in": "path",
+    "required": true
+   }
+  ],
+  "paramNames": [
+   "pseudo_form_token"
   ],
   "body": {
    "contentType": "application/json",

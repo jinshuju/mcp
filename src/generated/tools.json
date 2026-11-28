@@ -155,7 +155,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Filterable fields and operators:\n| field | type | operators |\n|---|---|---|\n| `form_name` | text | `eq` `ne` `any_in` `none_in` `like` `not_like` |\n| `created_at` | time | `eq` `ne` `gte` `gt` `lte` `lt` `within_last` |\n| `last_entry_created_at` | time | same as above (forms that have never received an entry have no value) |\n| `entries_count` | integer | `eq` `ne` `gte` `gt` `lte` `lt` |\n\nThe value of `within_last` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month), meaning the window going back from now.\nExample: `[{\"field\":\"last_entry_created_at\",\"operator\":\"within_last\",\"value\":{\"unit\":\"day\",\"n\":7}}]`\n"
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Filterable fields and operators:\n| field | type | operators |\n|---|---|---|\n| `form_name` | text | `eq` `ne` `any_in` `none_in` `like` `not_like` |\n| `created_at` | time | `eq` `ne` `gte` `gt` `lte` `lt` `within_last` |\n| `last_entry_created_at` | time | same as above (forms that have never received an entry have no value) |\n| `entries_count` | integer | `eq` `ne` `gte` `gt` `lte` `lt` |\n| `folder_token` | text | `eq` `any_in` (the folder the caller sees the form in, as `folder_token` in each row) |\n\nThe value of `within_last` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month), meaning the window going back from now.\nExample: `[{\"field\":\"last_entry_created_at\",\"operator\":\"within_last\",\"value\":{\"unit\":\"day\",\"n\":7}}]`\n"
     },
     "sort": {
      "type": [
@@ -277,6 +277,11 @@
     "required": false
    },
    {
+    "name": "include_evaluation_setting",
+    "in": "query",
+    "required": false
+   },
+   {
     "name": "include_transactions",
     "in": "query",
     "required": false
@@ -290,6 +295,7 @@
    "include_redirect_rules",
    "include_extended_attributes",
    "include_exam_setting",
+   "include_evaluation_setting",
    "include_transactions"
   ],
   "successStatus": 200,
@@ -335,6 +341,11 @@
      "type": "boolean",
      "default": false,
      "description": "When `true`, an exam form includes `exam_setting` (exam settings, the same as `GET /forms/{form_token}/exam_setting`); an OAuth token needs the `form_setting` scope for it."
+    },
+    "include_evaluation_setting": {
+     "type": "boolean",
+     "default": false,
+     "description": "When `true`, an evaluation form includes `evaluation_setting` (evaluation settings, the same as `GET /forms/{form_token}/evaluation_setting`); an OAuth token needs the `form_setting` scope for it."
     },
     "include_transactions": {
      "type": "boolean",
@@ -577,7 +588,7 @@
          },
          "add": {
           "type": "array",
-          "description": "Choices appended after the existing ones; ChoiceInput items for a choice field, ImageChoiceInput items for an ImageRadioButton / ImageCheckBox, each with one of image_url / image_base64 / attachment_id",
+          "description": "Choices to add, appended after the existing ones unless they give position; ChoiceInput items for a choice field, ImageChoiceInput items for an ImageRadioButton / ImageCheckBox, each with one of image_url / image_base64 / attachment_id",
           "items": {
            "anyOf": [
             {
@@ -641,6 +652,24 @@
               "is_other": {
                "type": "boolean",
                "description": "Make this the \"Other\" choice (choosing it shows a text box); its text is kept as written. A choice whose text is exactly `其他` or `其它` needs no flag. Only for RadioButton / CheckBox / DropDown"
+              },
+              "allow_extended_text": {
+               "type": "boolean",
+               "description": "Show a text box when the choice is picked; taken only by a choice of a RadioButton / CheckBox / Department / Grade field of a form (a CheckBox in the list style), not by its \"Other\" choice"
+              },
+              "extended_text_required": {
+               "type": "boolean",
+               "description": "The text box must be filled in; takes effect only with allow_extended_text"
+              },
+              "extended_text_placeholder": {
+               "type": "string",
+               "maxLength": 500,
+               "description": "Hint shown in the empty text box; takes effect only with allow_extended_text"
+              },
+              "position": {
+               "type": "integer",
+               "minimum": 0,
+               "description": "Where update_choices.add inserts the choice, from 0; appended at the end by default"
               }
              }
             },
@@ -737,6 +766,11 @@
               "attachment_id": {
                "type": "string",
                "description": "The `attachment_id` of an image_type=field_choice upload, or an image this form already has"
+              },
+              "position": {
+               "type": "integer",
+               "minimum": 0,
+               "description": "Where update_choices.add inserts the choice, from 0; appended at the end by default"
               }
              }
             }
@@ -813,6 +847,27 @@
               "null"
              ],
              "description": "An http or https link the choice description opens instead of a text; null removes it. Give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it"
+            },
+            "allow_extended_text": {
+             "type": "boolean",
+             "description": "Show a text box when the choice is picked"
+            },
+            "extended_text_required": {
+             "type": "boolean",
+             "description": "The text box must be filled in"
+            },
+            "extended_text_placeholder": {
+             "type": [
+              "string",
+              "null"
+             ],
+             "maxLength": 500,
+             "description": "Hint shown in the empty text box; null clears it"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "Move the choice to this place, from 0, in the list as it is after the additions"
             }
            },
            "additionalProperties": false
@@ -827,7 +882,7 @@
     },
     "field_rules": {
      "type": "object",
-     "description": "Incremental field display rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/field_rules` returns; the same index cannot be both removed and updated",
+     "description": "Incremental field display rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/field_rules` returns; the same index cannot be both removed and updated. `add` returns 400 on an exam or evaluation with random questions on",
      "properties": {
       "add": {
        "type": "array",
@@ -996,7 +1051,7 @@
     },
     "redirect_rules": {
      "type": "object",
-     "description": "Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature",
+     "description": "Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature; `add` returns 400 on an exam or evaluation with random questions on",
      "properties": {
       "add": {
        "type": "array",
@@ -2172,7 +2227,7 @@
     },
     "entry": {
      "type": "object",
-     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| Mobile number taking international numbers | A mainland China number alone; a number of another country or region also needs `\"<api_code>_intl_mobile_no_country_id\"` (such as `\"US\"`) and `\"<api_code>_intl_mobile_no_country_code\"` (such as `\"1\"`) |\n",
+     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\nA value in another shape than the table gives (an object where text goes, an hour past 23, a cascade level not under the one above) is refused, not dropped.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above; a single choice may be sent alone |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}`, or `\"12:15\"` / `\"12:15:30\"` as it is read back |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| Mobile number taking international numbers | A mainland China number alone; a number of another country or region also needs `\"<api_code>_intl_mobile_no_country_id\"` (such as `\"US\"`) and `\"<api_code>_intl_mobile_no_country_code\"` (such as `\"1\"`) |\n",
      "additionalProperties": true,
      "examples": [
       {
@@ -2257,7 +2312,7 @@
     },
     "entry": {
      "type": "object",
-     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| Mobile number taking international numbers | A mainland China number alone; a number of another country or region also needs `\"<api_code>_intl_mobile_no_country_id\"` (such as `\"US\"`) and `\"<api_code>_intl_mobile_no_country_code\"` (such as `\"1\"`) |\n",
+     "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\nA value in another shape than the table gives (an object where text goes, an hour past 23, a cascade level not under the one above) is refused, not dropped.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above; a single choice may be sent alone |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}`, or `\"12:15\"` / `\"12:15:30\"` as it is read back |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| Mobile number taking international numbers | A mainland China number alone; a number of another country or region also needs `\"<api_code>_intl_mobile_no_country_id\"` (such as `\"US\"`) and `\"<api_code>_intl_mobile_no_country_code\"` (such as `\"1\"`) |\n",
      "additionalProperties": true,
      "examples": [
       {
@@ -2401,7 +2456,7 @@
      "maxItems": 200,
      "items": {
       "type": "object",
-      "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| Mobile number taking international numbers | A mainland China number alone; a number of another country or region also needs `\"<api_code>_intl_mobile_no_country_id\"` (such as `\"US\"`) and `\"<api_code>_intl_mobile_no_country_code\"` (such as `\"1\"`) |\n",
+      "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\nA value in another shape than the table gives (an object where text goes, an hour past 23, a cascade level not under the one above) is refused, not dropped.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above; a single choice may be sent alone |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}`, or `\"12:15\"` / `\"12:15:30\"` as it is read back |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| Mobile number taking international numbers | A mainland China number alone; a number of another country or region also needs `\"<api_code>_intl_mobile_no_country_id\"` (such as `\"US\"`) and `\"<api_code>_intl_mobile_no_country_code\"` (such as `\"1\"`) |\n",
       "additionalProperties": true,
       "examples": [
        {
@@ -2491,7 +2546,7 @@
        },
        "entry": {
         "type": "object",
-        "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}` |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| Mobile number taking international numbers | A mainland China number alone; a number of another country or region also needs `\"<api_code>_intl_mobile_no_country_id\"` (such as `\"US\"`) and `\"<api_code>_intl_mobile_no_country_code\"` (such as `\"1\"`) |\n",
+        "description": "Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.\nChoice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.\nA value in another shape than the table gives (an object where text goes, an hour past 23, a cascade level not under the one above) is refused, not dropped.\n\n| Field | How to write |\n|---|---|\n| Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |\n| Single choice, drop-down | `\"choice api_code\"` or `\"choice label\"`; extra text via `\"<api_code>_extended_text\": {\"<choice>\": \"extra text\"}`, \"Other\" text via `\"<api_code>_other\": \"...\"` |\n| Multiple choice | Array, items as above; a single choice may be sent alone |\n| Image single choice / image multiple choice | Choice api_code (string / array) |\n| Cascading drop-down | `{\"level_1\": \"...\", \"level_2\": \"...\"}` (api_code or label) |\n| Number, rating, NPS | Number |\n| Yes/No | Boolean |\n| Date | `\"2012-12-25\"` or `\"2012-12-25 12:13:15\"` (Beijing time, UTC+8) |\n| Time | `{\"hour\": \"12\", \"minute\": \"15\"}`, or `\"12:15\"` / `\"12:15:30\"` as it is read back |\n| Address | `{\"province\",\"city\",\"district\",\"street\"}` |\n| Geolocation | `{\"longitude\",\"latitude\",\"address\"}` |\n| File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{\"base64\": \"...\", \"file_name\": \"a.png\", \"content_type\": \"image/png\"}` (≤ 5MB; `base64` may also be a data URI) |\n| Goods | `[{\"value\": \"goods item api_code\", \"number\": 2, \"specification\": {\"spec dimension\": \"option\"}?}]` |\n| Matrix fill-in / matrix scale | `{\"<statement api_code>\": {\"<column api_code>\": value}}` |\n| Matrix single choice | `{\"<statement api_code>\": \"choice api_code\"}` |\n| Table | `[{\"<column api_code>\": value}, ...]`; attachment columns are written like file upload |\n| Inline blanks | `{\"<sub-field api_code>\": \"...\"}` |\n| Ranking | Ordered array `[\"choice api_code\", ...]` |\n| Form association | token / id of the associated entry, or a display value matched by the association key (an array for multiple association keys) |\n| Reservation | `[{\"api_code\": \"item\", \"scheduled_at\": \"2021-04-26\", \"end_at\"?: \"...\", \"number\": 1}]` |\n| Color mark | `\"color_mark\": \"color_1\"`: a color's api_code (`color_1`, `color_2`, ...) or its name as the data page shows it; `null` or `\"\"` leaves the entry without a mark; any other value is refused (400, or that row's error in a batch) with an error that lists every color |\n| Mobile number taking international numbers | A mainland China number alone; a number of another country or region also needs `\"<api_code>_intl_mobile_no_country_id\"` (such as `\"US\"`) and `\"<api_code>_intl_mobile_no_country_code\"` (such as `\"1\"`) |\n",
         "additionalProperties": true,
         "examples": [
          {
@@ -2973,7 +3028,7 @@
  {
   "operationId": "searchEntriesAcrossForms",
   "summary": "Search entries across forms",
-  "description": "Search entries across forms\nRuns one keyword as a full-text search across several forms / tables and returns, per form, the match count and some of the matching serial numbers (at most 50 per form), without entry content.\n- Search scope: the forms in `form_tokens` when given; otherwise every form and table the caller can access (for an account access token, every form and table in the account).\n  Either way, `filters` then narrows the scope; unless `filters` specifies `entries_count`, only forms with entries are searched by default (`entries_count > 0`).\n- The scope holds at most 10 forms; beyond that it returns 400: narrow it with `filters`, or pass `form_tokens` directly.\n- Forms with no match are left out of the result; forms that cannot be accessed, where the caller's role does not allow reading entries, whose search timed out or whose search service did not respond are listed with `unavailable` giving the reason (this does not mean there was no match).\nReturns schema \"EntrySearchResponse\" (see get_schema).",
+  "description": "Search entries across forms\nRuns one keyword as a full-text search across several forms / tables and returns, per form, the match count and some of the matching serial numbers (at most 50 per form), without entry content.\n- Search scope: the forms in `form_tokens` when given; otherwise every form and table the caller can access (for an account access token, every form and table in the account).\n  Either way, `filters` then narrows the scope; unless `filters` specifies `entries_count`, only forms with entries are searched by default (`entries_count > 0`).\n- Without `form_tokens` the scope has no size limit: forms are searched newest first until the call's time runs out. `unsearched_count` then says how many were left and `next` resumes after the last one searched (pass the same `keyword` and `filters` with it); repeat until `next` is null. `form_tokens` takes at most 10.\n- Forms with no match are left out of the result; forms that cannot be accessed, where the caller's role does not allow reading entries, whose search timed out or whose search service did not respond are listed with `unavailable` giving the reason (this does not mean there was no match). Forms counted in `unsearched_count` were not searched either.\nReturns schema \"EntrySearchResponse\" (see get_schema).",
   "tag": "Entries",
   "method": "get",
   "path": "/entries/search",
@@ -2994,12 +3049,18 @@
     "in": "query",
     "required": false,
     "json": true
+   },
+   {
+    "name": "next",
+    "in": "query",
+    "required": false
    }
   ],
   "paramNames": [
    "keyword",
    "form_tokens",
-   "filters"
+   "filters",
+   "next"
   ],
   "successStatus": 200,
   "scopes": [
@@ -3024,7 +3085,7 @@
      "items": {
       "type": "string"
      },
-     "description": "Tokens (ids also accepted) of the forms or tables to search, comma-separated (or repeat `form_tokens[]=`), at most 10 after deduplication. When omitted, every accessible form is searched."
+     "description": "Tokens (ids also accepted) of the forms or tables to search, comma-separated (or repeat `form_tokens[]=`), at most 10 after deduplication. When omitted, every accessible form is searched, continuing with `next`."
     },
     "filters": {
      "type": [
@@ -3110,7 +3171,11 @@
        }
       ]
      ],
-     "description": "Filters on form attributes that narrow the search scope, an array of ScopeCondition objects, with the same fields as `filters` of `GET /forms` (`form_name` / `created_at` / `last_entry_created_at` / `entries_count`); conditions are combined with AND.\nWithout an `entries_count` condition, `entries_count > 0` is appended automatically.\n"
+     "description": "Filters on form attributes that narrow the search scope, an array of ScopeCondition objects, with the same fields as `filters` of `GET /forms` (`form_name` / `created_at` / `last_entry_created_at` / `entries_count` / `folder_token`); conditions are combined with AND.\nWithout an `entries_count` condition, `entries_count > 0` is appended automatically.\n"
+    },
+    "next": {
+     "type": "string",
+     "description": "`next` from the previous response, to search the forms it left; not taken with `form_tokens`."
     }
    },
    "additionalProperties": false,
@@ -4636,7 +4701,7 @@
        }
       ]
      ],
-     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Filterable fields and operators:\n| field | type | operators |\n|---|---|---|\n| `form_name` | text | `eq` `ne` `any_in` `none_in` `like` `not_like` |\n| `created_at` | time | `eq` `ne` `gte` `gt` `lte` `lt` `within_last` |\n| `last_entry_created_at` | time | same as above (forms that have never received an entry have no value) |\n| `entries_count` | integer | `eq` `ne` `gte` `gt` `lte` `lt` |\n\nThe value of `within_last` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month), meaning the window going back from now.\nExample: `[{\"field\":\"last_entry_created_at\",\"operator\":\"within_last\",\"value\":{\"unit\":\"day\",\"n\":7}}]`\n"
+     "description": "Filters, an array of ScopeCondition objects; conditions are combined with AND. Filterable fields and operators:\n| field | type | operators |\n|---|---|---|\n| `form_name` | text | `eq` `ne` `any_in` `none_in` `like` `not_like` |\n| `created_at` | time | `eq` `ne` `gte` `gt` `lte` `lt` `within_last` |\n| `last_entry_created_at` | time | same as above (forms that have never received an entry have no value) |\n| `entries_count` | integer | `eq` `ne` `gte` `gt` `lte` `lt` |\n| `folder_token` | text | `eq` `any_in` (the folder the caller sees the form in, as `folder_token` in each row) |\n\nThe value of `within_last` looks like `{\"unit\":\"day\",\"n\":30}` (unit can be minute / day / week / month), meaning the window going back from now.\nExample: `[{\"field\":\"last_entry_created_at\",\"operator\":\"within_last\",\"value\":{\"unit\":\"day\",\"n\":7}}]`\n"
     },
     "sort": {
      "type": [
@@ -5020,7 +5085,7 @@
          },
          "add": {
           "type": "array",
-          "description": "Choices appended after the existing ones; ChoiceInput items for a choice field, ImageChoiceInput items for an ImageRadioButton / ImageCheckBox, each with one of image_url / image_base64 / attachment_id",
+          "description": "Choices to add, appended after the existing ones unless they give position; ChoiceInput items for a choice field, ImageChoiceInput items for an ImageRadioButton / ImageCheckBox, each with one of image_url / image_base64 / attachment_id",
           "items": {
            "anyOf": [
             {
@@ -5084,6 +5149,24 @@
               "is_other": {
                "type": "boolean",
                "description": "Make this the \"Other\" choice (choosing it shows a text box); its text is kept as written. A choice whose text is exactly `其他` or `其它` needs no flag. Only for RadioButton / CheckBox / DropDown"
+              },
+              "allow_extended_text": {
+               "type": "boolean",
+               "description": "Show a text box when the choice is picked; taken only by a choice of a RadioButton / CheckBox / Department / Grade field of a form (a CheckBox in the list style), not by its \"Other\" choice"
+              },
+              "extended_text_required": {
+               "type": "boolean",
+               "description": "The text box must be filled in; takes effect only with allow_extended_text"
+              },
+              "extended_text_placeholder": {
+               "type": "string",
+               "maxLength": 500,
+               "description": "Hint shown in the empty text box; takes effect only with allow_extended_text"
+              },
+              "position": {
+               "type": "integer",
+               "minimum": 0,
+               "description": "Where update_choices.add inserts the choice, from 0; appended at the end by default"
               }
              }
             },
@@ -5180,6 +5263,11 @@
               "attachment_id": {
                "type": "string",
                "description": "The `attachment_id` of an image_type=field_choice upload, or an image this form already has"
+              },
+              "position": {
+               "type": "integer",
+               "minimum": 0,
+               "description": "Where update_choices.add inserts the choice, from 0; appended at the end by default"
               }
              }
             }
@@ -5256,6 +5344,27 @@
               "null"
              ],
              "description": "An http or https link the choice description opens instead of a text; null removes it. Give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it"
+            },
+            "allow_extended_text": {
+             "type": "boolean",
+             "description": "Show a text box when the choice is picked"
+            },
+            "extended_text_required": {
+             "type": "boolean",
+             "description": "The text box must be filled in"
+            },
+            "extended_text_placeholder": {
+             "type": [
+              "string",
+              "null"
+             ],
+             "maxLength": 500,
+             "description": "Hint shown in the empty text box; null clears it"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "Move the choice to this place, from 0, in the list as it is after the additions"
             }
            },
            "additionalProperties": false
@@ -5270,7 +5379,7 @@
     },
     "field_rules": {
      "type": "object",
-     "description": "Incremental field display rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/field_rules` returns; the same index cannot be both removed and updated",
+     "description": "Incremental field display rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/field_rules` returns; the same index cannot be both removed and updated. `add` returns 400 on an exam or evaluation with random questions on",
      "properties": {
       "add": {
        "type": "array",
@@ -5439,7 +5548,7 @@
     },
     "redirect_rules": {
      "type": "object",
-     "description": "Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature",
+     "description": "Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature; `add` returns 400 on an exam or evaluation with random questions on",
      "properties": {
       "add": {
        "type": "array",
@@ -6749,7 +6858,7 @@
  {
   "operationId": "updateForm",
   "summary": "Edit a form",
-  "description": "Edits a form's field display rules (logic jumps) incrementally and leaves the other rules unchanged; the index is the one get_field_rules returns. Same as edit_form with only field_rules.\nIncremental field display rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/field_rules` returns; the same index cannot be both removed and updated",
+  "description": "Edits a form's field display rules (logic jumps) incrementally and leaves the other rules unchanged; the index is the one get_field_rules returns. Same as edit_form with only field_rules.\nIncremental field display rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/field_rules` returns; the same index cannot be both removed and updated. `add` returns 400 on an exam or evaluation with random questions on",
   "tag": "Forms",
   "method": "patch",
   "path": "/forms/{form_token}",
@@ -7086,7 +7195,7 @@
        "properties": {
         "enabled": {
          "type": "boolean",
-         "description": "Draw questions at random for each examinee; false turns it off and keeps the rest"
+         "description": "Draw questions at random for each examinee; false turns it off and keeps the rest. Turning it on returns 400 while a field_rules or redirect_rules condition uses an exam question; once on, PATCH /forms/{form_token} cannot add rules"
         },
         "mode": {
          "type": "string",
@@ -7099,12 +7208,12 @@
         "count": {
          "type": "integer",
          "minimum": 1,
-         "description": "Questions to draw in from_all mode; at most `random_questions.total` in GET"
+         "description": "Questions to draw in from_all mode; while random questions are on, at most `random_questions.total` in GET"
         },
         "question_types": {
          "type": "array",
          "minItems": 1,
-         "description": "Replaces the by_type counts as a whole; list each type once, a type left out draws none, and the counts must add up to more than 0",
+         "description": "Replaces the by_type counts as a whole; list each type once, and a type left out draws none. While random questions are on, the counts must add up to more than 0",
          "items": {
           "type": "object",
           "required": [
@@ -7126,7 +7235,7 @@
            "count": {
             "type": "integer",
             "minimum": 0,
-            "description": "Questions to draw of this type; at most the type's `total` in GET"
+            "description": "Questions to draw of this type; while random questions are on, at most the type's `total` in GET"
            }
           },
           "additionalProperties": false
@@ -7389,7 +7498,7 @@
          },
          "add": {
           "type": "array",
-          "description": "Choices appended after the existing ones; ChoiceInput items for a choice field, ImageChoiceInput items for an ImageRadioButton / ImageCheckBox, each with one of image_url / image_base64 / attachment_id",
+          "description": "Choices to add, appended after the existing ones unless they give position; ChoiceInput items for a choice field, ImageChoiceInput items for an ImageRadioButton / ImageCheckBox, each with one of image_url / image_base64 / attachment_id",
           "items": {
            "anyOf": [
             {
@@ -7453,6 +7562,24 @@
               "is_other": {
                "type": "boolean",
                "description": "Make this the \"Other\" choice (choosing it shows a text box); its text is kept as written. A choice whose text is exactly `其他` or `其它` needs no flag. Only for RadioButton / CheckBox / DropDown"
+              },
+              "allow_extended_text": {
+               "type": "boolean",
+               "description": "Show a text box when the choice is picked; taken only by a choice of a RadioButton / CheckBox / Department / Grade field of a form (a CheckBox in the list style), not by its \"Other\" choice"
+              },
+              "extended_text_required": {
+               "type": "boolean",
+               "description": "The text box must be filled in; takes effect only with allow_extended_text"
+              },
+              "extended_text_placeholder": {
+               "type": "string",
+               "maxLength": 500,
+               "description": "Hint shown in the empty text box; takes effect only with allow_extended_text"
+              },
+              "position": {
+               "type": "integer",
+               "minimum": 0,
+               "description": "Where update_choices.add inserts the choice, from 0; appended at the end by default"
               }
              }
             },
@@ -7549,6 +7676,11 @@
               "attachment_id": {
                "type": "string",
                "description": "The `attachment_id` of an image_type=field_choice upload, or an image this form already has"
+              },
+              "position": {
+               "type": "integer",
+               "minimum": 0,
+               "description": "Where update_choices.add inserts the choice, from 0; appended at the end by default"
               }
              }
             }
@@ -7625,6 +7757,27 @@
               "null"
              ],
              "description": "An http or https link the choice description opens instead of a text; null removes it. Give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it"
+            },
+            "allow_extended_text": {
+             "type": "boolean",
+             "description": "Show a text box when the choice is picked"
+            },
+            "extended_text_required": {
+             "type": "boolean",
+             "description": "The text box must be filled in"
+            },
+            "extended_text_placeholder": {
+             "type": [
+              "string",
+              "null"
+             ],
+             "maxLength": 500,
+             "description": "Hint shown in the empty text box; null clears it"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "Move the choice to this place, from 0, in the list as it is after the additions"
             }
            },
            "additionalProperties": false
@@ -7639,7 +7792,7 @@
     },
     "field_rules": {
      "type": "object",
-     "description": "Incremental field display rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/field_rules` returns; the same index cannot be both removed and updated",
+     "description": "Incremental field display rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/field_rules` returns; the same index cannot be both removed and updated. `add` returns 400 on an exam or evaluation with random questions on",
      "properties": {
       "add": {
        "type": "array",
@@ -7808,7 +7961,7 @@
     },
     "redirect_rules": {
      "type": "object",
-     "description": "Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature",
+     "description": "Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature; `add` returns 400 on an exam or evaluation with random questions on",
      "properties": {
       "add": {
        "type": "array",
@@ -8020,7 +8173,7 @@
        "properties": {
         "enabled": {
          "type": "boolean",
-         "description": "Draw questions at random for each examinee; false turns it off and keeps the rest"
+         "description": "Draw questions at random for each examinee; false turns it off and keeps the rest. Turning it on returns 400 while a field_rules or redirect_rules condition uses an exam question; once on, PATCH /forms/{form_token} cannot add rules"
         },
         "mode": {
          "type": "string",
@@ -8033,12 +8186,12 @@
         "count": {
          "type": "integer",
          "minimum": 1,
-         "description": "Questions to draw in from_all mode; at most `random_questions.total` in GET"
+         "description": "Questions to draw in from_all mode; while random questions are on, at most `random_questions.total` in GET"
         },
         "question_types": {
          "type": "array",
          "minItems": 1,
-         "description": "Replaces the by_type counts as a whole; list each type once, a type left out draws none, and the counts must add up to more than 0",
+         "description": "Replaces the by_type counts as a whole; list each type once, and a type left out draws none. While random questions are on, the counts must add up to more than 0",
          "items": {
           "type": "object",
           "required": [
@@ -8060,7 +8213,7 @@
            "count": {
             "type": "integer",
             "minimum": 0,
-            "description": "Questions to draw of this type; at most the type's `total` in GET"
+            "description": "Questions to draw of this type; while random questions are on, at most the type's `total` in GET"
            }
           },
           "additionalProperties": false
@@ -8246,7 +8399,7 @@
     },
     "evaluation_setting": {
      "type": "object",
-     "description": "Evaluation settings (updateEvaluationSetting): Partially updates an evaluation form's settings (schema `EvaluationSettingInput`).\n- `evaluation_comments` replaces the total score range comments as a whole (an empty array turns them off) and takes effect only when `notice_after_filling_mode`, passed or already saved, is reports / customize. A comment written with conditions in the form editor reads back as `id` + `conditions`; pass it back under that id, where only `comment` / `retry` can change.\n- `indicator_setting.indicators` replaces the dimensions as a whole; pass `api_code` back to keep a dimension. A dimension binds visible scorable questions by `field_api_codes` or `field_cids`."
+     "description": "Evaluation settings (updateEvaluationSetting): Partially updates an evaluation form's settings (schema `EvaluationSettingInput`).\n- `evaluation_comments` replaces the total score range comments as a whole (an empty array turns them off) and takes effect only when `notice_after_filling_mode`, passed or already saved, is reports / customize. A comment written with conditions in the form editor reads back as `id` + `conditions`; pass it back under that id, where only `comment` / `retry` can change.\n- `indicator_setting.indicators` replaces the dimensions as a whole; pass `api_code` back to keep a dimension, and of its other keys only those passed change (`name` is always passed). A dimension binds visible scorable questions by `field_api_codes` or `field_cids`.\n- Keys left out of `indicator_setting` keep their values. Left out, `enabled` turns on when dimensions are added to a form that had none and off when `indicators` is empty, as in the form editor.\n- When the radar module turns on or off (it is on when `enabled` is true and there are dimensions), `show_report_radar` and `show_indicator_comments` follow it unless they are passed."
     }
    },
    "additionalProperties": false,
@@ -8407,7 +8560,7 @@
          },
          "add": {
           "type": "array",
-          "description": "Choices appended after the existing ones; ChoiceInput items for a choice field, ImageChoiceInput items for an ImageRadioButton / ImageCheckBox, each with one of image_url / image_base64 / attachment_id",
+          "description": "Choices to add, appended after the existing ones unless they give position; ChoiceInput items for a choice field, ImageChoiceInput items for an ImageRadioButton / ImageCheckBox, each with one of image_url / image_base64 / attachment_id",
           "items": {
            "anyOf": [
             {
@@ -8471,6 +8624,24 @@
               "is_other": {
                "type": "boolean",
                "description": "Make this the \"Other\" choice (choosing it shows a text box); its text is kept as written. A choice whose text is exactly `其他` or `其它` needs no flag. Only for RadioButton / CheckBox / DropDown"
+              },
+              "allow_extended_text": {
+               "type": "boolean",
+               "description": "Show a text box when the choice is picked; taken only by a choice of a RadioButton / CheckBox / Department / Grade field of a form (a CheckBox in the list style), not by its \"Other\" choice"
+              },
+              "extended_text_required": {
+               "type": "boolean",
+               "description": "The text box must be filled in; takes effect only with allow_extended_text"
+              },
+              "extended_text_placeholder": {
+               "type": "string",
+               "maxLength": 500,
+               "description": "Hint shown in the empty text box; takes effect only with allow_extended_text"
+              },
+              "position": {
+               "type": "integer",
+               "minimum": 0,
+               "description": "Where update_choices.add inserts the choice, from 0; appended at the end by default"
               }
              }
             },
@@ -8567,6 +8738,11 @@
               "attachment_id": {
                "type": "string",
                "description": "The `attachment_id` of an image_type=field_choice upload, or an image this form already has"
+              },
+              "position": {
+               "type": "integer",
+               "minimum": 0,
+               "description": "Where update_choices.add inserts the choice, from 0; appended at the end by default"
               }
              }
             }
@@ -8643,6 +8819,27 @@
               "null"
              ],
              "description": "An http or https link the choice description opens instead of a text; null removes it. Give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it"
+            },
+            "allow_extended_text": {
+             "type": "boolean",
+             "description": "Show a text box when the choice is picked"
+            },
+            "extended_text_required": {
+             "type": "boolean",
+             "description": "The text box must be filled in"
+            },
+            "extended_text_placeholder": {
+             "type": [
+              "string",
+              "null"
+             ],
+             "maxLength": 500,
+             "description": "Hint shown in the empty text box; null clears it"
+            },
+            "position": {
+             "type": "integer",
+             "minimum": 0,
+             "description": "Move the choice to this place, from 0, in the list as it is after the additions"
             }
            },
            "additionalProperties": false
@@ -8657,7 +8854,7 @@
     },
     "field_rules": {
      "type": "object",
-     "description": "Incremental field display rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/field_rules` returns; the same index cannot be both removed and updated",
+     "description": "Incremental field display rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/field_rules` returns; the same index cannot be both removed and updated. `add` returns 400 on an exam or evaluation with random questions on",
      "properties": {
       "add": {
        "type": "array",
@@ -8826,7 +9023,7 @@
     },
     "redirect_rules": {
      "type": "object",
-     "description": "Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature",
+     "description": "Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature; `add` returns 400 on an exam or evaluation with random questions on",
      "properties": {
       "add": {
        "type": "array",
@@ -8973,7 +9170,7 @@
     },
     "evaluation_setting": {
      "type": "object",
-     "description": "Evaluation settings (updateEvaluationSetting): Partially updates an evaluation form's settings (schema `EvaluationSettingInput`).\n- `evaluation_comments` replaces the total score range comments as a whole (an empty array turns them off) and takes effect only when `notice_after_filling_mode`, passed or already saved, is reports / customize. A comment written with conditions in the form editor reads back as `id` + `conditions`; pass it back under that id, where only `comment` / `retry` can change.\n- `indicator_setting.indicators` replaces the dimensions as a whole; pass `api_code` back to keep a dimension. A dimension binds visible scorable questions by `field_api_codes` or `field_cids`."
+     "description": "Evaluation settings (updateEvaluationSetting): Partially updates an evaluation form's settings (schema `EvaluationSettingInput`).\n- `evaluation_comments` replaces the total score range comments as a whole (an empty array turns them off) and takes effect only when `notice_after_filling_mode`, passed or already saved, is reports / customize. A comment written with conditions in the form editor reads back as `id` + `conditions`; pass it back under that id, where only `comment` / `retry` can change.\n- `indicator_setting.indicators` replaces the dimensions as a whole; pass `api_code` back to keep a dimension, and of its other keys only those passed change (`name` is always passed). A dimension binds visible scorable questions by `field_api_codes` or `field_cids`.\n- Keys left out of `indicator_setting` keep their values. Left out, `enabled` turns on when dimensions are added to a form that had none and off when `indicators` is empty, as in the form editor.\n- When the radar module turns on or off (it is on when `enabled` is true and there are dimensions), `show_report_radar` and `show_indicator_comments` follow it unless they are passed."
     }
    },
    "additionalProperties": false,

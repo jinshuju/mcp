@@ -269,6 +269,13 @@ paths:
         schema:
           type: boolean
           default: false
+      - name: include_evaluation_setting
+        in: query
+        required: false
+        description: When `true`, an evaluation form includes `evaluation_setting` (evaluation settings, the same as `GET /forms/{form_token}/evaluation_setting`); an OAuth token needs the `form_setting` scope for it.
+        schema:
+          type: boolean
+          default: false
       - $ref: '#/components/parameters/IncludeTransactions'
     patch:
       tags:
@@ -2366,7 +2373,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExamSetting'
         '400':
-          description: 'Invalid parameters, including: the form is not an exam, range comments overlap or end before they start, `show_timeout` is turned on while questions are required, a random question count is more than the questions there are, a question type is listed twice, or the `by_type` counts add up to 0'
+          description: 'Invalid parameters, including: the form is not an exam, range comments overlap or end before they start, `show_timeout` is turned on while questions are required, random questions are turned on while rules have questions in their conditions, a random question count is more than the questions there are, a question type is listed twice, or the `by_type` counts add up to 0'
           content:
             application/json:
               schema:
@@ -2383,13 +2390,19 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '415':
+          description: The body is not `application/json`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   "/forms/{form_token}/evaluation_setting":
     get:
       tags:
       - Form Settings
       summary: Show a form's evaluation settings
       description: |
-        Returns an evaluation form's report display, dimension (indicator) settings and total score range comments.
+        Returns an evaluation form's report display, dimension (indicator) settings, total score range comments, time limit and random questions.
         Only for forms in the evaluation scene (scene = evaluation); otherwise returns 400. Returns an empty object `{}` when the form has no evaluation settings record yet.
         OAuth scope: form_setting
       operationId: getEvaluationSetting
@@ -2420,7 +2433,9 @@ paths:
         Partially updates an evaluation form's settings (schema `EvaluationSettingInput`).
         OAuth scope: form_setting
         - `evaluation_comments` replaces the total score range comments as a whole (an empty array turns them off) and takes effect only when `notice_after_filling_mode`, passed or already saved, is reports / customize. A comment written with conditions in the form editor reads back as `id` + `conditions`; pass it back under that id, where only `comment` / `retry` can change.
-        - `indicator_setting.indicators` replaces the dimensions as a whole; pass `api_code` back to keep a dimension. A dimension binds visible scorable questions by `field_api_codes` or `field_cids`.
+        - `indicator_setting.indicators` replaces the dimensions as a whole; pass `api_code` back to keep a dimension, and of its other keys only those passed change (`name` is always passed). A dimension binds visible scorable questions by `field_api_codes` or `field_cids`.
+        - Keys left out of `indicator_setting` keep their values. Left out, `enabled` turns on when dimensions are added to a form that had none and off when `indicators` is empty, as in the form editor.
+        - When the radar module turns on or off (it is on when `enabled` is true and there are dimensions), `show_report_radar` and `show_indicator_comments` follow it unless they are passed.
       operationId: updateEvaluationSetting
       parameters:
       - $ref: '#/components/parameters/FormToken'
@@ -2438,7 +2453,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/EvaluationSetting'
         '400':
-          description: 'Invalid parameters, including: the form is not an evaluation, a comment written as conditions is left out or changed, or a dimension binds a field that is not a visible scorable question'
+          description: 'Invalid parameters, including: the form is not an evaluation, a comment written as conditions is left out or changed, a dimension binds a field that is not a visible scorable question, `show_timeout` is turned on while questions are required, random questions are turned on while rules have questions in their conditions, a random question count is more than the questions there are, a question type is listed twice, or the `by_type` counts add up to 0'
           content:
             application/json:
               schema:
@@ -2455,6 +2470,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '415':
+          description: The body is not `application/json`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   "/forms/{form_token}/wheel_fortune":
     get:
       tags:
@@ -2798,6 +2819,7 @@ paths:
       description: |
         Adds members of the caller's account to the form, all with one predefined role, as adding team members on the form's cooperation page does; no invitation is sent.
         OAuth scope: forms
+        - Takes the predefined admin role on the form (a custom role does not count; an account token needs none) and, on an Enterprise form, membership of its account.
         - `user_ids` are ids of active members from GET /billing_account/users. If any of them is deactivated, outside the account, or already a cooperator on the form (also through a folder), nothing is added.
         - A table has only the manager and data_viewer roles.
         - Outside the Enterprise plans, each form has a fixed number of cooperator seats besides its creator; a request needing more seats than are left adds nobody.
@@ -2838,7 +2860,7 @@ paths:
         '402':
           $ref: '#/components/responses/PaymentRequired'
         '403':
-          description: The OAuth token lacks the forms scope, the caller is not an admin of the form or, on an Enterprise form, not a member of its account, or the form has too few cooperator seats left
+          description: The OAuth token lacks the forms scope, the caller does not hold the predefined admin role on the form (a custom role does not count) or, on an Enterprise form, is not a member of its account, or the form has too few cooperator seats left
           content:
             application/json:
               schema:
@@ -2847,6 +2869,121 @@ paths:
           $ref: '#/components/responses/NotFound'
         '415':
           description: The body is not application/json
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  "/forms/{form_token}/cooperators/{user_id}":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - name: user_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[0-9a-f]{24}$"
+      description: The cooperator's `user_id` from GET /forms/{form_token}/cooperators
+    patch:
+      tags:
+      - Forms
+      summary: Change a cooperator's role
+      description: |
+        Gives the cooperator another predefined role, as changing a role on the form's cooperation page does.
+        OAuth scope: forms
+        - Takes the predefined admin role on the form (a custom role does not count; an account token needs none) and, on an Enterprise form, membership of its account.
+        - A table has only the manager and data_viewer roles.
+        - The form's creator and its only manager keep the manager role.
+        - A cooperator whose role comes from a folder the form is in gets this role on the form itself, which takes precedence over the folder's.
+      operationId: updateFormCooperator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CooperatorUpdateInput'
+      responses:
+        '200':
+          description: The cooperator with the new role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cooperator'
+        '400':
+          description: The role does not exist on a table, or the user is the creator or the only manager
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          description: The OAuth token lacks the forms scope, or the caller does not hold the predefined admin role on the form (a custom role does not count) or, on an Enterprise form, is not a member of its account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: The form cannot be found, or the user is not a cooperator on it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: The body is not application/json
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+      - Forms
+      summary: Remove a cooperator
+      description: |
+        Removes the user from the form's cooperators, as removing them on the form's cooperation page does.
+        OAuth scope: forms
+        - Takes the predefined admin role on the form (a custom role does not count; an account token needs none) and, on an Enterprise form, membership of its account; a cooperator removing themselves to leave the form needs neither, unless a folder the form is in also gives them a role.
+        - The form's creator and its only manager cannot be removed.
+        - A role that comes from a folder the form is in can only be removed on that folder; when the user also has a role on the form itself, that one is removed and the folder's then applies, as `role` in the response says.
+      operationId: deleteFormCooperator
+      responses:
+        '200':
+          description: Removed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - user_id
+                - role
+                properties:
+                  user_id:
+                    type: string
+                    description: Id of the user removed
+                  role:
+                    type:
+                    - string
+                    - 'null'
+                    description: The role a folder the form is in still gives the user, which now applies; null when they are no longer a cooperator
+        '400':
+          description: The user is the creator or the only manager, or has a role only through a folder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          description: The OAuth token lacks the forms scope, or, removing someone else or leaving while a folder still gives a role, the caller does not hold the predefined admin role on the form (a custom role does not count) or, on an Enterprise form, is not a member of its account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: The form cannot be found, or the user is not a cooperator on it
           content:
             application/json:
               schema:
@@ -2988,6 +3125,288 @@ paths:
                   error_description:
                     type: string
                     description: The errmsg returned by WeChat, or "WeChat OAuth failed" / "WeChat userinfo failed"
+  "/forms/{form_token}/pseudo_forms":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    get:
+      tags:
+      - Forms
+      summary: List a form's pseudo forms
+      operationId: listPseudoForms
+      description: |
+        Lists the form's pseudo forms (prefilled links: the fill page with some fields already filled in), newest first, the ones made in the web app included. Takes manage permission on the form.
+        OAuth scope: forms
+      parameters:
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/OffsetNext'
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/EntriesSkip'
+      responses:
+        '200':
+          description: Pseudo forms
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PseudoFormListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: The token is not a form (a table or a quick payment page), which has no pseudo forms
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags:
+      - Forms
+      summary: Create a pseudo form
+      operationId: createPseudoForm
+      description: |
+        Creates a pseudo form: a fill link (`fill_url`) that opens the form with the fields in `values` already filled in; an entry submitted through it keeps those values whatever the filler types. Takes manage permission on the form.
+        OAuth scope: forms
+        - For one link per row of a list, use `POST /forms/{form_token}/pseudo_forms/batch`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PseudoFormCreateInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PseudoForm'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: A key of `values` is not a field the pseudo form can preset, a value is invalid (each named by the key as sent in `error_description`), nothing would be preset, or the token is not a form
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/pseudo_forms/batch":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    post:
+      tags:
+      - Forms
+      summary: Create pseudo forms in batch
+      operationId: createPseudoFormsBatch
+      description: |
+        Creates one pseudo form per item of `pseudo_forms`, up to 200 at a time. Each item is checked on its own: valid ones are created, invalid ones are listed in `errors` by `index` (the position in the request array). Takes manage permission on the form.
+        OAuth scope: forms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - pseudo_forms
+              properties:
+                pseudo_forms:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    description: Written as PseudoFormCreateInput; an item of another type or shape is refused by its index
+              additionalProperties: false
+      responses:
+        '201':
+          description: At least one pseudo form created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PseudoFormBatchCreateResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Every item failed, or the token is not a form
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/PseudoFormBatchCreateResult'
+                - $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    delete:
+      tags:
+      - Forms
+      summary: Delete pseudo forms in batch
+      operationId: deletePseudoFormsBatch
+      description: |
+        Deletes the form's pseudo forms named in `tokens`, up to 200 at a time; their fill links stop working, and this cannot be undone. Tokens that name none of the form's pseudo forms come back in `not_found_tokens`. Takes manage permission on the form.
+        OAuth scope: forms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - tokens
+              properties:
+                tokens:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    type: string
+              additionalProperties: false
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PseudoFormBatchDeleteResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: The form does not exist, or none of the tokens names one of its pseudo forms
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The token is not a form (a table or a quick payment page), which has no pseudo forms
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/forms/{form_token}/pseudo_forms/{pseudo_form_token}":
+    parameters:
+    - $ref: '#/components/parameters/FormToken'
+    - name: pseudo_form_token
+      in: path
+      required: true
+      description: Pseudo form token, the last part of its `fill_url` (`/pf/<token>`)
+      schema:
+        type: string
+    patch:
+      tags:
+      - Forms
+      summary: Update a pseudo form
+      operationId: updatePseudoForm
+      description: |
+        Renames a pseudo form or changes its preset values: the fields named in `values` change, a field set to null loses its preset, and the fields left out keep theirs. Takes manage permission on the form.
+        OAuth scope: forms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PseudoFormUpdateInput'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PseudoForm'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: The form or the pseudo form does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: A key of `values` is not a field the pseudo form can preset, a value is invalid (each named by the key as sent in `error_description`), nothing would be preset, or the token is not a form
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    delete:
+      tags:
+      - Forms
+      summary: Delete a pseudo form
+      operationId: deletePseudoForm
+      description: |
+        Deletes a pseudo form; its fill link stops working, and this cannot be undone. Takes manage permission on the form.
+        OAuth scope: forms
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - token
+                properties:
+                  token:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: The form or the pseudo form does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The token is not a form (a table or a quick payment page), which has no pseudo forms
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   "/forms/{form_token}/views":
     get:
       tags:
@@ -6213,6 +6632,42 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+      - OpenSearch
+      summary: Delete a public query
+      description: |
+        Deletes a public query the caller created; on success, returns the query token. Nothing restores it, and its link stops working for good.
+        - To close the link for now and keep the query, update it with `enabled: false` instead.
+
+        OAuth scope: forms
+      operationId: deleteOpensearchQuery
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - token
+                properties:
+                  token:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          description: 'Forbidden: the OAuth token lacks the required scope, or the call comes from a routine run'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
   "/opensearch/query_suggestions":
     get:
       tags:
@@ -8227,8 +8682,8 @@ paths:
         Runs one keyword as a full-text search across several forms / tables and returns, per form, the match count and some of the matching serial numbers (at most 50 per form), without entry content.
         - Search scope: the forms in `form_tokens` when given; otherwise every form and table the caller can access (for an account access token, every form and table in the account).
           Either way, `filters` then narrows the scope; unless `filters` specifies `entries_count`, only forms with entries are searched by default (`entries_count > 0`).
-        - The scope holds at most 10 forms; beyond that it returns 400: narrow it with `filters`, or pass `form_tokens` directly.
-        - Forms with no match are left out of the result; forms that cannot be accessed, where the caller's role does not allow reading entries, whose search timed out or whose search service did not respond are listed with `unavailable` giving the reason (this does not mean there was no match).
+        - Without `form_tokens` the scope has no size limit: forms are searched newest first until the call's time runs out. `unsearched_count` then says how many were left and `next` resumes after the last one searched (pass the same `keyword` and `filters` with it); repeat until `next` is null. `form_tokens` takes at most 10.
+        - Forms with no match are left out of the result; forms that cannot be accessed, where the caller's role does not allow reading entries, whose search timed out or whose search service did not respond are listed with `unavailable` giving the reason (this does not mean there was no match). Forms counted in `unsearched_count` were not searched either.
 
         OAuth scope: read_entries
       parameters:
@@ -8242,7 +8697,7 @@ paths:
       - name: form_tokens
         in: query
         required: false
-        description: Tokens (ids also accepted) of the forms or tables to search, comma-separated (or repeat `form_tokens[]=`), at most 10 after deduplication. When omitted, every accessible form is searched.
+        description: Tokens (ids also accepted) of the forms or tables to search, comma-separated (or repeat `form_tokens[]=`), at most 10 after deduplication. When omitted, every accessible form is searched, continuing with `next`.
         explode: false
         schema:
           type: array
@@ -8255,7 +8710,7 @@ paths:
         in: query
         required: false
         description: |
-          Filters on form attributes that narrow the search scope, a JSON string holding an array of ScopeCondition objects (`JSON.stringify` the array; do not pass the array itself), with the same fields as `filters` of `GET /forms` (`form_name` / `created_at` / `last_entry_created_at` / `entries_count`); conditions are combined with AND.
+          Filters on form attributes that narrow the search scope, a JSON string holding an array of ScopeCondition objects (`JSON.stringify` the array; do not pass the array itself), with the same fields as `filters` of `GET /forms` (`form_name` / `created_at` / `last_entry_created_at` / `entries_count` / `folder_token`); conditions are combined with AND.
           Without an `entries_count` condition, `entries_count > 0` is appended automatically.
         content:
           application/json:
@@ -8269,6 +8724,12 @@ paths:
               value:
                 unit: day
                 "n": 30
+      - name: next
+        in: query
+        required: false
+        description: "`next` from the previous response, to search the forms it left; not taken with `form_tokens`."
+        schema:
+          type: string
       responses:
         '200':
           description: Matches per form
@@ -8720,6 +9181,119 @@ paths:
                 $ref: '#/components/schemas/Error'
         '422':
           description: The fill page has requirements the API cannot fulfil, or a field value is invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/fill/pf/{pseudo_form_token}":
+    get:
+      tags:
+      - Fill
+      summary: Show a pseudo form's fill page
+      operationId: getFillPseudoFormPage
+      description: |
+        Reads the fill page behind a prefilled link (`/pf/<token>`): its title, description, the fields to fill in, the values already filled in (`predefined_values`), and whether the current user can submit right now.
+        The caller reads it as a submitter holding the link and needs no permission on the form; only what the fill page shows is returned.
+        - Submit through the API only when `status.key` is `open` and `blockers` is empty; otherwise `status.message` says why, and a non-empty `blockers` means the page must be filled in a browser.
+        - The fields in `predefined_values` need no answer: a submission keeps those values whatever it says.
+        - Needs a personal access token or OAuth: an account access token has no current user.
+
+        OAuth scope: submit_entries
+      parameters:
+      - name: pseudo_form_token
+        in: path
+        required: true
+        description: The token in the prefilled link `/pf/<token>`.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Fill page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FillPage'
+        '400':
+          description: The request is malformed, or it was made with an account access token, which has no current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: The fill page does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error_description: Fill page not found — check the link.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  "/fill/pf/{pseudo_form_token}/entries":
+    post:
+      tags:
+      - Fill
+      summary: Submit an entry through a pseudo form's fill page
+      operationId: createFillPseudoFormEntry
+      description: |
+        Submits one entry through the prefilled fill page as the current user, the same as clicking "Submit" on the page: only fields visible on the fill page are accepted, required fields are checked as the fill page sets them, and the submitter is recorded as the current user.
+        - The preset values (`predefined_values` of the fill page) are submitted as they are, whatever `entry` says for those fields.
+        - Each user can submit at most 30 times per hour.
+        - Needs a personal access token or OAuth: an account access token has no current user.
+
+        OAuth scope: submit_entries
+      parameters:
+      - name: pseudo_form_token
+        in: path
+        required: true
+        description: The token in the prefilled link `/pf/<token>`.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FillEntryRequest'
+      responses:
+        '201':
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FillEntryCreated'
+        '400':
+          description: The request is malformed, or it was made with an account access token, which has no current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          description: The fill page is not open; `status` says why
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: The fill page does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The fill page has requirements the API cannot fulfil (`blockers` lists them), or a field value is invalid (`errors` explains each by field api_code)
           content:
             application/json:
               schema:
@@ -9273,6 +9847,7 @@ components:
         | `created_at` | time | `eq` `ne` `gte` `gt` `lte` `lt` `within_last` |
         | `last_entry_created_at` | time | same as above (forms that have never received an entry have no value) |
         | `entries_count` | integer | `eq` `ne` `gte` `gt` `lte` `lt` |
+        | `folder_token` | text | `eq` `any_in` (the folder the caller sees the form in, as `folder_token` in each row) |
 
         The value of `within_last` looks like `{"unit":"day","n":30}` (unit can be minute / day / week / month), meaning the window going back from now.
         Example: `[{"field":"last_entry_created_at","operator":"within_last","value":{"unit":"day","n":7}}]`
@@ -9832,7 +10407,7 @@ components:
           schema:
             $ref: '#/components/schemas/RateLimitError'
     EntryValidationFailed:
-      description: 'Entry validation failed or a parameter is invalid. When field validation fails, `error_description` is a JSON string serialized from `{ "<api_code>": ["error message"] }`'
+      description: 'Entry validation failed or a parameter is invalid. When field validation fails, `error_description` is a JSON string serialized from `{ "<api_code>": ["error message"] }`; a value in a shape its field does not take gets a sentence naming each such key and the shape the field takes instead'
       content:
         application/json:
           schema:
@@ -11020,18 +11595,19 @@ components:
       description: |
         Field values for writing an entry, keyed by field api_code or api_code_alias. Unknown keys and non-writable fields (signature, formula) are ignored.
         Choice fields take the choice api_code or the choice label; see the table below for cascading drop-downs and choice extra text. Number fields accept a number or a numeric string.
+        A value in another shape than the table gives (an object where text goes, an hour past 23, a cascade level not under the one above) is refused, not dropped.
 
         | Field | How to write |
         |---|---|
         | Single-line / multi-line text, name, mobile, email, phone, website, ID card | String |
         | Single choice, drop-down | `"choice api_code"` or `"choice label"`; extra text via `"<api_code>_extended_text": {"<choice>": "extra text"}`, "Other" text via `"<api_code>_other": "..."` |
-        | Multiple choice | Array, items as above |
+        | Multiple choice | Array, items as above; a single choice may be sent alone |
         | Image single choice / image multiple choice | Choice api_code (string / array) |
         | Cascading drop-down | `{"level_1": "...", "level_2": "..."}` (api_code or label) |
         | Number, rating, NPS | Number |
         | Yes/No | Boolean |
         | Date | `"2012-12-25"` or `"2012-12-25 12:13:15"` (Beijing time, UTC+8) |
-        | Time | `{"hour": "12", "minute": "15"}` |
+        | Time | `{"hour": "12", "minute": "15"}`, or `"12:15"` / `"12:15:30"` as it is read back |
         | Address | `{"province","city","district","street"}` |
         | Geolocation | `{"longitude","latitude","address"}` |
         | File upload (multiple allowed) | Array; each item is one of: the id of an uploaded attachment; the download URL of an attachment already on this form (to keep it); `{"base64": "...", "file_name": "a.png", "content_type": "image/png"}` (≤ 5MB; `base64` may also be a data URI) |
@@ -11517,6 +12093,20 @@ components:
         is_other:
           type: boolean
           description: Make this the "Other" choice (choosing it shows a text box); its text is kept as written. A choice whose text is exactly `其他` or `其它` needs no flag. Only for RadioButton / CheckBox / DropDown
+        allow_extended_text:
+          type: boolean
+          description: Show a text box when the choice is picked; taken only by a choice of a RadioButton / CheckBox / Department / Grade field of a form (a CheckBox in the list style), not by its "Other" choice
+        extended_text_required:
+          type: boolean
+          description: The text box must be filled in; takes effect only with allow_extended_text
+        extended_text_placeholder:
+          type: string
+          maxLength: 500
+          description: Hint shown in the empty text box; takes effect only with allow_extended_text
+        position:
+          type: integer
+          minimum: 0
+          description: Where update_choices.add inserts the choice, from 0; appended at the end by default
     DimensionInput:
       type: object
       title: DimensionInput
@@ -11843,7 +12433,7 @@ components:
         - Changing `success_message_rich_text` requires a plan that includes "Success page rich text". Writing `success_message_style` as `rich_text` (passed, written back as read, or implied by passing only `success_message_rich_text`) also needs "Distribution poster" and "Certificate"; on other plans with "Success page rich text" pass `text`. Otherwise the request is refused with 400. A plan without "Success page rich text" may still write back the `rich_text` style it read; it is saved as `text`.
         - Switching `entry_submit_mode` to `redirect`, or changing the saved `success_redirect_url` / `success_redirect_fields`, requires a plan that includes "Success redirect", or the request is refused with 400; writing back the values read is accepted. Any other `entry_submit_mode` clears the redirect URL and fields.
         - `submission_region_limited=true` requires a plan that includes "Submission region limit" and at least one item in `submission_regions`.
-        - `merchant_account_id` (小金商户) cannot be bound together with `wxpay_account_id` / `alipay_account_id`; a newly passed payment account must belong to the current account, and once bound, `payment_way` becomes `third_party` automatically and `payment_expirable` turns on unless passed or already `false`.
+        - `merchant_account_id` (小金商户) cannot be bound together with `wxpay_account_id` / `alipay_account_id`; a newly passed payment account must belong to the current account. The request that binds a new one sets `payment_way` to `third_party` and turns `payment_expirable` on unless passed or already `false`; on an existing form, a request that binds no new account does not change them on its own. A form created with a non-empty `setting` starts with `payment_expirable` on unless it is passed.
         - `notification_rules` replaces all notification rules created through the API as a whole (`[]` clears them); rules created in the desktop UI are not affected.
         - A `weixin_collect_way` change the settings page does not offer is refused with 400 and the reason, e.g. turning collecting off while WeChat red envelopes are on.
       properties:
@@ -11897,6 +12487,7 @@ components:
           type: boolean
         show_close_count_down:
           type: boolean
+          description: Show a countdown to the scheduled close; true needs a time range or daily schedule after the request (by_time_range_close_rule / daily_repeat_close_rule), otherwise 400. Deleting the schedule turns it off
         show_form_when_unavailable:
           type: boolean
           description: Show the questions without a submit button while the form is not open yet or has stopped; otherwise show the not_open_hide_form text
@@ -11980,8 +12571,10 @@ components:
           type: boolean
         password_required:
           type: boolean
+          description: When false, the server clears the password
         access_password:
           type: string
+          description: Taken only while password_required is true (sent or already on), otherwise 400
         allowed_audience:
           description: Who can fill in
           anyOf:
@@ -12881,7 +13474,7 @@ components:
           - SequenceField
           - LookupField
           - RollupField
-          description: Change the field to this type, keeping its api_code and entries and converting the values; a change that would clear data needs confirm_data_loss. The target is a FieldInput type (a TableColumnInput type on a table); the field's current type changes nothing. Exam questions and customized fields (Department / Grade) cannot change type in place; remove the field and add a new one instead
+          description: Change the field to this type, keeping its api_code and entries and converting the values; a change that would clear data needs confirm_data_loss. The target is a FieldInput type (a TableColumnInput type on a table); the field's current type changes nothing. A selection field changed to RadioButton, DropDown or ImageRadioButton keeps only its first selected choice. Exam questions and customized fields (Department / Grade) cannot change type in place; remove the field and add a new one instead
         confirm_data_loss:
           type: boolean
           description: Accept that the type change clears data
@@ -12895,6 +13488,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label; WidgetButton takes none
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages; WidgetButton / WidgetContact / WidgetMap / WidgetMarquee / FormulaField / ReversedAssociation / PageBreak / SectionBreak / Divider / StyledText / ImageText / Carousel / Timer / ImageGroup / WidgetVideo take none, and neither does a table column
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it; WidgetButton / WidgetContact / WidgetMap / WidgetMarquee take none'
@@ -13043,6 +13642,15 @@ components:
         start_new_row:
           type: boolean
           description: Start a new row with this field instead of placing it beside the one before; applies only with grids_to_occupy
+        presentation_style:
+          type:
+          - string
+          - 'null'
+          enum:
+          - list
+          - dropdown
+          -
+          description: list (the default) shows every choice; dropdown puts them in a drop-down the filler picks several from. A change to dropdown is refused while a visible choice requires text after it, unless update_choices removes that choice in the same request; a field the form editor turned from a drop-down stays dropdown, null included
         minimum_length:
           type:
           - integer
@@ -13600,7 +14208,7 @@ components:
           type: string
         add:
           type: array
-          description: Choices appended after the existing ones; ChoiceInput items for a choice field, ImageChoiceInput items for an ImageRadioButton / ImageCheckBox, each with one of image_url / image_base64 / attachment_id
+          description: Choices to add, appended after the existing ones unless they give position; ChoiceInput items for a choice field, ImageChoiceInput items for an ImageRadioButton / ImageCheckBox, each with one of image_url / image_base64 / attachment_id
           items:
             anyOf:
             - $ref: '#/components/schemas/ChoiceInput'
@@ -13654,11 +14262,27 @@ components:
                 - string
                 - 'null'
                 description: An http or https link the choice description opens instead of a text; null removes it. Give this or description_text, not both. Only RadioButton, CheckBox, ImageRadioButton and ImageCheckBox take it
+              allow_extended_text:
+                type: boolean
+                description: Show a text box when the choice is picked
+              extended_text_required:
+                type: boolean
+                description: The text box must be filled in
+              extended_text_placeholder:
+                type:
+                - string
+                - 'null'
+                maxLength: 500
+                description: Hint shown in the empty text box; null clears it
+              position:
+                type: integer
+                minimum: 0
+                description: Move the choice to this place, from 0, in the list as it is after the additions
             additionalProperties: false
       additionalProperties: false
     FieldRuleOperations:
       type: object
-      description: Incremental field display rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/field_rules` returns; the same index cannot be both removed and updated
+      description: Incremental field display rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/field_rules` returns; the same index cannot be both removed and updated. `add` returns 400 on an exam or evaluation with random questions on
       properties:
         add:
           type: array
@@ -13703,7 +14327,7 @@ components:
       additionalProperties: false
     RedirectRuleOperations:
       type: object
-      description: Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature
+      description: Incremental redirect rule operations; `remove` / `update` target a rule by the 0-based `index` that `GET /forms/{form_token}/redirect_rules` returns; the same index cannot be both removed and updated. `add` / `update` need a plan with the `field_redirect_rules` feature; `add` returns 400 on an exam or evaluation with random questions on
       properties:
         add:
           type: array
@@ -14452,6 +15076,7 @@ components:
           type: boolean
         show_close_count_down:
           type: boolean
+          description: Show a countdown to the scheduled close; true needs a time range or daily schedule after the request (by_time_range_close_rule here, or daily_repeat_close_rule through the form edit endpoint), otherwise 400
         show_form_when_unavailable:
           type: boolean
           description: Show the questions without a submit button while the form is not open yet or has stopped
@@ -14466,7 +15091,7 @@ components:
           description: When true, access_password is required as well; when false, the server clears the password
         access_password:
           type: string
-          description: Only ASCII letters, digits and common symbols are allowed
+          description: Taken only while password_required is true (sent or already on), otherwise 400; only ASCII letters, digits and common symbols are allowed
         allowed_audience:
           description: Who can fill in
           anyOf:
@@ -14915,7 +15540,7 @@ components:
           properties:
             enabled:
               type: boolean
-              description: Draw questions at random for each examinee; false turns it off and keeps the rest
+              description: Draw questions at random for each examinee; false turns it off and keeps the rest. Turning it on returns 400 while a field_rules or redirect_rules condition uses an exam question; once on, PATCH /forms/{form_token} cannot add rules
             mode:
               type: string
               enum:
@@ -14925,11 +15550,11 @@ components:
             count:
               type: integer
               minimum: 1
-              description: Questions to draw in from_all mode; at most `random_questions.total` in GET
+              description: Questions to draw in from_all mode; while random questions are on, at most `random_questions.total` in GET
             question_types:
               type: array
               minItems: 1
-              description: Replaces the by_type counts as a whole; list each type once, a type left out draws none, and the counts must add up to more than 0
+              description: Replaces the by_type counts as a whole; list each type once, and a type left out draws none. While random questions are on, the counts must add up to more than 0
               items:
                 type: object
                 required:
@@ -14948,7 +15573,7 @@ components:
                   count:
                     type: integer
                     minimum: 0
-                    description: Questions to draw of this type; at most the type's `total` in GET
+                    description: Questions to draw of this type; while random questions are on, at most the type's `total` in GET
                 additionalProperties: false
             shuffle:
               type: boolean
@@ -15285,6 +15910,12 @@ components:
         show_comments:
           type: boolean
           description: Show the total-score comments in the report
+        show_timeout:
+          type: boolean
+          description: Whether the evaluation is timed
+        limited_time:
+          type: integer
+          description: Time limit in minutes
         need_attention:
           type: string
           description: Instructions shown before the evaluation
@@ -15331,6 +15962,57 @@ components:
                     type: array
                     items:
                       $ref: '#/components/schemas/IntervalComment'
+        random_questions:
+          type: object
+          description: Random questions, drawn for each respondent
+          required:
+          - enabled
+          - mode
+          - total
+          - shuffle
+          - question_types
+          properties:
+            enabled:
+              type: boolean
+            mode:
+              type: string
+              enum:
+              - by_type
+              - from_all
+              description: by_type draws `count` of each question type; from_all draws `count` from all scored questions
+            count:
+              type: integer
+              description: Questions drawn in from_all mode
+            total:
+              type: integer
+              description: Scored questions on the form
+            shuffle:
+              type: boolean
+              description: Whether the question order is shuffled
+            question_types:
+              type: array
+              description: Every question type, with what by_type draws of it
+              items:
+                type: object
+                required:
+                - question_type
+                - count
+                - total
+                properties:
+                  question_type:
+                    type: string
+                    enum:
+                    - single_select_only_fields
+                    - multi_select_fields
+                    - analytics_fields
+                    - matrix_fields
+                    description: analytics_fields are rating and NPS questions, matrix_fields are Likert questions
+                  count:
+                    type: integer
+                    description: Questions of this type drawn in by_type mode
+                  total:
+                    type: integer
+                    description: Questions of this type on the form
         anti_cheating:
           $ref: '#/components/schemas/AntiCheatingSetting'
     EvaluationSettingInput:
@@ -15352,6 +16034,14 @@ components:
           type: boolean
         show_comments:
           type: boolean
+        show_timeout:
+          type: boolean
+          description: 'Turns on the evaluation time limit. Mutually exclusive with required on scored question fields: passing true returns 400 when the form already has a required question; once on, question fields can no longer be set as required (required on respondent info fields is unaffected)'
+        limited_time:
+          type: integer
+          minimum: 1
+          maximum: 9999
+          description: Time limit in minutes
         need_attention:
           type: string
         show_dispatcher_structure:
@@ -15369,18 +16059,18 @@ components:
             $ref: '#/components/schemas/FormEvaluationCommentInput'
         indicator_setting:
           type: object
-          description: Dimension settings; indicators is replaced as a whole
+          description: Dimension settings; only the keys present are written, and indicators is replaced as a whole
           properties:
             enabled:
               type: boolean
-              default: true
+              description: Whether the report's radar module (dimensions) is on; when left out it turns on as dimensions are added to a form that had none and off when indicators is empty
             indicators_scoring_mode:
               type: string
               enum:
               - summation
               - average
               - customization
-              default: summation
+              description: How dimensions are scored; a form starts with summation
             indicators:
               type: array
               maxItems: 200
@@ -15391,7 +16081,7 @@ components:
                 properties:
                   api_code:
                     type: string
-                    description: Pass back an existing dimension's api_code to keep its identity; omit it for a new dimension
+                    description: Pass back an existing dimension's api_code to keep its identity and the settings not passed; omit it for a new dimension
                   name:
                     type: string
                     maxLength: 20
@@ -15425,6 +16115,78 @@ components:
                       additionalProperties: false
                 additionalProperties: false
           additionalProperties: false
+        random_questions:
+          type: object
+          description: Random questions; only the keys present are written. Turning it on takes `mode`, `by_type` takes `question_types` and `from_all` takes `count`
+          properties:
+            enabled:
+              type: boolean
+              description: Draw questions at random for each respondent; false turns it off and keeps the rest. Turning it on returns 400 while a field_rules or redirect_rules condition uses a scored question; once on, PATCH /forms/{form_token} cannot add rules
+            mode:
+              type: string
+              enum:
+              - by_type
+              - from_all
+              description: by_type draws a count of each question type; from_all draws `count` from all scored questions
+            count:
+              type: integer
+              minimum: 1
+              description: Questions to draw in from_all mode; while random questions are on, at most `random_questions.total` in GET
+            question_types:
+              type: array
+              minItems: 1
+              description: Replaces the by_type counts as a whole; list each type once, and a type left out draws none. While random questions are on, the counts must add up to more than 0
+              items:
+                type: object
+                required:
+                - question_type
+                - count
+                properties:
+                  question_type:
+                    type: string
+                    enum:
+                    - single_select_only_fields
+                    - multi_select_fields
+                    - analytics_fields
+                    - matrix_fields
+                    description: analytics_fields are rating and NPS questions, matrix_fields are Likert questions; GET lists every type with the questions it has
+                  count:
+                    type: integer
+                    minimum: 0
+                    description: Questions to draw of this type; while random questions are on, at most the type's `total` in GET
+                additionalProperties: false
+            shuffle:
+              type: boolean
+              description: Shuffle the question order
+          additionalProperties: false
+          allOf:
+          - if:
+              properties:
+                enabled:
+                  const: true
+              required:
+              - enabled
+            then:
+              required:
+              - mode
+          - if:
+              properties:
+                mode:
+                  const: by_type
+              required:
+              - mode
+            then:
+              required:
+              - question_types
+          - if:
+              properties:
+                mode:
+                  const: from_all
+              required:
+              - mode
+            then:
+              required:
+              - count
         anti_cheating:
           $ref: '#/components/schemas/AntiCheatingSettingInput'
       additionalProperties: false
@@ -15828,6 +16590,19 @@ components:
           - data_maintainer
           - data_viewer
           description: 'Role for every user added: manager administers the form, data_maintainer adds, reads, edits, deletes and exports entries, data_viewer reads and exports them'
+      additionalProperties: false
+    CooperatorUpdateInput:
+      type: object
+      required:
+      - role
+      properties:
+        role:
+          type: string
+          enum:
+          - manager
+          - data_maintainer
+          - data_viewer
+          description: 'The new role: manager administers the form, data_maintainer adds, reads, edits, deletes and exports entries, data_viewer reads and exports them; an outside cooperator on an Enterprise form keeps whatever export and messaging rights the cooperation page gave them'
       additionalProperties: false
     FormWeixinOauthSessionInput:
       type: object
@@ -17921,7 +18696,7 @@ components:
         editable:
           type: boolean
           default: false
-          description: Whether the searcher can edit this field on the results page
+          description: Whether the searcher can edit this field on the results page; read back as false for a field whose display suggestion is not editable
         protected:
           type: boolean
           default: false
@@ -17949,6 +18724,7 @@ components:
       - name
       - enabled
       - form_token
+      - form_name
       - created_at
       - searches_count
       - views_count
@@ -17970,6 +18746,11 @@ components:
           - string
           - 'null'
           description: Token of the form it belongs to; null when the form has been deleted
+        form_name:
+          type:
+          - string
+          - 'null'
+          description: Name of the form it belongs to; null when the form has been deleted
         created_at:
           type: string
           format: date-time
@@ -18274,6 +19055,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -18385,6 +19172,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -18456,6 +19249,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -18559,6 +19358,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -18611,6 +19416,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -18689,6 +19500,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -18754,6 +19571,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -18840,6 +19663,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -18940,6 +19769,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -18968,6 +19803,15 @@ components:
           - string
           - 'null'
           description: How the choices are laid out
+        presentation_style:
+          type:
+          - string
+          - 'null'
+          enum:
+          - list
+          - dropdown
+          -
+          description: list (the default) shows every choice; dropdown puts them in a drop-down the filler picks several from
         random_choices:
           type: boolean
           description: Shuffle the choices each time the form opens
@@ -19060,6 +19904,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19155,6 +20005,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19225,6 +20081,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19287,6 +20149,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19331,6 +20199,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19389,6 +20263,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19448,6 +20328,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19585,6 +20471,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19619,6 +20511,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19676,6 +20574,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19722,6 +20626,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19781,6 +20691,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19837,6 +20753,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19871,6 +20793,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19912,6 +20840,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -19996,6 +20930,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -20098,6 +21038,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -20147,6 +21093,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -20195,6 +21147,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -20357,6 +21315,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -20408,6 +21372,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -20531,6 +21501,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -20618,6 +21594,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -20985,6 +21967,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -21115,6 +22103,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -21143,6 +22137,15 @@ components:
           - string
           - 'null'
           description: How the choices are laid out
+        presentation_style:
+          type:
+          - string
+          - 'null'
+          enum:
+          - list
+          - dropdown
+          -
+          description: list (the default) shows every choice; dropdown puts them in a drop-down the filler picks several from
         random_choices:
           type: boolean
           description: Shuffle the choices each time the form opens
@@ -21277,6 +22280,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -21394,6 +22403,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -21543,6 +22558,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -21673,6 +22694,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -21797,6 +22824,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -21938,6 +22971,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -22039,6 +23078,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -22171,6 +23216,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -22263,6 +23314,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -22338,6 +23395,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -22438,6 +23501,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
@@ -22638,6 +23707,10 @@ components:
         attachment_id:
           type: string
           description: The `attachment_id` of an image_type=field_choice upload, or an image this form already has
+        position:
+          type: integer
+          minimum: 0
+          description: Where update_choices.add inserts the choice, from 0; appended at the end by default
     CascadeChoiceInput:
       type: object
       title: CascadeChoiceInput
@@ -23893,6 +24966,8 @@ components:
       required:
       - total
       - forms
+      - unsearched_count
+      - next
       properties:
         total:
           type: integer
@@ -23928,6 +25003,14 @@ components:
                   - 'null'
                   description: Token of the folder the current identity sees this form in, also a shared folder another cooperator put it in (for an account token, the account owner's view); null when it is in no such folder
             - $ref: '#/components/schemas/EntryFormUnavailable'
+        unsearched_count:
+          type: integer
+          description: Forms in scope the call ran out of time before searching; they are not listed in `forms` and may hold matches
+        next:
+          type:
+          - string
+          - 'null'
+          description: Pass back as `next` to search the forms counted in `unsearched_count`; null when every form in scope was searched
       examples:
       - total: 3
         forms:
@@ -23939,6 +25022,8 @@ components:
           - 57
           - 88
           folder_token:
+        unsearched_count: 0
+        next:
     EntryStatsResponse:
       type: object
       required:
@@ -24185,6 +25270,122 @@ components:
           - integer
           - 'null'
           description: Row offset of the next page; null on the last page
+    PseudoForm:
+      type: object
+      required:
+      - token
+      - name
+      - fill_url
+      - values
+      - created_at
+      properties:
+        token:
+          type: string
+        name:
+          type:
+          - string
+          - 'null'
+        fill_url:
+          type: string
+          description: The prefilled link to hand out
+        values:
+          type: object
+          description: The preset values, keyed by field api_code
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+    PseudoFormListResponse:
+      type: object
+      required:
+      - total
+      - count
+      - data
+      - next
+      properties:
+        total:
+          type: integer
+          description: Number of pseudo forms of the form
+        count:
+          type: integer
+          description: Number of items on this page
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PseudoForm'
+        next:
+          type:
+          - integer
+          - 'null'
+          description: Row offset of the next page; null on the last page
+    PseudoFormCreateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name shown in the form's pseudo form list; give each link one that tells it apart, such as who it is for
+        values:
+          $ref: '#/components/schemas/PseudoFormValues'
+      additionalProperties: false
+    PseudoFormUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name shown in the form's pseudo form list
+        values:
+          $ref: '#/components/schemas/PseudoFormValues'
+      additionalProperties: false
+    PseudoFormValues:
+      type: object
+      additionalProperties: true
+      description: Preset values keyed by field api_code or api_code_alias, written as when creating entries, except that a FormAssociation takes only the id or token of an associated entry its filter allows; on an update, null clears a field's preset. A new pseudo form has to preset at least one field. Only AddressField / CascadeDropDown / CheckBox / DateTimeField / DropDown / EmailField / FormAssociation / IdCardField / ImageCheckBox / ImageRadioButton / LinkField / MobileField / NameField / NumberField / RadioButton / TelephoneField / TextArea / TextField / TimeField fields can be preset
+    PseudoFormBatchCreateResult:
+      type: object
+      required:
+      - created
+      - errors
+      properties:
+        created:
+          type: array
+          items:
+            allOf:
+            - $ref: '#/components/schemas/PseudoForm'
+            - type: object
+              required:
+              - index
+              properties:
+                index:
+                  type: integer
+                  description: Index in the request array
+        errors:
+          type: array
+          items:
+            type: object
+            required:
+            - index
+            - reason
+            properties:
+              index:
+                type: integer
+                description: Index in the request array
+              reason:
+                type: string
+    PseudoFormBatchDeleteResult:
+      type: object
+      required:
+      - deleted_tokens
+      - not_found_tokens
+      properties:
+        deleted_tokens:
+          type: array
+          items:
+            type: string
+        not_found_tokens:
+          type: array
+          description: Tokens that name none of the form's pseudo forms
+          items:
+            type: string
     FillPage:
       type: object
       required:
@@ -24201,7 +25402,8 @@ components:
           enum:
           - form
           - form_view
-          description: "`form` for a `/f/` link, `form_view` for a `/v/` link (a form view of a table)"
+          - pseudo_form
+          description: "`form` for a `/f/` link, `form_view` for a `/v/` link (a form view of a table), `pseudo_form` for a `/pf/` link (a form with some fields preset)"
         token:
           type: string
           description: The token in the link
@@ -24261,6 +25463,10 @@ components:
           description: Fields on the fill page, in fill order; for a form view, labels, descriptions and required flags follow the view; an exam that draws questions at random lists one draw per call, as each opening of the page does
           items:
             $ref: '#/components/schemas/FieldMap'
+        predefined_values:
+          type: object
+          description: For a `/pf/` link whose page is open (`status.key` is `open`), the preset values of the fields the page shows, keyed by field api_code; a submission keeps them whatever it says
+          additionalProperties: true
         manageable:
           type: object
           description: Returned only when the current user can already read the form or table behind the page
@@ -24410,6 +25616,9 @@ components:
           exam_setting:
             $ref: '#/components/schemas/ExamSetting'
             description: Exam settings (present on an exam form when `include_exam_setting=true`), same as `GET /forms/{form_token}/exam_setting`
+          evaluation_setting:
+            $ref: '#/components/schemas/EvaluationSetting'
+            description: Evaluation settings (present on an evaluation form when `include_evaluation_setting=true`), same as `GET /forms/{form_token}/evaluation_setting`
           transactions:
             $ref: '#/components/schemas/FormTransactions'
     FormViewFillItem:
@@ -24420,6 +25629,7 @@ components:
       - label
       - notes
       - required
+      - privacy_safe
       properties:
         api_code:
           type: string
@@ -24437,6 +25647,9 @@ components:
         required:
           type: boolean
           description: Whether it is required
+        privacy_safe:
+          type: boolean
+          description: Whether privacy protection is on for this relation column
     FormViewFieldOverrideInput:
       type: object
       description: Configuration of one fill item of a form view
@@ -24445,7 +25658,7 @@ components:
       properties:
         field_api_code:
           type: string
-          description: The column's api_code; the column must exist and be usable as a fill item, and cannot repeat within one request
+          description: The column's api_code; the column must exist and be usable as a fill item, and cannot repeat within one request. A lookup or rollup column shown on the fill page needs its relation column not hidden
         label:
           type:
           - string
@@ -24473,6 +25686,11 @@ components:
             type: string
             examples:
             - presence
+        privacy_safe:
+          type:
+          - boolean
+          - 'null'
+          description: Takes effect on relation columns only and is ignored on others. When true, no list is shown and a filler must type to find a related record; a single-line text, multi-line text, name, mobile, email, telephone, ID card, link or serial number display column must match the typed value in full
       additionalProperties: false
     EntryImportInput:
       type: object
@@ -30777,6 +31995,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unique
@@ -30804,6 +32023,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -30884,6 +32107,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unique
@@ -30905,6 +32129,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -30953,6 +32181,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unique
@@ -30978,6 +32207,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -31045,6 +32278,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unique
@@ -31063,6 +32297,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -31099,6 +32337,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unique
@@ -31122,6 +32361,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -31178,6 +32421,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unique
@@ -31198,6 +32442,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -31244,6 +32492,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unique
@@ -31267,6 +32516,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -31330,6 +32583,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - other_choice_required
@@ -31355,6 +32609,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -31416,11 +32674,13 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - other_choice_required
       - calculable
       - choices_layout
+      - presentation_style
       - random_choices
       - minimum_length
       - maximum_length
@@ -31448,6 +32708,10 @@ components:
           type:
           - string
           - 'null'
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
         private:
           type: boolean
         required:
@@ -31460,6 +32724,14 @@ components:
           type:
           - string
           - 'null'
+        presentation_style:
+          type:
+          - string
+          - 'null'
+          enum:
+          - list
+          - dropdown
+          -
         random_choices:
           type: boolean
         minimum_length:
@@ -31520,6 +32792,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - other_choice_required
@@ -31544,6 +32817,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -31601,6 +32878,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - predefined_value
@@ -31621,6 +32899,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -31673,6 +32955,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - rating_type
@@ -31692,6 +32975,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -31735,6 +33022,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - dimensions
@@ -31751,6 +33039,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -31783,6 +33075,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unique
@@ -31802,6 +33095,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -31842,6 +33139,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - predefined_value
@@ -31861,6 +33159,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -31903,6 +33205,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - max_size
@@ -31921,6 +33224,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -31988,6 +33295,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - api_code_alias
@@ -32002,6 +33310,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32026,6 +33338,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unique
@@ -32045,6 +33358,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32085,6 +33402,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - minimum_ratings_display_text
@@ -32102,6 +33420,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32139,6 +33461,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - predefined_value
@@ -32157,6 +33480,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32200,6 +33527,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - random_choices
@@ -32218,6 +33546,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32256,6 +33588,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - api_code_alias
@@ -32270,6 +33603,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32294,6 +33631,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - max_duration
@@ -32309,6 +33647,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32337,6 +33679,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - levels
@@ -32361,6 +33704,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32420,6 +33767,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - horizontal_on_mobile
@@ -32441,6 +33789,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32493,6 +33845,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - horizontal_on_mobile
@@ -32510,6 +33863,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32544,6 +33901,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - horizontal_on_mobile
@@ -32562,6 +33920,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32599,6 +33961,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unit
@@ -32616,6 +33979,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32749,6 +34116,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - allow_multiple_items
@@ -32767,6 +34135,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32801,6 +34173,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unique
@@ -32824,6 +34197,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32922,6 +34299,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - calculable
@@ -32944,6 +34322,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -32997,6 +34379,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - calculable
@@ -33023,6 +34406,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -33367,6 +34754,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - other_choice_required
@@ -33395,6 +34783,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -33472,11 +34864,13 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - other_choice_required
       - calculable
       - choices_layout
+      - presentation_style
       - random_choices
       - minimum_length
       - maximum_length
@@ -33505,6 +34899,10 @@ components:
           type:
           - string
           - 'null'
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
         private:
           type: boolean
         required:
@@ -33517,6 +34915,14 @@ components:
           type:
           - string
           - 'null'
+        presentation_style:
+          type:
+          - string
+          - 'null'
+          enum:
+          - list
+          - dropdown
+          -
         random_choices:
           type: boolean
         minimum_length:
@@ -33588,6 +34994,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - calculable
@@ -33613,6 +35020,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -33682,6 +35093,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - calculable
@@ -33709,6 +35121,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -33787,6 +35203,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - other_choice_required
@@ -33815,6 +35232,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -33892,6 +35313,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - other_choice_required
@@ -33919,6 +35341,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -33992,6 +35418,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unique
@@ -34022,6 +35449,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -34118,6 +35549,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unique
@@ -34142,6 +35574,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -34206,6 +35642,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - unique
@@ -34234,6 +35671,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -34317,6 +35758,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - rating_type
@@ -34339,6 +35781,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -34398,6 +35844,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - minimum_ratings_display_text
@@ -34418,6 +35865,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -34471,6 +35922,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - other_choice_required
@@ -34496,6 +35948,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -34557,6 +36013,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - other_choice_required
@@ -34582,6 +36039,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -34947,6 +36408,7 @@ components:
       - type
       - label
       - notes
+      - customized_validation_message
       - private
       - required
       - dimensions
@@ -34963,6 +36425,10 @@ components:
           - string
           - 'null'
         notes:
+          type:
+          - string
+          - 'null'
+        customized_validation_message:
           type:
           - string
           - 'null'
@@ -36006,6 +37472,7 @@ components:
       - hidden
       - allow_extended_text
       - extended_text_required
+      - extended_text_placeholder
       - description_text
       - description_url
       properties:
@@ -36042,10 +37509,15 @@ components:
           description: Hidden from fillers; not writable, so a write may only repeat the current value
         allow_extended_text:
           type: boolean
-          description: Shows a text box when chosen; not writable, so a write may only repeat the current value
+          description: Shows a text box when chosen
         extended_text_required:
           type: boolean
-          description: The text box must be filled in; not writable, so a write may only repeat the current value
+          description: The text box must be filled in
+        extended_text_placeholder:
+          type:
+          - string
+          - 'null'
+          description: Hint shown in the empty text box
         description_text:
           type:
           - string
@@ -36072,6 +37544,7 @@ components:
       - hidden
       - allow_extended_text
       - extended_text_required
+      - extended_text_placeholder
       - description_text
       - description_url
       - attachment_id
@@ -36110,10 +37583,15 @@ components:
           description: Hidden from fillers; not writable, so a write may only repeat the current value
         allow_extended_text:
           type: boolean
-          description: Shows a text box when chosen; not writable, so a write may only repeat the current value
+          description: Shows a text box when chosen
         extended_text_required:
           type: boolean
-          description: The text box must be filled in; not writable, so a write may only repeat the current value
+          description: The text box must be filled in
+        extended_text_placeholder:
+          type:
+          - string
+          - 'null'
+          description: Hint shown in the empty text box
         description_text:
           type:
           - string
@@ -36148,6 +37626,7 @@ components:
       - hidden
       - allow_extended_text
       - extended_text_required
+      - extended_text_placeholder
       - description_text
       - description_url
       - sub_choices
@@ -36185,10 +37664,15 @@ components:
           description: Hidden from fillers; not writable, so a write may only repeat the current value
         allow_extended_text:
           type: boolean
-          description: Shows a text box when chosen; not writable, so a write may only repeat the current value
+          description: Shows a text box when chosen
         extended_text_required:
           type: boolean
-          description: The text box must be filled in; not writable, so a write may only repeat the current value
+          description: The text box must be filled in
+        extended_text_placeholder:
+          type:
+          - string
+          - 'null'
+          description: Hint shown in the empty text box
         description_text:
           type:
           - string
@@ -36313,10 +37797,15 @@ components:
           description: Hidden from fillers; not writable, so a write may only repeat the current value
         allow_extended_text:
           type: boolean
-          description: Shows a text box when chosen; not writable, so a write may only repeat the current value
+          description: Shows a text box when chosen
         extended_text_required:
           type: boolean
-          description: The text box must be filled in; not writable, so a write may only repeat the current value
+          description: The text box must be filled in
+        extended_text_placeholder:
+          type:
+          - string
+          - 'null'
+          description: Hint shown in the empty text box
         description_text:
           type:
           - string
@@ -36446,6 +37935,14 @@ components:
           type:
           - string
           - 'null'
+        presentation_style:
+          type:
+          - string
+          - 'null'
+          enum:
+          - list
+          - dropdown
+          -
         random_choices:
           type: boolean
         hide_choice_when_quota_empty:
@@ -36790,6 +38287,7 @@ components:
       - private
       - calculable
       - choices_layout
+      - presentation_style
       - random_choices
       - minimum_length
       - maximum_length
@@ -36820,6 +38318,14 @@ components:
           type:
           - string
           - 'null'
+        presentation_style:
+          type:
+          - string
+          - 'null'
+          enum:
+          - list
+          - dropdown
+          -
         random_choices:
           type: boolean
         minimum_length:
@@ -38504,6 +40010,12 @@ components:
           - string
           - 'null'
           description: Text shown under the field label
+        customized_validation_message:
+          type:
+          - string
+          - 'null'
+          maxLength: 50
+          description: Message a filler sees in place of the default one when an answer fails a check of this field, such as required, unique (a duplicate) or a format; null or an empty string for the default messages
         private:
           type: boolean
           description: 'Hidden field: fillers do not see it, it is not checked for required, and an exam or evaluation does not score it'
